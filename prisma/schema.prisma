@@ -98,6 +98,24 @@ model Assignment {
   @@index([taskType])
 }
 
+/// Holiday - Colombian public holidays (festivos)
+/// Used by the Fairness Engine to skip assignments on non-working days
+/// Supports both fixed and movable holidays (Ley Emiliani)
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime // the exact date of the holiday
+  name        String   // e.g. "Año Nuevo", "Día del Trabajo"
+  type        String   @default("national") // national, regional, local
+  isRecurring Boolean  @default(true) // true = same date every year (fixed), false = specific year only
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, name])
+  @@index([date])
+  @@index([isActive])
+}
+
 /// AuditLog - Complete audit trail for all modifications
 /// Records WHO did WHAT, WHEN, and WHAT CHANGED
 model AuditLog {

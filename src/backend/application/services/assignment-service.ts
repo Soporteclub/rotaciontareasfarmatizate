@@ -2,7 +2,7 @@
 // Uses the Fairness Engine for fair distribution
 // Historical assignments are IMMUTABLE, only future can be regenerated
 
-import { assignmentRepository, employeeRepository, ruleRepository, auditLogRepository } from "@/backend/infrastructure/repositories";
+import { assignmentRepository, employeeRepository, ruleRepository, auditLogRepository, holidayRepository } from "@/backend/infrastructure/repositories";
 import { FairnessEngine } from "@/backend/domain/fairness";
 import type { FairnessEngineInput } from "@/backend/domain/fairness";
 import type { GenerateAssignmentsInput } from "@/backend/application/validators/schemas";
@@ -60,7 +60,13 @@ export const assignmentService = {
       new Date("2030-12-31")  // far future
     );
 
-    // 4. Prepare fairness engine input
+    // 4. Get holidays for the date range
+    const holidaySet = await holidayRepository.getHolidayDateSet(
+      new Date("2020-01-01"),
+      new Date("2030-12-31")
+    );
+
+    // 5. Prepare fairness engine input
     const fairnessInput: FairnessEngineInput = {
       employees: employees.map((e) => ({
         id: e.id,
@@ -91,12 +97,13 @@ export const assignmentService = {
       groupId,
       startDate,
       endDate,
+      holidays: holidaySet,
     };
 
-    // 5. Run fairness engine
+    // 6. Run fairness engine
     const report = fairnessEngine.generateAssignments(fairnessInput);
 
-    // 6. Transactional regeneration (safe, atomic)
+    // 7. Transactional regeneration (safe, atomic)
     const newAssignmentData = report.assignments.map((a) => ({
       employeeId: a.employeeId,
       groupId: a.groupId,
@@ -122,7 +129,7 @@ export const assignmentService = {
       [...lockedPastAssignments, ...futureAssignments]
     );
 
-    // 7. Audit log
+    // 8. Audit log
     await auditLogRepository.create({
       entityType: "assignment",
       entityId: "batch",

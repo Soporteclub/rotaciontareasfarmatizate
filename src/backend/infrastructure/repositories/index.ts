@@ -4,3 +4,4 @@ export { employeeRepository } from "./employee-repository";
 export { ruleRepository } from "./rule-repository";
 export { assignmentRepository } from "./assignment-repository";
 export { auditLogRepository } from "./audit-log-repository";
+export { holidayRepository } from "./holiday-repository";

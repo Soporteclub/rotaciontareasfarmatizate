@@ -12,6 +12,7 @@ export async function POST() {
     await db.assignmentRule.deleteMany();
     await db.employee.deleteMany();
     await db.assignmentGroup.deleteMany();
+    await db.holiday.deleteMany();
 
     return NextResponse.json({ message: "Base de datos reiniciada exitosamente" });
   } catch (error) {
