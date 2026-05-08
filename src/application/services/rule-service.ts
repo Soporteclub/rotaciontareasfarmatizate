@@ -25,21 +25,18 @@ export const ruleService = {
       throw new Error("El grupo especificado no existe");
     }
 
-    // Check for duplicate rule (same group, same day, same frequency)
+    // Check for duplicate rule (same group, same day, same taskLabel)
+    // Multiple tasks can exist on the same day (e.g. "Sacar Basura" and "Lavar Cafetera" on Tuesday)
     const existingRules = await ruleRepository.findByGroup(input.groupId);
     const duplicate = existingRules.find(
-      (r) => r.dayOfWeek === input.dayOfWeek && r.frequency === input.frequency
+      (r) => r.dayOfWeek === input.dayOfWeek && r.taskLabel === input.taskLabel && r.frequency === input.frequency
     );
     if (duplicate) {
-      throw new Error("Ya existe una regla para este día y frecuencia en el grupo");
+      throw new Error("Ya existe una regla para este día y tarea en el grupo");
     }
 
-    // Validate: group must have at least 1 active employee
-    const { employeeRepository } = await import("@/infrastructure/repositories");
-    const empCount = await employeeRepository.countByGroup(input.groupId);
-    if (empCount === 0) {
-      throw new Error("El grupo debe tener al menos un empleado activo antes de crear reglas");
-    }
+    // Note: We don't require employees to exist before creating rules anymore
+    // Rules can be created first, then employees added
 
     const data: Prisma.AssignmentRuleCreateInput = {
       dayOfWeek: input.dayOfWeek,

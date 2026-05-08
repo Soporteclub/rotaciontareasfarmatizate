@@ -29,7 +29,7 @@ export interface AssignmentRuleEntity {
   groupId: string;
   dayOfWeek: DayOfWeek;
   frequency: number;
-  taskLabel: string | null;
+  taskLabel: string; // REQUIRED: defines the specific task (e.g. "Sacar Basura", "Lavar Cafetera")
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
@@ -43,7 +43,7 @@ export interface AssignmentEntity {
   employeeId: string;
   ruleId: string | null;
   date: Date;
-  taskType: string | null;
+  taskType: string; // REQUIRED: the specific task (e.g. "Sacar Basura", "Lavar Cafetera")
   isLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -83,6 +83,17 @@ export const TASK_TYPES = [
   { value: "closing", label: "Cierre Oficina" },
   { value: "inventory", label: "Inventarios" },
   { value: "other", label: "Otro" },
+] as const;
+
+// Common task labels used in rules - these are what appear on the calendar
+export const TASK_LABELS = [
+  "Sacar Basura",
+  "Lavar Cafetera",
+  "Aseo General",
+  "Organizar Cocina",
+  "Recepción",
+  "Apertura",
+  "Cierre",
 ] as const;
 
 export type TaskType = (typeof TASK_TYPES)[number]["value"];

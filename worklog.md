@@ -1,24 +1,31 @@
 ---
 Task ID: 1
-Agent: main
-Task: Build comprehensive rotating task assignment system with 20 critical requirements
+Agent: Main Agent
+Task: Reconfigure rotating task assignment system for 2 groups with specific task rules
 
 Work Log:
-- Designed and implemented Prisma schema with AssignmentGroup, Employee, AssignmentRule, Assignment, AuditLog entities
-- Built FairnessEngine as independent module with weighted round robin, cooldown, monthly/yearly balance, consecutive penalties
-- Created clean architecture layers: domain, infrastructure, application, presentation
-- Implemented repositories: group, employee, rule, assignment, audit-log
-- Implemented services: group, employee, rule, assignment, audit
-- Created API routes: groups, employees, rules, assignments, assignments/generate, assignments/balance, audit, seed, reset
-- Built frontend modules: Dashboard, Groups, Employees, Rules, Calendar (FullCalendar), Audit
-- Used TanStack Query for data fetching, Zustand for minimal UI state
-- Seeded demo data with 4 groups, 14 employees, 15 rules, historical assignments
-- Tested assignment generation: 32 assignments generated with near-perfect balance (fairness scores ~0)
-- All lint checks pass
+- Modified Prisma schema: `taskLabel` now required on `AssignmentRule`, `taskType` required on `Assignment`
+- Changed unique constraint from `@@unique([groupId, date])` to `@@unique([groupId, date, taskType])` to support multiple tasks per day
+- Added `@@unique([groupId, dayOfWeek, taskLabel])` on AssignmentRule to prevent duplicate rules
+- Updated FairnessEngine: included `taskType` in existing assignments map key (`groupId:date:taskType`), added same-day penalty (5.0) to avoid assigning same person multiple tasks on same day
+- Updated domain types: `taskLabel` and `taskType` now required (not nullable)
+- Added `TASK_LABELS` constant with common task labels
+- Updated assignment repository: `findByGroupAndDate` now returns `findMany` instead of `findUnique`
+- Updated assignment service: passes `taskType` through to FairnessEngine from historical data
+- Updated validators: `taskLabel` now required on create/update rule schemas
+- Updated rule service: duplicate check now considers `taskLabel` (allows different tasks on same day)
+- Updated seed route: 2 groups (Piso 1, Piso 2), each with "Sacar Basura" (Tue/Thu) and "Lavar Cafetera" (Mon-Fri)
+- Replaced FullCalendar with lightweight custom calendar (sandbox memory limitations)
+- Custom calendar shows task assignments with color-coded tasks (red=Basura, blue=Cafetera)
+- Updated dashboard: weekends shown, task labels, group filter, generate buttons
+- Updated rules module: taskLabel as required select field with custom option
+- Pushed schema, seeded database, generated assignments for both groups
+- Server verified working with all API endpoints
 
 Stage Summary:
-- Complete rotating task assignment system built
-- Fairness engine works correctly with weighted scoring
-- All 20 critical requirements implemented
-- Demo data seeded and working
-- Application running on http://localhost:3000
+- System now supports multiple tasks per day per group (e.g. "Sacar Basura" + "Lavar Cafetera" on Tuesday)
+- Two groups: Piso 1 and Piso 2, each with 5 employees and 7 rules
+- Seed data: "Sacar Basura" on Tuesdays/Thursdays, "Lavar Cafetera" on Mon-Fri
+- FairnessEngine handles same-day task distribution with penalty for double-assignment
+- Lightweight calendar replaces FullCalendar due to sandbox memory constraints
+- All code changes maintain flexibility to add new tasks (like "Aseo General")

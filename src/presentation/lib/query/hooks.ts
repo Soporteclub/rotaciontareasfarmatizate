@@ -54,7 +54,7 @@ export interface RuleResponse {
   groupId: string;
   dayOfWeek: number;
   frequency: number;
-  taskLabel: string | null;
+  taskLabel: string; // REQUIRED: defines the specific task
   validFrom: string;
   validTo: string | null;
   isActive: boolean;
@@ -69,7 +69,7 @@ export interface AssignmentResponse {
   employeeId: string;
   ruleId: string | null;
   date: string;
-  taskType: string | null;
+  taskType: string; // REQUIRED: the specific task (e.g. "Sacar Basura", "Lavar Cafetera")
   isLocked: boolean;
   createdAt: string;
   updatedAt: string;

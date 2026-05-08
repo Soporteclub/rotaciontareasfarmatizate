@@ -85,6 +85,7 @@ export const assignmentService = {
         employeeId: a.employeeId,
         groupId: a.groupId,
         date: a.date,
+        taskType: a.taskType,
         isLocked: a.isLocked,
       })),
       groupId,
