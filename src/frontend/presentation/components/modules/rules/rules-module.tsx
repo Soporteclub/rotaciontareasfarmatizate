@@ -461,6 +461,7 @@ export function RulesModule() {
           </Button>
           <Button
             className="flex items-center gap-2"
+            style={{ backgroundColor: "#f15a24" }}
             onClick={() => {
               resetForm();
               setDialogOpen(true);
@@ -962,6 +963,7 @@ export function RulesModule() {
             <Button
               onClick={handleSubmit}
               className="w-full"
+              style={{ backgroundColor: "#f15a24" }}
               disabled={createRule.isPending}
             >
               {createRule.isPending ? (

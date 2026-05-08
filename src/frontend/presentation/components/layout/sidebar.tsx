@@ -7,14 +7,14 @@ import {
   ScrollText,
   Menu,
   X,
-  Recycle,
+  Building2,
   ChevronDown,
-  Scale,
   ClipboardCheck,
 } from "lucide-react";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import Image from "next/image";
 
 type NavItem = {
   id: "calendar" | "groups" | "employees" | "rules" | "audit";
@@ -34,7 +34,7 @@ const mainItems: NavItem[] = [
 ];
 
 const configItems: NavItem[] = [
-  { id: "groups", label: "Grupos", icon: <Scale className="h-4 w-4" />, section: "config", description: "Pisos / áreas" },
+  { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas" },
   { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal" },
   { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación" },
 ];
@@ -73,15 +73,29 @@ export function Sidebar() {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-border">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground shrink-0">
-            <Recycle className="h-4 w-4" />
-          </div>
-          {sidebarOpen && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm truncate">Rotación</span>
-              <span className="text-[10px] text-muted-foreground">Asignación justa</span>
-            </div>
+        <div className="flex items-center gap-3 px-3 py-4 border-b border-border bg-[#1545cb]">
+          {sidebarOpen ? (
+            <>
+              <Image
+                src="/logo-club.png"
+                alt="Farmatízate"
+                width={59}
+                height={32}
+                className="shrink-0"
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="font-semibold text-sm truncate text-white">Farmatízate</span>
+                <span className="text-[10px] text-white/70">Rotación de Tareas</span>
+              </div>
+            </>
+          ) : (
+            <Image
+              src="/logo-club.png"
+              alt="Farmatízate"
+              width={24}
+              height={13}
+              className="shrink-0 mx-auto"
+            />
           )}
         </div>
 
@@ -98,7 +112,7 @@ export function Sidebar() {
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 activeView === item.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-[#1545cb] text-white"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
@@ -109,7 +123,7 @@ export function Sidebar() {
                   {item.description && (
                     <span className={cn(
                       "text-[10px]",
-                      activeView === item.id ? "text-primary-foreground/70" : "text-muted-foreground/60"
+                      activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
                     )}>
                       {item.description}
                     </span>
@@ -145,7 +159,7 @@ export function Sidebar() {
               className={cn(
                 "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
                 activeView === item.id
-                  ? "bg-primary text-primary-foreground font-medium"
+                  ? "bg-[#1545cb] text-white font-medium"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
@@ -156,7 +170,7 @@ export function Sidebar() {
                   {item.description && (
                     <span className={cn(
                       "text-[10px]",
-                      activeView === item.id ? "text-primary-foreground/70" : "text-muted-foreground/60"
+                      activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
                     )}>
                       {item.description}
                     </span>
@@ -178,7 +192,7 @@ export function Sidebar() {
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
                   activeView === item.id
-                    ? "bg-primary text-primary-foreground font-medium"
+                    ? "bg-[#1545cb] text-white font-medium"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
@@ -192,7 +206,7 @@ export function Sidebar() {
         {/* Footer */}
         {sidebarOpen && (
           <div className="px-3 py-2 border-t border-border">
-            <p className="text-[10px] text-muted-foreground">v1.0 • Fairness Engine</p>
+            <p className="text-[10px] text-muted-foreground">Farmatízate v1.0</p>
           </div>
         )}
       </aside>
