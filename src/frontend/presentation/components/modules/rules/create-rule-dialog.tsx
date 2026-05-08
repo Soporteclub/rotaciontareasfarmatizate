@@ -4,7 +4,6 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Sparkles, Users } from "lucide-react";
 import { TASK_LABELS } from "@/backend/domain/entities/types";
-import type { DayOfWeek } from "@/backend/domain/entities/types";
+import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import { useCreateRule } from "@/frontend/presentation/lib/query/hooks";
@@ -33,7 +32,7 @@ import {
   DAY_ABBR,
   FREQUENCY_OPTIONS,
   getTaskConfig,
-  getFrequencyLabel,
+  getFrequencyTypeLabel,
 } from "./rules-constants";
 
 interface CreateRuleDialogProps {
@@ -46,7 +45,7 @@ interface CreateRuleDialogProps {
 interface FormState {
   taskLabel: string;
   selectedDays: DayOfWeek[];
-  frequency: string;
+  frequencyType: FrequencyType;
   groupId: string;
   applyToAllGroups: boolean;
 }
@@ -54,7 +53,7 @@ interface FormState {
 const INITIAL_FORM: FormState = {
   taskLabel: "",
   selectedDays: [],
-  frequency: "1",
+  frequencyType: "weekly",
   groupId: "",
   applyToAllGroups: false,
 };
@@ -91,6 +90,7 @@ export function CreateRuleDialog({
       taskLabel: template.taskLabel,
       selectedDays: template.days,
       applyToAllGroups: template.applyToAllGroups,
+      frequencyType: template.frequencyType,
     }));
   }, []);
 
@@ -118,7 +118,9 @@ export function CreateRuleDialog({
         toast.error("La etiqueta de tarea es requerida");
         return;
       }
-      if (form.selectedDays.length === 0) {
+
+      // Daily rules don't need specific days — they apply to all weekdays
+      if (form.frequencyType !== "daily" && form.selectedDays.length === 0) {
         toast.error("Selecciona al menos un día");
         return;
       }
@@ -132,23 +134,37 @@ export function CreateRuleDialog({
         return;
       }
 
+      // For daily frequency, create ONE rule per group (dayOfWeek is ignored)
+      // For weekly/monthly, create one rule per day per group
       const promises: Promise<unknown>[] = [];
+
       for (const groupId of targetGroupIds) {
-        for (const day of form.selectedDays) {
+        if (form.frequencyType === "daily") {
           promises.push(
             createRule.mutateAsync({
               groupId,
-              dayOfWeek: day,
-              frequency: parseInt(form.frequency),
+              dayOfWeek: 1, // arbitrary — ignored for daily
+              frequencyType: form.frequencyType,
               taskLabel,
             })
           );
+        } else {
+          for (const day of form.selectedDays) {
+            promises.push(
+              createRule.mutateAsync({
+                groupId,
+                dayOfWeek: day,
+                frequencyType: form.frequencyType,
+                taskLabel,
+              })
+            );
+          }
         }
       }
 
       await Promise.all(promises);
 
-      const totalCreated = targetGroupIds.length * form.selectedDays.length;
+      const totalCreated = promises.length;
       toast.success(
         `Se crearon ${totalCreated} regla${totalCreated !== 1 ? "s" : ""}${
           form.applyToAllGroups ? " para todos los grupos" : ""
@@ -266,93 +282,119 @@ export function CreateRuleDialog({
             )}
           </div>
 
-          {/* Paso 3: Días de la semana */}
+          {/* Paso 3: Frecuencia */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">
-                3. Días de la semana
-              </Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={selectWeekdays}
-                >
-                  Lun-Vie
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={clearDays}
-                >
-                  Limpiar
-                </Button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {ALL_DAYS.map((d) => {
-                const isChecked = form.selectedDays.includes(d);
-                const isWeekend = d === 0 || d === 6;
-                const config = getTaskConfig(form.taskLabel);
-                return (
-                  <label
-                    key={d}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
-                      isChecked
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : isWeekend
-                        ? "border-border bg-muted/30 hover:border-primary/30"
-                        : "border-border hover:border-primary/30"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => toggleDay(d)}
-                      className={
-                        isChecked
-                          ? ""
-                          : "data-[state=unchecked]:border-muted-foreground/40"
-                      }
-                      style={
-                        isChecked
-                          ? {
-                              backgroundColor: config.color,
-                              borderColor: config.color,
-                            }
-                          : undefined
-                      }
-                    />
-                    <span
-                      className={`text-sm font-medium ${
-                        isChecked
-                          ? ""
-                          : isWeekend
-                          ? "text-muted-foreground/60"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {DAY_ABBR[d]}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-            {form.selectedDays.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Seleccionados:{" "}
-                {form.selectedDays
-                  .sort()
-                  .map((d) => DAY_ABBR[d])
-                  .join(", ")}
-              </p>
-            )}
+            <Label className="text-sm font-semibold">
+              3. Frecuencia
+            </Label>
+            <Select
+              value={form.frequencyType}
+              onValueChange={(v) =>
+                setForm((f) => ({ ...f, frequencyType: v as FrequencyType }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label} — {opt.description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Paso 4: Grupo */}
+          {/* Paso 4: Días de la semana (solo si no es diaria) */}
+          {form.frequencyType !== "daily" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">
+                  4. Días de la semana
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={selectWeekdays}
+                  >
+                    Lun-Vie
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={clearDays}
+                  >
+                    Limpiar
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {ALL_DAYS.map((d) => {
+                  const isChecked = form.selectedDays.includes(d);
+                  const isWeekend = d === 0 || d === 6;
+                  const config = getTaskConfig(form.taskLabel);
+                  return (
+                    <label
+                      key={d}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
+                        isChecked
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : isWeekend
+                          ? "border-border bg-muted/30 hover:border-primary/30"
+                          : "border-border hover:border-primary/30"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleDay(d)}
+                        className={
+                          isChecked
+                            ? ""
+                            : "data-[state=unchecked]:border-muted-foreground/40"
+                        }
+                        style={
+                          isChecked
+                            ? {
+                                backgroundColor: config.color,
+                                borderColor: config.color,
+                              }
+                            : undefined
+                        }
+                      />
+                      <span
+                        className={`text-sm font-medium ${
+                          isChecked
+                            ? ""
+                            : isWeekend
+                            ? "text-muted-foreground/60"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {DAY_ABBR[d]}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {form.selectedDays.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Seleccionados:{" "}
+                  {form.selectedDays
+                    .sort()
+                    .map((d) => DAY_ABBR[d])
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Paso 5: Grupo */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">4. Grupo</Label>
+            <Label className="text-sm font-semibold">{form.frequencyType !== "daily" ? "5" : "4"}. Grupo</Label>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -407,32 +449,8 @@ export function CreateRuleDialog({
             </div>
           </div>
 
-          {/* Paso 5: Frecuencia */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">
-              5. Frecuencia
-            </Label>
-            <Select
-              value={form.frequency}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, frequency: v }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {FREQUENCY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={String(opt.value)}>
-                    {opt.label} — {opt.description}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Resumen */}
-          {form.taskLabel && form.selectedDays.length > 0 && (
+          {form.taskLabel && (form.frequencyType === "daily" || form.selectedDays.length > 0) && (
             <div
               className="p-3 rounded-lg border"
               style={{
@@ -444,28 +462,31 @@ export function CreateRuleDialog({
               <p className="text-xs text-muted-foreground">
                 <TaskIcon taskType={form.taskLabel} size="xs" showBg={false} />{" "}
                 <strong>{form.taskLabel}</strong> ·{" "}
-                {form.selectedDays
-                  .sort()
-                  .map((d) => DAY_ABBR[d])
-                  .join(", ")}{" "}
+                {form.frequencyType === "daily"
+                  ? "Todos los días hábiles (Lun-Vie)"
+                  : form.selectedDays
+                      .sort()
+                      .map((d) => DAY_ABBR[d])
+                      .join(", ")}{" "}
                 ·{" "}
                 {form.applyToAllGroups
                   ? "Todos los grupos"
                   : groups?.find(
                       (g) => g.id === (form.groupId || selectedGroupId)
                     )?.name ?? "Sin grupo"}{" "}
-                · {getFrequencyLabel(parseInt(form.frequency))}
+                · {getFrequencyTypeLabel(form.frequencyType)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Se crearán{" "}
                 <strong>
-                  {(form.applyToAllGroups ? groups?.length ?? 0 : 1) *
-                    form.selectedDays.length}
+                  {form.frequencyType === "daily"
+                    ? form.applyToAllGroups ? groups?.length ?? 0 : 1
+                    : (form.applyToAllGroups ? groups?.length ?? 0 : 1) * form.selectedDays.length}
                 </strong>{" "}
                 regla
-                {(form.applyToAllGroups ? groups?.length ?? 0 : 1) *
-                  form.selectedDays.length !==
-                1
+                {(form.frequencyType === "daily"
+                  ? form.applyToAllGroups ? groups?.length ?? 0 : 1
+                  : (form.applyToAllGroups ? groups?.length ?? 0 : 1) * form.selectedDays.length) !== 1
                   ? "s"
                   : ""}
               </p>

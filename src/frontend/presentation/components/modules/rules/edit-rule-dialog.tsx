@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,11 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Pencil } from "lucide-react";
 import { TASK_LABELS } from "@/backend/domain/entities/types";
-import type { DayOfWeek } from "@/backend/domain/entities/types";
+import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
 import { useUpdateRule } from "@/frontend/presentation/lib/query/hooks";
 import type { RuleResponse } from "@/frontend/presentation/lib/query/hooks";
-import { FREQUENCY_OPTIONS, ALL_DAYS, DAY_ABBR } from "./rules-constants";
+import { FREQUENCY_OPTIONS, ALL_DAYS, DAY_ABBR, getFrequencyTypeLabel } from "./rules-constants";
 
 interface EditRuleDialogProps {
   open: boolean;
@@ -71,7 +71,9 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
   const updateRule = useUpdateRule();
   const [taskLabel, setTaskLabel] = useState(rule.taskLabel);
   const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(rule.dayOfWeek as DayOfWeek);
-  const [frequency, setFrequency] = useState(String(rule.frequency));
+  const [frequencyType, setFrequencyType] = useState<FrequencyType>(
+    (rule.frequencyType as FrequencyType) || "weekly"
+  );
 
   const handleSubmit = async () => {
     try {
@@ -85,7 +87,7 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
         id: rule.id,
         taskLabel: trimmedLabel,
         dayOfWeek,
-        frequency: parseInt(frequency),
+        frequencyType,
       });
 
       toast.success("Regla actualizada");
@@ -150,47 +152,49 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
           )}
         </div>
 
-        {/* Día de la semana */}
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">Día de la semana</Label>
-          <Select
-            value={String(dayOfWeek)}
-            onValueChange={(v) =>
-              setDayOfWeek(parseInt(v) as DayOfWeek)
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ALL_DAYS.map((d) => (
-                <SelectItem key={d} value={String(d)}>
-                  {DAY_ABBR[d]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Frecuencia */}
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Frecuencia</Label>
           <Select
-            value={frequency}
-            onValueChange={(v) => setFrequency(v)}
+            value={frequencyType}
+            onValueChange={(v) => setFrequencyType(v as FrequencyType)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {FREQUENCY_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={String(opt.value)}>
+                <SelectItem key={opt.value} value={opt.value}>
                   {opt.label} — {opt.description}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
+
+        {/* Día de la semana (solo si no es diaria) */}
+        {frequencyType !== "daily" && (
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Día de la semana</Label>
+            <Select
+              value={String(dayOfWeek)}
+              onValueChange={(v) =>
+                setDayOfWeek(parseInt(v) as DayOfWeek)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_DAYS.map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {DAY_ABBR[d]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <DialogFooter>

@@ -1,26 +1,35 @@
-import { DAY_NAMES } from "@/backend/domain/entities/types";
-import type { DayOfWeek } from "@/backend/domain/entities/types";
+import { DAY_NAMES, FREQUENCY_TYPE_LABELS } from "@/backend/domain/entities/types";
+import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 
 // ─── Días de la semana ─────────────────────────────────────────
 export const WEEKDAYS: DayOfWeek[] = [1, 2, 3, 4, 5];
 export const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
 
-// ─── Frecuencias ───────────────────────────────────────────────
-export const FREQUENCY_LABELS: Record<number, string> = {
-  1: "Semanal",
-  2: "Quincenal",
-  4: "Mensual",
-};
+// ─── Tipos de frecuencia ───────────────────────────────────────
+export interface FrequencyOption {
+  value: FrequencyType;
+  label: string;
+  description: string;
+}
 
-export const FREQUENCY_OPTIONS: { value: number; label: string; description: string }[] = [
-  { value: 1, label: "Semanal", description: "Cada semana" },
-  { value: 2, label: "Quincenal", description: "Cada 2 semanas" },
-  { value: 4, label: "Mensual", description: "Cada 4 semanas" },
+export const FREQUENCY_OPTIONS: FrequencyOption[] = [
+  { value: "daily", label: "Diaria", description: "Todos los días hábiles (Lun-Vie)" },
+  { value: "weekly", label: "Semanal", description: "Día específico cada semana" },
+  { value: "monthly", label: "Mensual", description: "Día específico una vez al mes" },
 ];
 
+export function getFrequencyTypeLabel(frequencyType: string): string {
+  if (frequencyType in FREQUENCY_TYPE_LABELS) {
+    return FREQUENCY_TYPE_LABELS[frequencyType as FrequencyType];
+  }
+  return frequencyType;
+}
+
+// Legacy: kept for backward compat with old data
 export function getFrequencyLabel(frequency: number): string {
-  return FREQUENCY_LABELS[frequency] ?? `Cada ${frequency} semanas`;
+  const labels: Record<number, string> = { 1: "Semanal", 2: "Quincenal", 4: "Mensual" };
+  return labels[frequency] ?? `Cada ${frequency} semanas`;
 }
 
 export const DAY_ABBR: Record<number, string> = {
@@ -42,6 +51,7 @@ export interface RuleTemplate {
   taskLabel: string;
   days: DayOfWeek[];
   applyToAllGroups: boolean;
+  frequencyType: FrequencyType;
 }
 
 export const TEMPLATES: RuleTemplate[] = [
@@ -53,6 +63,7 @@ export const TEMPLATES: RuleTemplate[] = [
     taskLabel: "Sacar Basura",
     days: [2, 4],
     applyToAllGroups: false,
+    frequencyType: "weekly",
   },
   {
     id: "cafetera",
@@ -62,6 +73,7 @@ export const TEMPLATES: RuleTemplate[] = [
     taskLabel: "Lavar Cafetera",
     days: [1, 2, 3, 4, 5],
     applyToAllGroups: false,
+    frequencyType: "weekly",
   },
   {
     id: "aseo",
@@ -71,6 +83,7 @@ export const TEMPLATES: RuleTemplate[] = [
     taskLabel: "Aseo General",
     days: [5],
     applyToAllGroups: true,
+    frequencyType: "weekly",
   },
   {
     id: "custom",
@@ -80,6 +93,7 @@ export const TEMPLATES: RuleTemplate[] = [
     taskLabel: "",
     days: [],
     applyToAllGroups: false,
+    frequencyType: "weekly",
   },
 ];
 
@@ -99,27 +113,15 @@ export function getDaySummary(days: Set<DayOfWeek>): string {
   if (sorted.length === 0) return "Ningún día";
   if (sorted.length === 7) return "Todos los días";
 
-  if (
-    sorted.length === 5 &&
-    WEEKDAYS.every((d) => sorted.includes(d))
-  ) {
+  if (sorted.length === 5 && WEEKDAYS.every((d) => sorted.includes(d))) {
     return "Lunes a Viernes";
   }
 
-  if (
-    sorted.length === 2 &&
-    sorted.includes(2) &&
-    sorted.includes(4)
-  ) {
+  if (sorted.length === 2 && sorted.includes(2) && sorted.includes(4)) {
     return "Martes y Jueves";
   }
 
-  if (
-    sorted.length === 3 &&
-    sorted.includes(1) &&
-    sorted.includes(3) &&
-    sorted.includes(5)
-  ) {
+  if (sorted.length === 3 && sorted.includes(1) && sorted.includes(3) && sorted.includes(5)) {
     return "Lunes, Miércoles y Viernes";
   }
 

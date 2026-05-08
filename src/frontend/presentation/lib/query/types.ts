@@ -32,6 +32,7 @@ export interface RuleResponse {
   id: string;
   groupId: string;
   dayOfWeek: number;
+  frequencyType: string;
   frequency: number;
   taskLabel: string;
   validFrom: string;

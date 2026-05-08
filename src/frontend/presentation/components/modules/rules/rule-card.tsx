@@ -8,7 +8,7 @@ import { DAY_NAMES } from "@/backend/domain/entities/types";
 import type { DayOfWeek } from "@/backend/domain/entities/types";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import type { RuleResponse, GroupResponse } from "@/frontend/presentation/lib/query/hooks";
-import { getTaskConfig, getDaySummary, getFrequencyLabel } from "./rules-constants";
+import { getTaskConfig, getDaySummary, getFrequencyTypeLabel, getFrequencyLabel } from "./rules-constants";
 import { WeeklyStrip } from "./weekly-strip";
 
 interface TaskGroupCardProps {
@@ -39,6 +39,11 @@ export function TaskGroupCard({
     groupIds.size === groups.length &&
     groups.every((g) => groupIds.has(g.id));
   const freqValue = Array.from(frequencies)[0] ?? 1;
+  const firstRule = taskRules[0];
+  const isDaily = firstRule?.frequencyType === "daily";
+
+  // For daily rules, show all weekdays in the strip
+  const displayDays = isDaily ? [1, 2, 3, 4, 5] as DayOfWeek[] : sortedDays;
 
   return (
     <Card className="overflow-hidden" style={{ borderLeft: `4px solid ${config.color}` }}>
@@ -50,8 +55,8 @@ export function TaskGroupCard({
             <div>
               <h3 className="font-semibold text-base">{taskLabel}</h3>
               <p className="text-sm text-muted-foreground">
-                Aplica {getDaySummary(days)}
-                {freqValue > 1 && ` · ${getFrequencyLabel(freqValue)}`}
+                {isDaily ? "Todos los días hábiles (Lun-Vie)" : `Aplica ${getDaySummary(days)}`}
+                {" · "}{getFrequencyTypeLabel(firstRule?.frequencyType || "weekly")}
               </p>
             </div>
           </div>
@@ -87,7 +92,7 @@ export function TaskGroupCard({
 
         {/* Strip semanal */}
         <div className="mb-4">
-          <WeeklyStrip activeDays={sortedDays} color={config.color} />
+          <WeeklyStrip activeDays={displayDays} color={config.color} />
         </div>
 
         {/* Lista de reglas individuales */}
@@ -95,6 +100,7 @@ export function TaskGroupCard({
           {taskRules.map((rule) => {
             const groupName =
               groups?.find((g) => g.id === rule.groupId)?.name ?? "??";
+            const isDailyRule = rule.frequencyType === "daily";
             return (
               <div
                 key={rule.id}
@@ -106,10 +112,10 @@ export function TaskGroupCard({
                     style={{ color: config.color }}
                   />
                   <span className="font-medium">
-                    {DAY_NAMES[rule.dayOfWeek as DayOfWeek]}
+                    {isDailyRule ? "Lun-Vie" : DAY_NAMES[rule.dayOfWeek as DayOfWeek]}
                   </span>
                   <span className="text-muted-foreground text-xs">
-                    · {getFrequencyLabel(rule.frequency)}
+                    · {getFrequencyTypeLabel(rule.frequencyType || "weekly")}
                   </span>
                   <span className="text-muted-foreground text-xs">
                     · {groupName}
