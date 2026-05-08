@@ -96,3 +96,29 @@ Stage Summary:
 - Regenerate button: regenerates assignments for all groups from the rules page
 - Visual design uses task-specific colors and emojis consistently
 - Maintains flexibility: custom task labels and manual day selection still available
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix preview (502 Bad Gateway) and verify system functionality
+
+Work Log:
+- Diagnosed 502 Bad Gateway: dev server process was not running on port 3000
+- Previous server process had died (no process on port 3000, no next/bun processes)
+- Multiple attempts to restart server in background — processes kept dying due to shell session limitations
+- Found working approach: `(nohup bash -c '...' &>/dev/null/ &)` with double-fork to detach from shell
+- Server successfully started on port 3000 with setsid + nohup approach
+- Verified all API endpoints responding correctly:
+  - GET /api/groups returns 2 groups (Piso 1, Piso 2) with 5 employees each and 7 rules each
+  - GET /api/assignments returns 56 assignments for May 2026
+  - Rules correctly configured: "Sacar Basura" (Tue/Thu), "Lavar Cafetera" (Mon-Fri) for both groups
+  - Historical assignments are locked (🔒), future assignments are unlocked (🔓)
+- Fixed sidebar UX: default `sidebarOpen` now checks viewport width (closed on mobile, open on desktop)
+- Lint passes cleanly with no errors
+- All system functionality verified working
+
+Stage Summary:
+- Preview fixed by restarting dev server on port 3000 (Caddy gateway routes to this port)
+- System fully operational with correct data: 2 groups, 10 employees, 14 rules, 56+ assignments
+- Sidebar no longer blocks content on mobile/narrow preview panels
+- All pending tasks from previous session were already implemented (seed data, task rules, calendar dashboard, cross-group rules)

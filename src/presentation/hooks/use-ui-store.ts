@@ -13,10 +13,18 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
 }
 
+// Sidebar closed by default on mobile, open on desktop
+const getInitialSidebarOpen = () => {
+  if (typeof window !== "undefined") {
+    return window.innerWidth >= 768;
+  }
+  return true;
+};
+
 export const useUIStore = create<UIState>((set) => ({
   activeView: "calendar",
   selectedGroupId: null,
-  sidebarOpen: true,
+  sidebarOpen: getInitialSidebarOpen(),
   setActiveView: (view) => set({ activeView: view }),
   setSelectedGroupId: (id) => set({ selectedGroupId: id }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
