@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rotación de Tareas - Sistema de Asignación Justa",
-  description: "Sistema profesional de asignación rotativa de tareas con motor de fairness, auditoría completa y arquitectura limpia.",
+  title: "Farmatízate - Rotación de Tareas",
+  description: "Sistema de asignación rotativa de tareas para Farmatízate by Club del Droguista",
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo-club.png",
   },
 };
 

@@ -22,13 +22,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, Users, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Check, X, FolderPlus } from "lucide-react";
 import { TASK_TYPES } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
 
 const COLORS = [
-  "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#06b6d4", "#ec4899", "#84cc16", "#f97316",
+  "#1545cb", "#066aab", "#f15a24", "#00cd98",
+  "#425ae0", "#a253d8", "#fe79a2", "#0affc0",
 ];
 
 export function GroupsModule() {
@@ -43,11 +43,11 @@ export function GroupsModule() {
     name: "",
     description: "",
     taskType: "cleaning" as string,
-    color: "#10b981",
+    color: "#1545cb",
   });
 
   const resetForm = () => {
-    setForm({ name: "", description: "", taskType: "cleaning", color: "#10b981" });
+    setForm({ name: "", description: "", taskType: "cleaning", color: "#1545cb" });
     setEditingId(null);
   };
 
@@ -119,13 +119,16 @@ export function GroupsModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Grupos</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Grupos</h1>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(21, 69, 203, 0.1)", color: "#1545cb" }}>Farmatízate</span>
+          </div>
           <p className="text-muted-foreground">Gestiona los grupos de tareas rotativas</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <Button className="flex items-center gap-2" style={{ backgroundColor: "#f15a24" }}>
+              <FolderPlus className="h-4 w-4" />
               Nuevo Grupo
             </Button>
           </DialogTrigger>

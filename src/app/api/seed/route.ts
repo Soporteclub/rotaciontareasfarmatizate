@@ -21,7 +21,7 @@ export async function POST() {
         name: "Piso 1",
         description: "Grupo de rotación de tareas para el Piso 1",
         taskType: "cleaning",
-        color: "#10b981", // emerald
+        color: "#1545cb", // Farmatizate brand blue
       },
     });
 
@@ -30,7 +30,7 @@ export async function POST() {
         name: "Piso 2",
         description: "Grupo de rotación de tareas para el Piso 2",
         taskType: "cleaning",
-        color: "#f59e0b", // amber
+        color: "#066aab", // Farmatizate secondary blue
       },
     });
 

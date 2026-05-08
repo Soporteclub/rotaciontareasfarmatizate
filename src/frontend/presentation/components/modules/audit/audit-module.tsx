@@ -32,13 +32,23 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  create: "bg-green-100 text-green-800",
-  update: "bg-blue-100 text-blue-800",
+  create: "bg-blue-100 text-blue-800",
+  update: "bg-sky-100 text-sky-800",
   delete: "bg-red-100 text-red-800",
   deactivate: "bg-orange-100 text-orange-800",
-  reactivate: "bg-emerald-100 text-emerald-800",
+  reactivate: "bg-teal-100 text-teal-800",
   regenerate: "bg-purple-100 text-purple-800",
   lock: "bg-gray-100 text-gray-800",
+};
+
+const ACTION_DOT_COLORS: Record<string, string> = {
+  create: "#1545cb",
+  update: "#066aab",
+  delete: "#dc2626",
+  deactivate: "#f15a24",
+  reactivate: "#00cd98",
+  regenerate: "#7c3aed",
+  lock: "#6b7280",
 };
 
 export function AuditModule() {
@@ -107,6 +117,7 @@ export function AuditModule() {
                         {ENTITY_LABELS[log.entityType] ?? log.entityType}
                       </Badge>
                       <Badge className={`text-xs ${ACTION_COLORS[log.action] ?? ""}`}>
+                        <span className="w-1.5 h-1.5 rounded-full mr-1 inline-block" style={{ backgroundColor: ACTION_DOT_COLORS[log.action] ?? "#6b7280" }} />
                         {ACTION_LABELS[log.action] ?? log.action}
                       </Badge>
                       {log.groupId && (

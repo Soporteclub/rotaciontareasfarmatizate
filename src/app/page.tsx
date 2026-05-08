@@ -24,8 +24,8 @@ function AppContent() {
           {activeView === "audit" && <AuditModule />}
         </main>
       </div>
-      <footer className="border-t border-border bg-card px-4 py-2 text-center text-[10px] text-muted-foreground">
-        Sistema de Asignación Rotativa • Motor de Fairness v1.0
+      <footer className="border-t border-[#1545cb] bg-[#1545cb] px-4 py-2 text-center text-[10px] text-white">
+        Farmatízate by Club del Droguista • Sistema de Rotación v1.0
       </footer>
     </div>
   );

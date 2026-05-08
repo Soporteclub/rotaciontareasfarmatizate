@@ -65,9 +65,9 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 // Generate a shade variant based on task type for additional distinction
 function getEventColor(groupColor: string, taskType: string): string {
   const taskColors: Record<string, string> = {
-    "Sacar Basura": "#ea580c",   // orange
-    "Lavar Cafetera": "#0d9488", // teal
-    "Aseo General": "#16a34a",   // emerald
+    "Sacar Basura": "#f15a24",   // brand orange
+    "Lavar Cafetera": "#00cd98", // brand teal
+    "Aseo General": "#1545cb",   // brand blue
   };
   const taskColor = taskColors[taskType];
   if (!taskColor) return groupColor;
@@ -381,7 +381,7 @@ export function DashboardModule() {
                 key={g.id}
                 onClick={() => openGenerateDialog(g.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow"
-                style={{ borderColor: g.color, color: g.color }}
+                style={{ borderColor: g.color, color: g.color, backgroundColor: `${g.color}10` }}
               >
                 <Play className="h-3 w-3" />
                 Generar {g.name}
@@ -463,7 +463,7 @@ export function DashboardModule() {
                   </Button>
                 </div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <CalendarHeart className="h-5 w-5 text-primary" />
+                  <CalendarHeart className="h-5 w-5" style={{ color: "#1545cb" }} />
                   {MONTH_NAMES[viewMonth]} {viewYear}
                 </h2>
               </div>
@@ -556,10 +556,10 @@ export function DashboardModule() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Fairness Engine Explanation */}
-          <Card className="border-primary/20 bg-primary/5">
+          <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Scale className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm flex items-center gap-2" style={{ color: "#1545cb" }}>
+                <Scale className="h-4 w-4" style={{ color: "#1545cb" }} />
                 Motor de Equidad
               </CardTitle>
             </CardHeader>
@@ -577,15 +577,15 @@ export function DashboardModule() {
               <div className="pt-1 border-t space-y-1">
                 <p className="font-medium text-foreground">Factores del puntaje:</p>
                 <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[10px]">
-                  <span className="font-medium text-emerald-600">+ Balance</span>
+                  <span className="font-medium" style={{ color: "#00cd98" }}>+ Balance</span>
                   <span>Menos tareas = más puntaje</span>
-                  <span className="font-medium text-emerald-600">+ Mensual</span>
+                  <span className="font-medium" style={{ color: "#00cd98" }}>+ Mensual</span>
                   <span>Equilibrio por mes</span>
-                  <span className="font-medium text-red-500">− Enfriamiento</span>
+                  <span className="font-medium" style={{ color: "#f15a24" }}>− Enfriamiento</span>
                   <span>Penaliza si fue reciente</span>
-                  <span className="font-medium text-red-500">− Consecutivas</span>
+                  <span className="font-medium" style={{ color: "#f15a24" }}>− Consecutivas</span>
                   <span>Penaliza rachas</span>
-                  <span className="font-medium text-red-500">− Mismo día</span>
+                  <span className="font-medium" style={{ color: "#f15a24" }}>− Mismo día</span>
                   <span>Evita doble tarea</span>
                 </div>
               </div>
@@ -774,7 +774,7 @@ export function DashboardModule() {
               <Lock className="h-4 w-4 shrink-0" />
               <span>Cada grupo rota de forma independiente. Las asignaciones pasadas están bloqueadas.</span>
             </div>
-            <Button onClick={handleGenerate} className="w-full" disabled={generateAssignments.isPending || !generateGroupId}>
+            <Button onClick={handleGenerate} className="w-full" style={{ backgroundColor: "#f15a24" }} disabled={generateAssignments.isPending || !generateGroupId}>
               {generateAssignments.isPending ? "Generando..." : "Generar Asignaciones"}
             </Button>
           </div>
