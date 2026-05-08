@@ -2,7 +2,7 @@
 // GET /api/assignments/balance?groupId=xxx - Get fairness balance report
 
 import { NextRequest, NextResponse } from "next/server";
-import { assignmentService } from "@/application/services/assignment-service";
+import { assignmentService } from "@/backend/application/services/assignment-service";
 
 export async function GET(request: NextRequest) {
   try {

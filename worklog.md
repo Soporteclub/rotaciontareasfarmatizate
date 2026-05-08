@@ -159,3 +159,47 @@ Stage Summary:
 - Icons upgraded from simple emojis to detailed Lucide SVG icons with styled colored containers
 - Independent per-floor rotation is now clearly communicated in the UI (sidebar, dialog text, template descriptions)
 - Shared TaskIcon component ensures consistent icon styling across all modules
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix calendar colors, add filters, reorganize backend/frontend folders, improve icons
+
+Work Log:
+- Implemented proper calendar color system:
+  - Events now use BLENDED colors from group + task type (60% group color + 40% task color)
+  - Group color is the PRIMARY identifier (emerald for Piso 1, amber for Piso 2)
+  - Task type provides secondary shade variation (orange for trash, teal for coffee)
+  - Added `getEventColor()` and `getEventBgColor()` utility functions for color blending
+  - Calendar cells show lock icon for historical assignments
+- Added comprehensive calendar filters:
+  - Search by employee name (text input with search icon and clear button)
+  - Filter by task/rule type (dropdown with TaskIcon + task name)
+  - Existing group filter retained
+  - "Clear filters" button when any filter is active
+  - Assignment count display updates based on filtered results
+- Reorganized project folder structure:
+  - Created `src/backend/` containing domain/, application/, infrastructure/
+  - Created `src/frontend/` containing presentation/, hooks/
+  - Updated ALL import paths across the entire project (40+ files)
+  - Added barrel index.ts files with architecture documentation for each layer
+  - `src/app/api/` remains as Next.js API routes (thin controllers)
+  - `src/components/ui/` remains as shadcn/ui shared components
+  - `src/lib/` remains as shared utilities
+- Improved icons across the UI:
+  - Sidebar: CalendarHeart for calendar, Scale for groups, UserCog for employees, ClipboardCheck for rules, Settings2 for config section
+  - Each nav item now shows description text below label
+  - TaskIcon component expanded with more task types (DoorOpen, DoorClosed, PackageSearch, Brush)
+  - Added Info tooltip button next to group filter explaining fairness algorithm
+- Added "Motor de Equidad" explanation card in sidebar:
+  - Describes independent per-group rotation
+  - Lists all scoring factors with positive/negative indicators
+  - Color-coded: emerald for positive factors, red for penalties
+- Lint passes cleanly, no TypeScript errors, all API endpoints working
+
+Stage Summary:
+- Calendar events now have DISTINCT colors per group+task combination (visual clarity)
+- Full filtering system: search by name, filter by task type, filter by group
+- Project structure clearly separates backend (domain/application/infrastructure) from frontend (presentation/hooks)
+- Icons are more detailed and contextually appropriate throughout the UI
+- Fairness algorithm explanation visible to users via tooltip and sidebar card

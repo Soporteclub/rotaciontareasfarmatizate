@@ -2,8 +2,8 @@
 // POST /api/assignments/generate - Generate fair assignments using the Fairness Engine
 
 import { NextRequest, NextResponse } from "next/server";
-import { assignmentService } from "@/application/services/assignment-service";
-import { generateAssignmentsSchema } from "@/application/validators/schemas";
+import { assignmentService } from "@/backend/application/services/assignment-service";
+import { generateAssignmentsSchema } from "@/backend/application/validators/schemas";
 
 export async function POST(request: NextRequest) {
   try {

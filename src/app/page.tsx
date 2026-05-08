@@ -1,13 +1,13 @@
 "use client";
 
-import { Providers } from "@/presentation/components/layout/providers";
-import { Sidebar } from "@/presentation/components/layout/sidebar";
-import { DashboardModule } from "@/presentation/components/modules/dashboard/dashboard-module";
-import { GroupsModule } from "@/presentation/components/modules/groups/groups-module";
-import { EmployeesModule } from "@/presentation/components/modules/employees/employees-module";
-import { RulesModule } from "@/presentation/components/modules/rules/rules-module";
-import { AuditModule } from "@/presentation/components/modules/audit/audit-module";
-import { useUIStore } from "@/presentation/hooks/use-ui-store";
+import { Providers } from "@/frontend/presentation/components/layout/providers";
+import { Sidebar } from "@/frontend/presentation/components/layout/sidebar";
+import { DashboardModule } from "@/frontend/presentation/components/modules/dashboard/dashboard-module";
+import { GroupsModule } from "@/frontend/presentation/components/modules/groups/groups-module";
+import { EmployeesModule } from "@/frontend/presentation/components/modules/employees/employees-module";
+import { RulesModule } from "@/frontend/presentation/components/modules/rules/rules-module";
+import { AuditModule } from "@/frontend/presentation/components/modules/audit/audit-module";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 
 function AppContent() {
   const activeView = useUIStore((s) => s.activeView);

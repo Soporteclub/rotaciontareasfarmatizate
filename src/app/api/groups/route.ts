@@ -3,8 +3,8 @@
 // POST /api/groups - Create a group
 
 import { NextRequest, NextResponse } from "next/server";
-import { groupService } from "@/application/services/group-service";
-import { createGroupSchema } from "@/application/validators/schemas";
+import { groupService } from "@/backend/application/services/group-service";
+import { createGroupSchema } from "@/backend/application/validators/schemas";
 
 export async function GET(request: NextRequest) {
   try {
