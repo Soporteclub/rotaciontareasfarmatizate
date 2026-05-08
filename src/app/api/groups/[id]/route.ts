@@ -1,7 +1,7 @@
 // Groups [id] API Route - CRUD for single group
 import { NextRequest, NextResponse } from "next/server";
-import { groupService } from "@/application/services/group-service";
-import { updateGroupSchema } from "@/application/validators/schemas";
+import { groupService } from "@/backend/application/services/group-service";
+import { updateGroupSchema } from "@/backend/application/validators/schemas";
 
 export async function GET(
   _request: NextRequest,

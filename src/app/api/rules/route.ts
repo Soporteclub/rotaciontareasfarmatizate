@@ -3,8 +3,8 @@
 // POST /api/rules - Create rule
 
 import { NextRequest, NextResponse } from "next/server";
-import { ruleService } from "@/application/services/rule-service";
-import { createRuleSchema } from "@/application/validators/schemas";
+import { ruleService } from "@/backend/application/services/rule-service";
+import { createRuleSchema } from "@/backend/application/validators/schemas";
 
 export async function GET(request: NextRequest) {
   try {

@@ -2,8 +2,8 @@
 // GET /api/audit - Query audit logs
 
 import { NextRequest, NextResponse } from "next/server";
-import { auditService } from "@/application/services/audit-service";
-import { auditQuerySchema } from "@/application/validators/schemas";
+import { auditService } from "@/backend/application/services/audit-service";
+import { auditQuerySchema } from "@/backend/application/validators/schemas";
 
 export async function GET(request: NextRequest) {
   try {

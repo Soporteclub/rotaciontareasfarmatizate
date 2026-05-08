@@ -1,7 +1,7 @@
 // Employees [id] API Route
 import { NextRequest, NextResponse } from "next/server";
-import { employeeService } from "@/application/services/employee-service";
-import { updateEmployeeSchema } from "@/application/validators/schemas";
+import { employeeService } from "@/backend/application/services/employee-service";
+import { updateEmployeeSchema } from "@/backend/application/validators/schemas";
 
 export async function GET(
   _request: NextRequest,

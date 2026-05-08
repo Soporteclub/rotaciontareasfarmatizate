@@ -3,8 +3,8 @@
 // POST /api/assignments/generate - Generate fair assignments
 
 import { NextRequest, NextResponse } from "next/server";
-import { assignmentService } from "@/application/services/assignment-service";
-import { generateAssignmentsSchema } from "@/application/validators/schemas";
+import { assignmentService } from "@/backend/application/services/assignment-service";
+import { generateAssignmentsSchema } from "@/backend/application/validators/schemas";
 
 export async function GET(request: NextRequest) {
   try {
