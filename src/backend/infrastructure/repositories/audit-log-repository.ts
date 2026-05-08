@@ -1,7 +1,7 @@
 // Audit Log Repository - Complete audit trail
 // Every modification must be recorded
 
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 import type { Prisma } from "@prisma/client";
 import type { EntityType, AuditAction } from "@/backend/domain/entities/types";
 

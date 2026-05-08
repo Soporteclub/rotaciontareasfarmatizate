@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Users, Check, X, FolderPlus } from "lucide-react";
 import { TASK_TYPES } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
+import type { GroupResponse } from "@/frontend/presentation/lib/query/types";
 
 const COLORS = [
   "#1545cb", "#066aab", "#f15a24", "#00cd98",
@@ -51,15 +52,14 @@ export function GroupsModule() {
     setEditingId(null);
   };
 
-  const handleEdit = (group: Record<string, unknown>) => {
-    const g = group as { id: string; name: string; description: string | null; taskType: string; color: string };
+  const handleEdit = (group: GroupResponse) => {
     setForm({
-      name: g.name,
-      description: g.description ?? "",
-      taskType: g.taskType,
-      color: g.color,
+      name: group.name,
+      description: group.description ?? "",
+      taskType: group.taskType,
+      color: group.color,
     });
-    setEditingId(g.id);
+    setEditingId(group.id);
     setDialogOpen(true);
   };
 
@@ -189,9 +189,8 @@ export function GroupsModule() {
       {groups && groups.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {groups.map((group) => {
-            const g = group as Record<string, unknown>;
-            const empCount = (g.employees as unknown[] | undefined)?.filter((e) => (e as Record<string, unknown>).isActive).length ?? 0;
-            const ruleCount = (g.rules as unknown[] | undefined)?.length ?? 0;
+            const empCount = group.employees?.filter((e) => e.isActive).length ?? 0;
+            const ruleCount = group.rules?.length ?? 0;
             return (
               <Card key={group.id} className={!group.isActive ? "opacity-60" : ""}>
                 <CardHeader className="pb-2">

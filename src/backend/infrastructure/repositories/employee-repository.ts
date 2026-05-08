@@ -1,7 +1,7 @@
 // Employee Repository - Database access layer for Employee
 // Supports high rotation: active/inactive, join/leave dates
 
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 import type { Prisma } from "@prisma/client";
 
 export interface FindEmployeesOptions {

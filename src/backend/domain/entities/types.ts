@@ -29,7 +29,7 @@ export interface AssignmentRuleEntity {
   groupId: string;
   dayOfWeek: DayOfWeek;
   frequency: number;
-  taskLabel: string; // REQUIRED: defines the specific task (e.g. "Sacar Basura", "Lavar Cafetera")
+  taskLabel: string; // e.g. "Sacar Basura", "Lavar Cafetera"
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
@@ -43,7 +43,7 @@ export interface AssignmentEntity {
   employeeId: string;
   ruleId: string | null;
   date: Date;
-  taskType: string; // REQUIRED: the specific task (e.g. "Sacar Basura", "Lavar Cafetera")
+  taskType: string; // e.g. "Sacar Basura", "Lavar Cafetera"
   isLocked: boolean;
   createdAt: Date;
   updatedAt: Date;

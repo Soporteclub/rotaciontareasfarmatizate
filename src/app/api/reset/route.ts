@@ -2,7 +2,7 @@
 // POST /api/reset
 
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 
 export async function POST() {
   try {

@@ -22,7 +22,7 @@ export interface FairnessRule {
   groupId: string;
   dayOfWeek: DayOfWeek;
   frequency: number;
-  taskLabel: string; // REQUIRED: defines the specific task
+  taskLabel: string;
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
@@ -33,7 +33,7 @@ export interface FairnessHistoricalAssignment {
   employeeId: string;
   groupId: string;
   date: Date;
-  taskType: string; // REQUIRED: the specific task this assignment is for
+  taskType: string;
   isLocked: boolean;
 }
 
@@ -195,8 +195,8 @@ export class FairnessEngine {
         // Update running balance
         const currentBalance = balanceMap.get(best.employee.id) ?? {
           total: 0,
-          monthly: {} as Record<string, number>,
-          lastDate: null as Date | null,
+          monthly: {},
+          lastDate: null,
           consecutive: 0,
         };
         currentBalance.total += 1;
@@ -250,8 +250,8 @@ export class FairnessEngine {
     // 1. Balance score: employees with fewer assignments get higher score
     const balance = balanceMap.get(employee.id) ?? {
       total: 0,
-      monthly: {} as Record<string, number>,
-      lastDate: null as Date | null,
+      monthly: {},
+      lastDate: null,
       consecutive: 0,
     };
 

@@ -6,7 +6,7 @@
 // Includes Colombian holidays (festivos) for 2024-2030
 
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 import { generateColombianHolidaysForRange } from "@/backend/domain/holidays/colombian-holidays";
 
 export async function POST() {
@@ -114,7 +114,7 @@ export async function POST() {
     let piso2CafeteraIdx = 0;
 
     let datePointer = new Date(pastDate);
-    while (datePointer <= today) {  // Changed from < to <= to include today
+    while (datePointer <= today) {
       const dayOfWeek = datePointer.getDay();
       const dateKey = `${datePointer.getFullYear()}-${String(datePointer.getMonth() + 1).padStart(2, "0")}-${String(datePointer.getDate()).padStart(2, "0")}`;
 
