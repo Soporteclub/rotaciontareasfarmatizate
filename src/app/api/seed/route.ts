@@ -39,20 +39,20 @@ export async function POST() {
     // ─── Create Employees ──────────────────────────────────────────
     // Piso 1 employees
     const piso1Employees = await Promise.all([
-      db.employee.create({ data: { name: "Ana García", email: "ana@empresa.com", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Carlos López", email: "carlos@empresa.com", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "María Rodríguez", email: "maria@empresa.com", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Pedro Martínez", email: "pedro@empresa.com", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Laura Sánchez", email: "laura@empresa.com", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Ana García", position: "Auxiliar", area: "Farmacia", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Carlos López", position: "Auxiliar", area: "Farmacia", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "María Rodríguez", position: "Administrador", area: "Oficina", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Pedro Martínez", position: "Auxiliar", area: "Bodega", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Laura Sánchez", position: "Auxiliar", area: "Bodega", groupId: piso1.id } }),
     ]);
 
     // Piso 2 employees
     const piso2Employees = await Promise.all([
-      db.employee.create({ data: { name: "Diego Fernández", email: "diego@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Sofía Gómez", email: "sofia@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Javier Díaz", email: "javier@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Valentina Ruiz", email: "valentina@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Andrés Morales", email: "andres@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Diego Fernández", position: "Auxiliar", area: "Farmacia", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Sofía Gómez", position: "Auxiliar", area: "Bodega", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Javier Díaz", position: "Administrador", area: "Oficina", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Valentina Ruiz", position: "Auxiliar", area: "Farmacia", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Andrés Morales", position: "Auxiliar", area: "Bodega", groupId: piso2.id } }),
     ]);
 
     // ─── Create Rules ──────────────────────────────────────────────

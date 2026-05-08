@@ -17,7 +17,8 @@ export interface GroupResponse {
 export interface EmployeeResponse {
   id: string;
   name: string;
-  email: string | null;
+  position: string | null;
+  area: string | null;
   groupId: string;
   isActive: boolean;
   joinDate: string;

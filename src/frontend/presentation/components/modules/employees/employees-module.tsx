@@ -20,7 +20,8 @@ import { EmployeeTable } from "./employee-table";
 
 const EMPTY_FORM: EmployeeFormData = {
   name: "",
-  email: "",
+  position: "",
+  area: "",
   groupId: "",
   joinDate: new Date().toISOString().split("T")[0],
 };
@@ -51,7 +52,8 @@ export function EmployeesModule() {
   const handleEdit = (emp: EmployeeResponse) => {
     setForm({
       name: emp.name,
-      email: emp.email ?? "",
+      position: emp.position ?? "",
+      area: emp.area ?? "",
       groupId: emp.groupId,
       joinDate: emp.joinDate.split("T")[0],
     });
@@ -65,7 +67,8 @@ export function EmployeesModule() {
         await updateEmployee.mutateAsync({
           id: editingEmployee.id,
           name: form.name,
-          email: form.email || null,
+          position: form.position || null,
+          area: form.area || null,
           groupId: form.groupId || undefined,
         });
         toast.success("Empleado actualizado");
@@ -78,7 +81,8 @@ export function EmployeesModule() {
         }
         await createEmployee.mutateAsync({
           name: form.name,
-          email: form.email || null,
+          position: form.position || null,
+          area: form.area || null,
           groupId: gid,
           joinDate: form.joinDate,
         });
@@ -122,11 +126,12 @@ export function EmployeesModule() {
           if (searchQuery) {
             const q = searchQuery.toLowerCase();
             const matchesName = e.name.toLowerCase().includes(q);
-            const matchesEmail = e.email?.toLowerCase().includes(q) ?? false;
+            const matchesPosition = e.position?.toLowerCase().includes(q) ?? false;
+            const matchesArea = e.area?.toLowerCase().includes(q) ?? false;
             const matchesGroup = getGroupName(groups, e.groupId)
               .toLowerCase()
               .includes(q);
-            if (!matchesName && !matchesEmail && !matchesGroup) return false;
+            if (!matchesName && !matchesPosition && !matchesArea && !matchesGroup) return false;
           }
           if (statusFilter === "active" && !e.isActive) return false;
           if (statusFilter === "inactive" && e.isActive) return false;

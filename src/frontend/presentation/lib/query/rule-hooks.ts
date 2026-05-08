@@ -45,8 +45,11 @@ export function useUpdateRule() {
 export function useDeleteRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch<RuleResponse>(`/api/rules/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id, permanent }: { id: string; permanent?: boolean }) =>
+      apiFetch<RuleResponse>(
+        `/api/rules/${id}${permanent ? "?permanent=true" : ""}`,
+        { method: "DELETE" }
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rules"] });
     },

@@ -44,7 +44,7 @@ export function EmployeeFilters({
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Buscar por nombre, email..."
+          placeholder="Buscar por nombre, cargo, área..."
           className="pl-9"
         />
       </div>

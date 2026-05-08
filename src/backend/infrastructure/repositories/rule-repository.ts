@@ -58,6 +58,12 @@ export const ruleRepository = {
     });
   },
 
+  async hardDelete(id: string) {
+    return db.assignmentRule.delete({
+      where: { id },
+    });
+  },
+
   async findActiveByGroup(groupId: string) {
     return db.assignmentRule.findMany({
       where: {

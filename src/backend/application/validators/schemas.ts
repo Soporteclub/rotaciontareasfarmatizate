@@ -28,14 +28,16 @@ export const updateGroupSchema = z.object({
 
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(100, "Máximo 100 caracteres"),
-  email: z.string().email("Email inválido").optional().nullable(),
+  position: z.string().max(100, "Máximo 100 caracteres").optional().nullable(),
+  area: z.string().max(100, "Máximo 100 caracteres").optional().nullable(),
   groupId: z.string().min(1, "El grupo es requerido"),
   joinDate: z.string().optional(), // ISO date string
 });
 
 export const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  email: z.string().email().nullable().optional(),
+  position: z.string().max(100).nullable().optional(),
+  area: z.string().max(100).nullable().optional(),
   groupId: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
   leaveDate: z.string().nullable().optional(),

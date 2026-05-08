@@ -3,12 +3,12 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Users, CalendarDays } from "lucide-react";
+import { Trash2, Pencil, Users, CalendarDays } from "lucide-react";
 import { DAY_NAMES } from "@/backend/domain/entities/types";
 import type { DayOfWeek } from "@/backend/domain/entities/types";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import type { RuleResponse, GroupResponse } from "@/frontend/presentation/lib/query/hooks";
-import { getTaskConfig, getDaySummary } from "./rules-constants";
+import { getTaskConfig, getDaySummary, getFrequencyLabel } from "./rules-constants";
 import { WeeklyStrip } from "./weekly-strip";
 
 interface TaskGroupCardProps {
@@ -18,6 +18,7 @@ interface TaskGroupCardProps {
   groupIds: Set<string>;
   frequencies: Set<number>;
   groups: GroupResponse[] | undefined;
+  onEdit: (rule: RuleResponse) => void;
   onDelete: (id: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function TaskGroupCard({
   groupIds,
   frequencies,
   groups,
+  onEdit,
   onDelete,
 }: TaskGroupCardProps) {
   const config = getTaskConfig(taskLabel);
@@ -49,7 +51,7 @@ export function TaskGroupCard({
               <h3 className="font-semibold text-base">{taskLabel}</h3>
               <p className="text-sm text-muted-foreground">
                 Aplica {getDaySummary(days)}
-                {freqValue > 1 && ` · Cada ${freqValue} semanas`}
+                {freqValue > 1 && ` · ${getFrequencyLabel(freqValue)}`}
               </p>
             </div>
           </div>
@@ -106,23 +108,31 @@ export function TaskGroupCard({
                   <span className="font-medium">
                     {DAY_NAMES[rule.dayOfWeek as DayOfWeek]}
                   </span>
-                  {rule.frequency > 1 && (
-                    <span className="text-muted-foreground text-xs">
-                      (cada {rule.frequency} sem.)
-                    </span>
-                  )}
+                  <span className="text-muted-foreground text-xs">
+                    · {getFrequencyLabel(rule.frequency)}
+                  </span>
                   <span className="text-muted-foreground text-xs">
                     · {groupName}
                   </span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-destructive h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => onDelete(rule.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => onEdit(rule)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive h-7 w-7 p-0"
+                    onClick={() => onDelete(rule.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             );
           })}

@@ -34,7 +34,8 @@ model AssignmentGroup {
 model Employee {
   id        String    @id @default(cuid())
   name      String
-  email     String?
+  position  String?  // Cargo - e.g. "Auxiliar", "Administrador"
+  area      String?  // Área - e.g. "Farmacia", "Bodega", "Oficina"
   groupId   String
   isActive  Boolean   @default(true)
   joinDate  DateTime  @default(now())

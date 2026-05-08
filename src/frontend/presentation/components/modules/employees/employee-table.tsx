@@ -27,7 +27,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Mail,
+  Briefcase,
+  MapPin,
   CalendarDays,
   Pencil,
   Trash2,
@@ -122,7 +123,7 @@ export function EmployeeTable({
               style={{ backgroundColor: `${BRAND_PRIMARY}0A` }}
             >
               <TableHead className="w-[260px]">Nombre</TableHead>
-              <TableHead className="hidden sm:table-cell">Email</TableHead>
+              <TableHead className="hidden sm:table-cell">Cargo / Área</TableHead>
               <TableHead>Grupo</TableHead>
               <TableHead className="hidden md:table-cell">Estado</TableHead>
               <TableHead className="hidden lg:table-cell">Ingreso</TableHead>
@@ -220,17 +221,30 @@ function EmployeeRow({
               {emp.name}
             </span>
             <span className="sm:hidden text-xs text-muted-foreground truncate block">
-              {emp.email ?? "—"}
+              {emp.position ?? emp.area ?? "—"}
             </span>
           </div>
         </div>
       </TableCell>
 
-      {/* Email */}
+      {/* Cargo / Área */}
       <TableCell className="hidden sm:table-cell">
-        <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
-          <Mail className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{emp.email ?? "—"}</span>
+        <div className="space-y-0.5">
+          {emp.position && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Briefcase className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">{emp.position}</span>
+            </div>
+          )}
+          {emp.area && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{emp.area}</span>
+            </div>
+          )}
+          {!emp.position && !emp.area && (
+            <span className="text-muted-foreground">—</span>
+          )}
         </div>
       </TableCell>
 
