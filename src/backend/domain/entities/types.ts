@@ -25,11 +25,20 @@ export interface EmployeeEntity {
   updatedAt: Date;
 }
 
+export type FrequencyType = "daily" | "weekly" | "monthly";
+
+export const FREQUENCY_TYPE_LABELS: Record<FrequencyType, string> = {
+  daily: "Diaria",
+  weekly: "Semanal",
+  monthly: "Mensual",
+};
+
 export interface AssignmentRuleEntity {
   id: string;
   groupId: string;
   dayOfWeek: DayOfWeek;
-  frequency: number;
+  frequencyType: FrequencyType;
+  frequency: number; // legacy
   taskLabel: string; // e.g. "Sacar Basura", "Lavar Cafetera"
   validFrom: Date;
   validTo: Date | null;

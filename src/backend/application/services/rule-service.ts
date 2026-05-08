@@ -39,7 +39,8 @@ export const ruleService = {
 
     const data: Prisma.AssignmentRuleCreateInput = {
       dayOfWeek: input.dayOfWeek,
-      frequency: input.frequency,
+      frequencyType: input.frequencyType ?? "weekly",
+      frequency: input.frequency ?? 1,
       taskLabel: input.taskLabel,
       validFrom: input.validFrom ? new Date(input.validFrom) : new Date(),
       validTo: input.validTo ? new Date(input.validTo) : null,
@@ -67,6 +68,7 @@ export const ruleService = {
 
     const data: Prisma.AssignmentRuleUpdateInput = {};
     if (input.dayOfWeek !== undefined) data.dayOfWeek = input.dayOfWeek;
+    if (input.frequencyType !== undefined) data.frequencyType = input.frequencyType;
     if (input.frequency !== undefined) data.frequency = input.frequency;
     if (input.taskLabel !== undefined) data.taskLabel = input.taskLabel;
     if (input.validFrom !== undefined) data.validFrom = new Date(input.validFrom);

@@ -59,21 +59,21 @@ export async function POST() {
     const rulePromises = [];
 
     for (const group of [piso1, piso2]) {
-      // Sacar Basura: Tuesday and Thursday
+      // Sacar Basura: Tuesday and Thursday (weekly)
       rulePromises.push(
         db.assignmentRule.create({
-          data: { groupId: group.id, dayOfWeek: 2, frequency: 1, taskLabel: "Sacar Basura" },
+          data: { groupId: group.id, dayOfWeek: 2, frequencyType: "weekly", frequency: 1, taskLabel: "Sacar Basura" },
         }),
         db.assignmentRule.create({
-          data: { groupId: group.id, dayOfWeek: 4, frequency: 1, taskLabel: "Sacar Basura" },
+          data: { groupId: group.id, dayOfWeek: 4, frequencyType: "weekly", frequency: 1, taskLabel: "Sacar Basura" },
         }),
       );
 
-      // Lavar Cafetera: Monday through Friday
+      // Lavar Cafetera: Monday through Friday (weekly)
       for (let day = 1; day <= 5; day++) {
         rulePromises.push(
           db.assignmentRule.create({
-            data: { groupId: group.id, dayOfWeek: day, frequency: 1, taskLabel: "Lavar Cafetera" },
+            data: { groupId: group.id, dayOfWeek: day, frequencyType: "weekly", frequency: 1, taskLabel: "Lavar Cafetera" },
           }),
         );
       }

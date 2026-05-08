@@ -51,19 +51,21 @@ model Employee {
 }
 
 /// AssignmentRule - Configurable rules (NOT hardcoded days)
-/// Supports any day of week, frequency, and custom labels
+/// Supports any day of week, frequency type, and custom labels
 /// Each rule defines a specific task (taskLabel) that applies on a specific day
+/// frequencyType: "daily" = every weekday, "weekly" = on dayOfWeek every week, "monthly" = on dayOfWeek once per month
 model AssignmentRule {
-  id        String   @id @default(cuid())
-  groupId   String
-  dayOfWeek Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
-  frequency Int      @default(1) // every N weeks (1=every week, 2=every other week)
-  taskLabel String   // REQUIRED: label for this rule's task (e.g. "Sacar Basura", "Lavar Cafetera")
-  validFrom DateTime @default(now())
-  validTo   DateTime?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  groupId       String
+  dayOfWeek      Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  frequencyType  String   @default("weekly") // "daily", "weekly", "monthly"
+  frequency      Int      @default(1) // legacy: every N weeks (kept for backward compat)
+  taskLabel      String   // REQUIRED: label for this rule's task (e.g. "Sacar Basura", "Lavar Cafetera")
+  validFrom      DateTime @default(now())
+  validTo        DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   group AssignmentGroup @relation(fields: [groupId], references: [id])
 

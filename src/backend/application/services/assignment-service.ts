@@ -80,7 +80,7 @@ export const assignmentService = {
         id: r.id,
         groupId: r.groupId,
         dayOfWeek: r.dayOfWeek as 0 | 1 | 2 | 3 | 4 | 5 | 6,
-        frequency: r.frequency,
+        frequencyType: (r.frequencyType as "daily" | "weekly" | "monthly") || "weekly",
         taskLabel: r.taskLabel,
         validFrom: r.validFrom,
         validTo: r.validTo,
