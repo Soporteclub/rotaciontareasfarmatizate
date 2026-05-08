@@ -40,41 +40,18 @@ import {
 import { DAY_NAMES, TASK_LABELS } from "@/domain/entities/types";
 import type { DayOfWeek } from "@/domain/entities/types";
 import { toast } from "sonner";
+import { TaskIcon, TaskBadge, getTaskColor } from "@/presentation/components/shared/task-icon";
 
 // ─── Task Visual Config ────────────────────────────────────────
-const TASK_CONFIG: Record<
-  string,
-  { emoji: string; color: string; bgLight: string; border: string }
-> = {
-  "Sacar Basura": {
-    emoji: "🗑️",
-    color: "#ef4444",
-    bgLight: "#fef2f2",
-    border: "#fca5a5",
-  },
-  "Lavar Cafetera": {
-    emoji: "☕",
-    color: "#0d9488",
-    bgLight: "#f0fdfa",
-    border: "#5eead4",
-  },
-  "Aseo General": {
-    emoji: "🧹",
-    color: "#16a34a",
-    bgLight: "#f0fdf4",
-    border: "#86efac",
-  },
-};
-
+// Now using shared TaskIcon component. getTaskConfig kept for WeeklyStrip colors.
 function getTaskConfig(taskLabel: string) {
-  return (
-    TASK_CONFIG[taskLabel] ?? {
-      emoji: "📋",
-      color: "#6b7280",
-      bgLight: "#f9fafb",
-      border: "#d1d5db",
-    }
-  );
+  const color = getTaskColor(taskLabel);
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  const bgLight = `rgba(${r}, ${g}, ${b}, 0.06)`;
+  const border = `rgba(${r}, ${g}, ${b}, 0.3)`;
+  return { color, bgLight, border };
 }
 
 // ─── Day helpers ───────────────────────────────────────────────
@@ -106,8 +83,8 @@ const TEMPLATES: RuleTemplate[] = [
   {
     id: "basura",
     label: "Sacar Basura",
-    emoji: "🗑️",
-    description: "Martes y Jueves",
+    emoji: "🗑",
+    description: "Mar + Jue · cada piso independiente",
     taskLabel: "Sacar Basura",
     days: [2, 4],
     applyToAllGroups: false,
@@ -116,7 +93,7 @@ const TEMPLATES: RuleTemplate[] = [
     id: "cafetera",
     label: "Lavar Cafetera",
     emoji: "☕",
-    description: "Lunes a Viernes",
+    description: "Lun-Vie · cada piso independiente",
     taskLabel: "Lavar Cafetera",
     days: [1, 2, 3, 4, 5],
     applyToAllGroups: false,
@@ -124,7 +101,7 @@ const TEMPLATES: RuleTemplate[] = [
   {
     id: "aseo",
     label: "Aseo General",
-    emoji: "🧹",
+    emoji: "✨",
     description: "Todos los grupos, día específico",
     taskLabel: "Aseo General",
     days: [5], // Friday default
@@ -536,15 +513,7 @@ export function RulesModule() {
                     {/* Task header */}
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                          style={{
-                            backgroundColor: config.bgLight,
-                            border: `1px solid ${config.border}`,
-                          }}
-                        >
-                          {config.emoji}
-                        </div>
+                        <TaskIcon taskType={taskLabel} size="lg" />
                         <div>
                           <h3 className="font-semibold text-base">
                             {taskLabel}
@@ -711,7 +680,7 @@ export function RulesModule() {
                         : "border-border hover:border-primary/40"
                     }`}
                   >
-                    <span className="text-xl">{template.emoji}</span>
+                    <TaskIcon taskType={template.taskLabel || "custom"} size="md" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
                         {template.label}
@@ -749,7 +718,10 @@ export function RulesModule() {
                   <SelectContent>
                     {TASK_LABELS.map((t) => (
                       <SelectItem key={t} value={t}>
-                        {getTaskConfig(t).emoji} {t}
+                        <div className="flex items-center gap-2">
+                          <TaskIcon taskType={t} size="xs" showBg={false} />
+                          {t}
+                        </div>
                       </SelectItem>
                     ))}
                     <SelectItem value="_custom">
@@ -956,7 +928,7 @@ export function RulesModule() {
               >
                 <p className="text-sm font-medium mb-1">Resumen</p>
                 <p className="text-xs text-muted-foreground">
-                  {getTaskConfig(form.taskLabel).emoji}{" "}
+                  <TaskIcon taskType={form.taskLabel} size="xs" showBg={false} />{" "}
                   <strong>{form.taskLabel}</strong> ·{" "}
                   {form.selectedDays
                     .sort()

@@ -122,3 +122,40 @@ Stage Summary:
 - System fully operational with correct data: 2 groups, 10 employees, 14 rules, 56+ assignments
 - Sidebar no longer blocks content on mobile/narrow preview panels
 - All pending tasks from previous session were already implemented (seed data, task rules, calendar dashboard, cross-group rules)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Convert employees to table, clarify independent per-floor rotation, upgrade icons
+
+Work Log:
+- Created shared `TaskIcon` component (`src/presentation/components/shared/task-icon.tsx`):
+  - Uses Lucide icons instead of emojis: Trash2 (orange) for Sacar Basura, Coffee (teal) for Lavar Cafetera, Sparkles (green) for Aseo General
+  - Supports sizes: xs, sm, md, lg with styled colored backgrounds and borders
+  - Includes `TaskBadge` component for inline badge with icon + label
+  - Includes `getTaskColor()` and `getTaskIconConfig()` utility functions
+- Rewrote employees module as a proper data table:
+  - Uses shadcn/ui Table component with sortable columns
+  - Columns: Name (with colored avatar initial), Email, Group (with color badge), Join Date, Actions (dropdown menu)
+  - Added search/filter bar with search input + group filter + count display
+  - Active and inactive employees in separate table sections
+  - Dropdown menu for edit/deactivate actions instead of inline buttons
+  - Colored avatar circles using group color with employee's initial
+- Updated dashboard calendar:
+  - Uses TaskIcon component instead of emojis in calendar cells and sidebar
+  - Added "Grupos (independientes)" sidebar section with Building2 icon
+  - Clarified that each floor rotates independently with "rotación propia" label
+  - Updated generate dialog text to mention independent rotation per group
+- Updated rules module:
+  - Uses TaskIcon component for task cards and template buttons
+  - Template descriptions clarify "cada piso independiente" for basura/cafetera
+  - Task label selector uses TaskIcon inline instead of emoji text
+  - Summary preview uses TaskIcon instead of emoji
+- Verified: FairnessEngine already generates assignments independently per group (takes groupId as input, only considers that group's employees and rules). Each floor on Tuesday has its OWN person from its OWN rotation.
+- All lint checks pass, server running correctly
+
+Stage Summary:
+- Employees module is now a proper data table with search, filters, avatars, and dropdown actions
+- Icons upgraded from simple emojis to detailed Lucide SVG icons with styled colored containers
+- Independent per-floor rotation is now clearly communicated in the UI (sidebar, dialog text, template descriptions)
+- Shared TaskIcon component ensures consistent icon styling across all modules

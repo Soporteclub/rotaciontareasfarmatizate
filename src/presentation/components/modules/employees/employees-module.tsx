@@ -8,7 +8,6 @@ import {
   useUpdateEmployee,
   useDeleteEmployee,
 } from "@/presentation/lib/query/hooks";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +26,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, UserCircle, UserPlus, ArrowRightLeft } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  UserPlus,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
+  ArrowRightLeft,
+  UserCircle,
+  Mail,
+  CalendarDays,
+  Users,
+  Search,
+  ShieldCheck,
+  ShieldOff,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export function EmployeesModule() {
@@ -43,6 +70,7 @@ export function EmployeesModule() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -111,6 +139,27 @@ export function EmployeesModule() {
     }
   };
 
+  // Get group name helper
+  const getGroupName = (groupId: string) =>
+    groups?.find((g) => g.id === groupId)?.name ?? "Sin grupo";
+
+  const getGroupColor = (groupId: string) =>
+    groups?.find((g) => g.id === groupId)?.color ?? "#6b7280";
+
+  // Filter employees by search
+  const filteredEmployees = employees?.filter((e) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      e.name.toLowerCase().includes(q) ||
+      (e.email?.toLowerCase().includes(q) ?? false) ||
+      getGroupName(e.groupId).toLowerCase().includes(q)
+    );
+  });
+
+  const activeEmployees = filteredEmployees?.filter((e) => e.isActive) ?? [];
+  const inactiveEmployees = filteredEmployees?.filter((e) => !e.isActive) ?? [];
+
   const isLoading = loadingGroups || loadingEmployees;
 
   if (isLoading) {
@@ -119,22 +168,22 @@ export function EmployeesModule() {
         <h1 className="text-2xl font-bold">Empleados</h1>
         <div className="animate-pulse space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-muted rounded-lg" />
+            <div key={i} className="h-12 bg-muted rounded-lg" />
           ))}
         </div>
       </div>
     );
   }
 
-  const activeEmployees = employees?.filter((e) => e.isActive) ?? [];
-  const inactiveEmployees = employees?.filter((e) => !e.isActive) ?? [];
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Empleados</h1>
-          <p className="text-muted-foreground">Gestiona el personal de los grupos</p>
+          <p className="text-muted-foreground text-sm">
+            Gestiona el personal de los grupos de rotación
+          </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
@@ -174,7 +223,12 @@ export function EmployeesModule() {
                   <SelectTrigger><SelectValue placeholder="Seleccionar grupo" /></SelectTrigger>
                   <SelectContent>
                     {groups?.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      <SelectItem key={g.id} value={g.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                          {g.name}
+                        </div>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -197,97 +251,208 @@ export function EmployeesModule() {
         </Dialog>
       </div>
 
-      {/* Group filter */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm">Filtrar por grupo:</Label>
+      {/* Filters bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nombre, email..."
+            className="pl-9"
+          />
+        </div>
+        {/* Group filter */}
         <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Todos los grupos" /></SelectTrigger>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos los grupos" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Todos los grupos</SelectItem>
             {groups?.map((g) => (
-              <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+              <SelectItem key={g.id} value={g.id}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                  {g.name}
+                </div>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Employee list */}
-      {employees && employees.length > 0 ? (
-        <div className="space-y-3">
-          {/* Active employees */}
-          {activeEmployees.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Activos ({activeEmployees.length})
-              </h3>
-              {activeEmployees.map((emp) => (
-                <Card key={emp.id} className="hover:shadow-sm transition-shadow">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                        <UserCircle className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{emp.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {emp.email ?? "Sin email"} • Ingresó: {new Date(emp.joinDate).toLocaleDateString("es")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {groups?.find((g) => g.id === emp.groupId)?.name ?? "Sin grupo"}
-                      </Badge>
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(emp as unknown as Record<string, unknown>)}>
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleToggleActive(emp as unknown as Record<string, unknown>)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Inactive employees */}
+        {/* Count */}
+        <div className="text-sm text-muted-foreground">
+          {activeEmployees.length} activo{activeEmployees.length !== 1 ? "s" : ""}
           {inactiveEmployees.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Inactivos ({inactiveEmployees.length})
-              </h3>
-              {inactiveEmployees.map((emp) => (
-                <Card key={emp.id} className="opacity-60">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
-                        <UserCircle className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm line-through">{emp.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Salida: {emp.leaveDate ? new Date(emp.leaveDate).toLocaleDateString("es") : "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="ghost" onClick={() => handleToggleActive(emp as unknown as Record<string, unknown>)}>
-                      Reactivar
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <span> · {inactiveEmployees.length} inactivo{inactiveEmployees.length !== 1 ? "s" : ""}</span>
           )}
         </div>
-      ) : (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <UserCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No hay empleados</h3>
-            <p className="text-muted-foreground">Agrega empleados a los grupos para comenzar.</p>
-          </CardContent>
-        </Card>
+      </div>
+
+      {/* Active employees table */}
+      {activeEmployees.length > 0 && (
+        <div className="rounded-lg border overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[280px]">Nombre</TableHead>
+                <TableHead className="hidden sm:table-cell">Email</TableHead>
+                <TableHead>Grupo</TableHead>
+                <TableHead className="hidden md:table-cell">Ingreso</TableHead>
+                <TableHead className="w-[60px] text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeEmployees.map((emp) => {
+                const groupColor = getGroupColor(emp.groupId);
+                return (
+                  <TableRow key={emp.id}>
+                    {/* Name with avatar */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                          style={{ backgroundColor: groupColor }}
+                        >
+                          {emp.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-sm truncate">{emp.name}</span>
+                      </div>
+                    </TableCell>
+                    {/* Email */}
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                        <Mail className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{emp.email ?? "—"}</span>
+                      </div>
+                    </TableCell>
+                    {/* Group badge */}
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-medium"
+                        style={{ borderColor: groupColor, color: groupColor }}
+                      >
+                        <div
+                          className="w-2 h-2 rounded-full mr-1.5"
+                          style={{ backgroundColor: groupColor }}
+                        />
+                        {getGroupName(emp.groupId)}
+                      </Badge>
+                    </TableCell>
+                    {/* Join date */}
+                    <TableCell className="hidden md:table-cell">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                        {new Date(emp.joinDate).toLocaleDateString("es-CO", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                    </TableCell>
+                    {/* Actions dropdown */}
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(emp as unknown as Record<string, unknown>)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleToggleActive(emp as unknown as Record<string, unknown>)}
+                          >
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                            Desactivar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Inactive employees table */}
+      {inactiveEmployees.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ShieldOff className="h-4 w-4" />
+            <span className="font-medium">Inactivos ({inactiveEmployees.length})</span>
+          </div>
+          <div className="rounded-lg border overflow-hidden border-dashed">
+            <Table>
+              <TableBody>
+                {inactiveEmployees.map((emp) => {
+                  const groupColor = getGroupColor(emp.groupId);
+                  return (
+                    <TableRow key={emp.id} className="opacity-60">
+                      <TableCell className="w-[280px]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-muted-foreground bg-muted shrink-0">
+                            {emp.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-sm line-through">{emp.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <span className="text-muted-foreground text-sm">
+                          {emp.email ?? "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs opacity-70">
+                          {getGroupName(emp.groupId)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+                        Salida: {emp.leaveDate ? new Date(emp.leaveDate).toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" }) : "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs h-8 gap-1.5"
+                          onClick={() => handleToggleActive(emp as unknown as Record<string, unknown>)}
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Reactivar
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {employees && employees.length === 0 && (
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <UserCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">No hay empleados</h3>
+          <p className="text-muted-foreground">Agrega empleados a los grupos para comenzar.</p>
+        </div>
+      )}
+
+      {/* No search results */}
+      {filteredEmployees && filteredEmployees.length === 0 && searchQuery && (
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <Search className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-muted-foreground">No se encontraron resultados para &quot;{searchQuery}&quot;</p>
+        </div>
       )}
     </div>
   );
