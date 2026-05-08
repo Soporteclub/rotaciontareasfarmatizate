@@ -37,22 +37,28 @@ export async function POST() {
     });
 
     // ─── Create Employees ──────────────────────────────────────────
-    // Piso 1 employees
+    // Piso 1 employees (10)
     const piso1Employees = await Promise.all([
-      db.employee.create({ data: { name: "Ana García", position: "Auxiliar", area: "Farmacia", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Carlos López", position: "Auxiliar", area: "Farmacia", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "María Rodríguez", position: "Administrador", area: "Oficina", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Pedro Martínez", position: "Auxiliar", area: "Bodega", groupId: piso1.id } }),
-      db.employee.create({ data: { name: "Laura Sánchez", position: "Auxiliar", area: "Bodega", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Camila Guerrero", position: "Asesora integral de producto", area: "POS", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Danna Gamboa", position: "Asesora técnica de producto", area: "Calidad", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "David Rampla", position: "Asesor comercial", area: "Comercial", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Estella Puerta", position: "Asesora técnica de producto", area: "SSTAPP", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Fernando Neira", position: "Asesor comercial", area: "Comercial", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Jeniffer López", position: "Líder asesoras calidad", area: "Calidad", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Johana Filo", position: "Asesora técnica de producto", area: "SSTAPP", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Julian Vélez", position: "Coordinador Comercial", area: "Comercial", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Karime Santamaria", position: "Asesora técnica de producto", area: "Calidad", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Marcela Bonilla", position: "Asesora técnica de producto", area: "POS", groupId: piso1.id } }),
     ]);
 
-    // Piso 2 employees
+    // Piso 2 employees (6)
     const piso2Employees = await Promise.all([
-      db.employee.create({ data: { name: "Diego Fernández", position: "Auxiliar", area: "Farmacia", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Sofía Gómez", position: "Auxiliar", area: "Bodega", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Javier Díaz", position: "Administrador", area: "Oficina", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Valentina Ruiz", position: "Auxiliar", area: "Farmacia", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Andrés Morales", position: "Auxiliar", area: "Bodega", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Jamiel Jackson", position: "Desarrollador", area: "Ingeniería", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "José Luis Mariño", position: "Director de proyectos", area: "Ingeniería", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Kevin López", position: "Publicista Junior", area: "Marketing", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Roberto José", position: "Desarrollador", area: "Ingeniería", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Sebastian Camacho", position: "Soporte Software", area: "Ingeniería", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Yirson Alejandro Ordoñez", position: "Contador", area: "Administrativo", groupId: piso2.id } }),
     ]);
 
     // ─── Create Rules ──────────────────────────────────────────────
