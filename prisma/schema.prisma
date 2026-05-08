@@ -1,0 +1,113 @@
+// Rotating Task Assignment System - Database Schema
+// Clean Architecture: Domain entities with full audit trail
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// AssignmentGroup - Dynamic, independent groups for rotating tasks
+/// Each group has its own employees, fairness, calendar, and rules.
+/// Supports ANY task type (cleaning, kitchen, reception, opening, closing, inventory, etc.)
+model AssignmentGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  taskType    String   @default("cleaning") // cleaning, kitchen, reception, opening, closing, inventory, etc.
+  color       String   @default("#10b981")  // calendar display color
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees   Employee[]
+  rules       AssignmentRule[]
+  assignments Assignment[]
+  auditLogs   AuditLog[]
+}
+
+/// Employee - Supports high rotation: enter, exit, group change, deactivate
+/// Soft delete via isActive. Never delete historical data.
+model Employee {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  groupId   String
+  isActive  Boolean   @default(true)
+  joinDate  DateTime  @default(now())
+  leaveDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  group       AssignmentGroup @relation(fields: [groupId], references: [id])
+  assignments Assignment[]
+
+  @@index([groupId])
+  @@index([isActive])
+}
+
+/// AssignmentRule - Configurable rules (NOT hardcoded days)
+/// Supports any day of week, frequency, and custom labels
+model AssignmentRule {
+  id        String   @id @default(cuid())
+  groupId   String
+  dayOfWeek Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  frequency Int      @default(1) // every N weeks (1=every week, 2=every other week)
+  taskLabel String?  // custom label for this rule's assignment
+  validFrom DateTime @default(now())
+  validTo   DateTime?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group AssignmentGroup @relation(fields: [groupId], references: [id])
+
+  @@index([groupId])
+  @@index([dayOfWeek])
+  @@index([isActive])
+}
+
+/// Assignment - The core entity: who does what, when
+/// Historical assignments are LOCKED (isLocked=true) and immutable.
+/// Only future assignments can be regenerated.
+model Assignment {
+  id         String   @id @default(cuid())
+  groupId    String
+  employeeId String
+  ruleId     String?
+  date       DateTime // the date of the assignment (date only, time ignored)
+  taskType   String?  // inherited from group or rule
+  isLocked   Boolean  @default(false) // historical assignments are locked
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  group    AssignmentGroup @relation(fields: [groupId], references: [id])
+  employee Employee        @relation(fields: [employeeId], references: [id])
+
+  @@unique([groupId, date])
+  @@index([groupId, date])
+  @@index([employeeId])
+  @@index([isLocked])
+}
+
+/// AuditLog - Complete audit trail for all modifications
+/// Records WHO did WHAT, WHEN, and WHAT CHANGED
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String   // "group", "employee", "rule", "assignment"
+  entityId   String
+  action     String   // "create", "update", "delete", "deactivate", "regenerate", "lock"
+  changedBy  String?  // user identifier who made the change
+  changes    String?  // JSON string of before/after changes
+  groupId    String?
+  createdAt  DateTime @default(now())
+
+  group AssignmentGroup? @relation(fields: [groupId], references: [id])
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
