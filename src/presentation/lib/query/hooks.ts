@@ -277,7 +277,7 @@ export function useAssignments(groupId?: string, startDate?: string, endDate?: s
   return useQuery({
     queryKey: ["assignments", { groupId, startDate, endDate }],
     queryFn: () => apiFetch<AssignmentResponse[]>(`/api/assignments?${params.toString()}`),
-    enabled: !!groupId && !!startDate && !!endDate,
+    enabled: !!startDate && !!endDate,
   });
 }
 

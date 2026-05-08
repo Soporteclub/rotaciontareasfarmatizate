@@ -1,9 +1,8 @@
 // UI Store - Minimal global state for navigation and active selections
-// No business logic here - that lives in TanStack Query and the backend
 
 import { create } from "zustand";
 
-type ActiveView = "dashboard" | "groups" | "employees" | "rules" | "calendar" | "audit";
+type ActiveView = "calendar" | "groups" | "employees" | "rules" | "audit";
 
 interface UIState {
   activeView: ActiveView;
@@ -15,7 +14,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  activeView: "dashboard",
+  activeView: "calendar",
   selectedGroupId: null,
   sidebarOpen: true,
   setActiveView: (view) => set({ activeView: view }),
