@@ -44,6 +44,7 @@ export interface FairnessEngineInput {
   groupId: string;
   startDate: Date;
   endDate: Date;
+  holidays?: Set<string>; // Set of "YYYY-MM-DD" strings for holidays to skip
 }
 
 // ─── Output Types ─────────────────────────────────────────────
@@ -111,7 +112,7 @@ export class FairnessEngine {
    * Supports multiple tasks per day per group
    */
   generateAssignments(input: FairnessEngineInput): FairnessReport {
-    const { employees, rules, historicalAssignments, groupId, startDate, endDate } = input;
+    const { employees, rules, historicalAssignments, groupId, startDate, endDate, holidays } = input;
 
     // Filter active employees in this group
     const activeEmployees = employees.filter(
@@ -144,7 +145,7 @@ export class FairnessEngine {
     }
 
     // Generate the dates that need assignments (one per rule per matching date)
-    const datesNeedingAssignment = this.generateAssignmentDates(activeRules, startDate, endDate);
+    const datesNeedingAssignment = this.generateAssignmentDates(activeRules, startDate, endDate, holidays);
 
     // Build existing assignments map for quick lookup
     // Key: groupId:date:taskType -> allows multiple tasks per day
@@ -314,7 +315,8 @@ export class FairnessEngine {
   private generateAssignmentDates(
     rules: FairnessRule[],
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    holidays?: Set<string>
   ): Array<{ date: Date; rule: FairnessRule }> {
     const dates: Array<{ date: Date; rule: FairnessRule }> = [];
     const current = new Date(startDate);
@@ -325,6 +327,13 @@ export class FairnessEngine {
 
     while (current <= end) {
       const dayOfWeek = current.getDay() as DayOfWeek;
+      const dateKey = this.dateToKey(current);
+
+      // Skip holidays - no assignments on Colombian festivos
+      if (holidays && holidays.has(dateKey)) {
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
 
       for (const rule of rules) {
         if (rule.dayOfWeek !== dayOfWeek) continue;

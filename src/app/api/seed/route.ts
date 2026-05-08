@@ -3,9 +3,11 @@
 // Two groups (Piso 1, Piso 2) with two tasks:
 //   - "Sacar Basura" -> Tuesday (2) and Thursday (4)
 //   - "Lavar Cafetera" -> Monday-Friday (1-5)
+// Includes Colombian holidays (festivos) for 2024-2030
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { generateColombianHolidaysForRange } from "@/backend/domain/holidays/colombian-holidays";
 
 export async function POST() {
   try {
@@ -54,9 +56,6 @@ export async function POST() {
     ]);
 
     // ─── Create Rules ──────────────────────────────────────────────
-    // Task: "Sacar Basura" -> Tuesday (2) and Thursday (4) for BOTH groups
-    // Task: "Lavar Cafetera" -> Monday (1) through Friday (5) for BOTH groups
-
     const rulePromises = [];
 
     for (const group of [piso1, piso2]) {
@@ -82,6 +81,26 @@ export async function POST() {
 
     await Promise.all(rulePromises);
 
+    // ─── Seed Colombian Holidays ───────────────────────────────────
+    const colombianHolidays = generateColombianHolidaysForRange(2024, 2030);
+
+    await db.holiday.createMany({
+      data: colombianHolidays.map((h) => ({
+        date: new Date(h.date.getFullYear(), h.date.getMonth(), h.date.getDate()),
+        name: h.name,
+        type: h.type,
+        isRecurring: h.type === "fixed",
+        isActive: true,
+      })),
+    });
+
+    // Build holiday set for assignment generation (skip holidays)
+    const holidayDateSet = new Set<string>();
+    for (const h of colombianHolidays) {
+      const key = `${h.date.getFullYear()}-${String(h.date.getMonth() + 1).padStart(2, "0")}-${String(h.date.getDate()).padStart(2, "0")}`;
+      holidayDateSet.add(key);
+    }
+
     // ─── Create Historical Assignments (past month) ───────────────
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -95,8 +114,15 @@ export async function POST() {
     let piso2CafeteraIdx = 0;
 
     let datePointer = new Date(pastDate);
-    while (datePointer < today) {
+    while (datePointer <= today) {  // Changed from < to <= to include today
       const dayOfWeek = datePointer.getDay();
+      const dateKey = `${datePointer.getFullYear()}-${String(datePointer.getMonth() + 1).padStart(2, "0")}-${String(datePointer.getDate()).padStart(2, "0")}`;
+
+      // Skip holidays - no assignments on festivos
+      if (holidayDateSet.has(dateKey)) {
+        datePointer.setDate(datePointer.getDate() + 1);
+        continue;
+      }
 
       // Piso 1: Sacar Basura (Tue, Thu)
       if (dayOfWeek === 2 || dayOfWeek === 4) {
@@ -176,6 +202,7 @@ export async function POST() {
       data: [
         { entityType: "group", entityId: piso1.id, action: "create", changedBy: "seed", groupId: piso1.id },
         { entityType: "group", entityId: piso2.id, action: "create", changedBy: "seed", groupId: piso2.id },
+        { entityType: "holiday", entityId: "batch", action: "create", changedBy: "seed", changes: JSON.stringify({ count: colombianHolidays.length, years: "2024-2030" }) },
       ],
     });
 
@@ -186,6 +213,7 @@ export async function POST() {
       groups: 2,
       employees: piso1Employees.length + piso2Employees.length,
       rules: totalRules,
+      holidays: colombianHolidays.length,
       tasks: ["Sacar Basura (Mar, Jue)", "Lavar Cafetera (Lun-Vie)"],
     });
   } catch (error) {
