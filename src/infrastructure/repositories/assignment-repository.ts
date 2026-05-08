@@ -64,11 +64,13 @@ export const assignmentRepository = {
   },
 
   async findByGroupAndDate(groupId: string, date: Date) {
-    return db.assignment.findUnique({
+    return db.assignment.findMany({
       where: {
-        groupId_date: { groupId, date },
+        groupId,
+        date,
       },
       include: { employee: true },
+      orderBy: { taskType: "asc" },
     });
   },
 
@@ -138,7 +140,7 @@ export const assignmentRepository = {
       groupId: string;
       date: Date;
       ruleId: string | null;
-      taskType: string | null;
+      taskType: string;
       isLocked: boolean;
     }>
   ) {

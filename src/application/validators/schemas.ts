@@ -47,7 +47,7 @@ export const createRuleSchema = z.object({
   groupId: z.string().min(1, "El grupo es requerido"),
   dayOfWeek: z.number().int().min(0).max(6, "Día inválido (0-6)"),
   frequency: z.number().int().min(1, "Frecuencia mínima: 1").max(52, "Frecuencia máxima: 52"),
-  taskLabel: z.string().max(100).optional().nullable(),
+  taskLabel: z.string().min(1, "La etiqueta de tarea es requerida").max(100, "Máximo 100 caracteres"),
   validFrom: z.string().optional(),
   validTo: z.string().nullable().optional(),
 });
@@ -55,7 +55,7 @@ export const createRuleSchema = z.object({
 export const updateRuleSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6).optional(),
   frequency: z.number().int().min(1).max(52).optional(),
-  taskLabel: z.string().max(100).nullable().optional(),
+  taskLabel: z.string().min(1).max(100).optional(),
   validFrom: z.string().optional(),
   validTo: z.string().nullable().optional(),
   isActive: z.boolean().optional(),

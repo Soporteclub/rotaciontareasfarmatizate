@@ -1,5 +1,8 @@
-// Seed API Route - Populate demo data for testing
+// Seed API Route - Populate data for the rotating task assignment system
 // POST /api/seed
+// Two groups (Piso 1, Piso 2) with two tasks:
+//   - "Sacar Basura" -> Tuesday (2) and Thursday (4)
+//   - "Lavar Cafetera" -> Monday-Friday (1-5)
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -12,171 +15,182 @@ export async function POST() {
       return NextResponse.json({ message: "Ya existen datos. Saltando seed.", skipped: true });
     }
 
-    // Create groups
+    // ─── Create Groups ─────────────────────────────────────────────
+    const piso1 = await db.assignmentGroup.create({
+      data: {
+        name: "Piso 1",
+        description: "Grupo de rotación de tareas para el Piso 1",
+        taskType: "cleaning",
+        color: "#10b981", // emerald
+      },
+    });
+
     const piso2 = await db.assignmentGroup.create({
       data: {
-        name: "Piso 2 - Aseo",
-        description: "Grupo de aseo para el piso 2 de la oficina",
+        name: "Piso 2",
+        description: "Grupo de rotación de tareas para el Piso 2",
         taskType: "cleaning",
-        color: "#10b981",
+        color: "#f59e0b", // amber
       },
     });
 
-    const piso3 = await db.assignmentGroup.create({
-      data: {
-        name: "Piso 3 - Aseo",
-        description: "Grupo de aseo para el piso 3 de la oficina",
-        taskType: "cleaning",
-        color: "#f59e0b",
-      },
-    });
+    // ─── Create Employees ──────────────────────────────────────────
+    // Piso 1 employees
+    const piso1Employees = await Promise.all([
+      db.employee.create({ data: { name: "Ana García", email: "ana@empresa.com", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Carlos López", email: "carlos@empresa.com", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "María Rodríguez", email: "maria@empresa.com", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Pedro Martínez", email: "pedro@empresa.com", groupId: piso1.id } }),
+      db.employee.create({ data: { name: "Laura Sánchez", email: "laura@empresa.com", groupId: piso1.id } }),
+    ]);
 
-    const cocina = await db.assignmentGroup.create({
-      data: {
-        name: "Cocina",
-        description: "Turnos de cocina y comedor",
-        taskType: "kitchen",
-        color: "#ef4444",
-      },
-    });
-
-    const recepcion = await db.assignmentGroup.create({
-      data: {
-        name: "Recepción",
-        description: "Turnos de recepción de visitantes",
-        taskType: "reception",
-        color: "#8b5cf6",
-      },
-    });
-
-    // Create employees for Piso 2
+    // Piso 2 employees
     const piso2Employees = await Promise.all([
-      db.employee.create({ data: { name: "Ana García", email: "ana@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Carlos López", email: "carlos@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "María Rodríguez", email: "maria@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Pedro Martínez", email: "pedro@empresa.com", groupId: piso2.id } }),
-      db.employee.create({ data: { name: "Laura Sánchez", email: "laura@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Diego Fernández", email: "diego@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Sofía Gómez", email: "sofia@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Javier Díaz", email: "javier@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Valentina Ruiz", email: "valentina@empresa.com", groupId: piso2.id } }),
+      db.employee.create({ data: { name: "Andrés Morales", email: "andres@empresa.com", groupId: piso2.id } }),
     ]);
 
-    // Create employees for Piso 3
-    const piso3Employees = await Promise.all([
-      db.employee.create({ data: { name: "Diego Fernández", email: "diego@empresa.com", groupId: piso3.id } }),
-      db.employee.create({ data: { name: "Sofía Gómez", email: "sofia@empresa.com", groupId: piso3.id } }),
-      db.employee.create({ data: { name: "Javier Díaz", email: "javier@empresa.com", groupId: piso3.id } }),
-      db.employee.create({ data: { name: "Valentina Ruiz", email: "valentina@empresa.com", groupId: piso3.id } }),
-    ]);
+    // ─── Create Rules ──────────────────────────────────────────────
+    // Task: "Sacar Basura" -> Tuesday (2) and Thursday (4) for BOTH groups
+    // Task: "Lavar Cafetera" -> Monday (1) through Friday (5) for BOTH groups
 
-    // Create employees for Cocina
-    const cocinaEmployees = await Promise.all([
-      db.employee.create({ data: { name: "Roberto Torres", email: "roberto@empresa.com", groupId: cocina.id } }),
-      db.employee.create({ data: { name: "Camila Herrera", email: "camila@empresa.com", groupId: cocina.id } }),
-      db.employee.create({ data: { name: "Andrés Morales", email: "andres@empresa.com", groupId: cocina.id } }),
-    ]);
+    const rulePromises = [];
 
-    // Create employees for Recepción
-    const recepcionEmployees = await Promise.all([
-      db.employee.create({ data: { name: "Isabella Castro", email: "isabella@empresa.com", groupId: recepcion.id } }),
-      db.employee.create({ data: { name: "Mateo Vargas", email: "mateo@empresa.com", groupId: recepcion.id } }),
-    ]);
+    for (const group of [piso1, piso2]) {
+      // Sacar Basura: Tuesday and Thursday
+      rulePromises.push(
+        db.assignmentRule.create({
+          data: { groupId: group.id, dayOfWeek: 2, frequency: 1, taskLabel: "Sacar Basura" },
+        }),
+        db.assignmentRule.create({
+          data: { groupId: group.id, dayOfWeek: 4, frequency: 1, taskLabel: "Sacar Basura" },
+        }),
+      );
 
-    // Create rules - Piso 2: Tuesday and Thursday
-    await Promise.all([
-      db.assignmentRule.create({
-        data: { groupId: piso2.id, dayOfWeek: 2, frequency: 1, taskLabel: "Aseo Piso 2" },
-      }),
-      db.assignmentRule.create({
-        data: { groupId: piso2.id, dayOfWeek: 4, frequency: 1, taskLabel: "Aseo Piso 2" },
-      }),
-    ]);
-
-    // Piso 3: Monday, Wednesday, Friday
-    await Promise.all([
-      db.assignmentRule.create({
-        data: { groupId: piso3.id, dayOfWeek: 1, frequency: 1, taskLabel: "Aseo Piso 3" },
-      }),
-      db.assignmentRule.create({
-        data: { groupId: piso3.id, dayOfWeek: 3, frequency: 1, taskLabel: "Aseo Piso 3" },
-      }),
-      db.assignmentRule.create({
-        data: { groupId: piso3.id, dayOfWeek: 5, frequency: 1, taskLabel: "Aseo Piso 3" },
-      }),
-    ]);
-
-    // Cocina: Monday to Friday
-    for (let day = 1; day <= 5; day++) {
-      await db.assignmentRule.create({
-        data: { groupId: cocina.id, dayOfWeek: day, frequency: 1, taskLabel: "Cocina" },
-      });
+      // Lavar Cafetera: Monday through Friday
+      for (let day = 1; day <= 5; day++) {
+        rulePromises.push(
+          db.assignmentRule.create({
+            data: { groupId: group.id, dayOfWeek: day, frequency: 1, taskLabel: "Lavar Cafetera" },
+          }),
+        );
+      }
     }
 
-    // Recepción: Monday to Friday, every 2 weeks
-    for (let day = 1; day <= 5; day++) {
-      await db.assignmentRule.create({
-        data: { groupId: recepcion.id, dayOfWeek: day, frequency: 2, taskLabel: "Recepción" },
-      });
-    }
+    await Promise.all(rulePromises);
 
-    // Create some historical (locked) assignments for the past month
+    // ─── Create Historical Assignments (past month) ───────────────
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const pastDate = new Date(today);
     pastDate.setMonth(pastDate.getMonth() - 1);
 
-    let datePointer = new Date(pastDate);
-    let empIndex2 = 0;
-    let empIndex3 = 0;
+    const assignmentPromises = [];
+    let piso1BasuraIdx = 0;
+    let piso1CafeteraIdx = 0;
+    let piso2BasuraIdx = 0;
+    let piso2CafeteraIdx = 0;
 
+    let datePointer = new Date(pastDate);
     while (datePointer < today) {
       const dayOfWeek = datePointer.getDay();
 
-      // Piso 2: Tuesday and Thursday
+      // Piso 1: Sacar Basura (Tue, Thu)
       if (dayOfWeek === 2 || dayOfWeek === 4) {
-        await db.assignment.create({
-          data: {
-            groupId: piso2.id,
-            employeeId: piso2Employees[empIndex2 % piso2Employees.length].id,
-            date: new Date(datePointer),
-            taskType: "Aseo Piso 2",
-            isLocked: true,
-          },
-        });
-        empIndex2++;
+        const emp = piso1Employees[piso1BasuraIdx % piso1Employees.length];
+        assignmentPromises.push(
+          db.assignment.create({
+            data: {
+              groupId: piso1.id,
+              employeeId: emp.id,
+              date: new Date(datePointer),
+              taskType: "Sacar Basura",
+              isLocked: true,
+            },
+          })
+        );
+        piso1BasuraIdx++;
       }
 
-      // Piso 3: Monday, Wednesday, Friday
-      if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
-        await db.assignment.create({
-          data: {
-            groupId: piso3.id,
-            employeeId: piso3Employees[empIndex3 % piso3Employees.length].id,
-            date: new Date(datePointer),
-            taskType: "Aseo Piso 3",
-            isLocked: true,
-          },
-        });
-        empIndex3++;
+      // Piso 1: Lavar Cafetera (Mon-Fri)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const emp = piso1Employees[piso1CafeteraIdx % piso1Employees.length];
+        assignmentPromises.push(
+          db.assignment.create({
+            data: {
+              groupId: piso1.id,
+              employeeId: emp.id,
+              date: new Date(datePointer),
+              taskType: "Lavar Cafetera",
+              isLocked: true,
+            },
+          })
+        );
+        piso1CafeteraIdx++;
+      }
+
+      // Piso 2: Sacar Basura (Tue, Thu)
+      if (dayOfWeek === 2 || dayOfWeek === 4) {
+        const emp = piso2Employees[piso2BasuraIdx % piso2Employees.length];
+        assignmentPromises.push(
+          db.assignment.create({
+            data: {
+              groupId: piso2.id,
+              employeeId: emp.id,
+              date: new Date(datePointer),
+              taskType: "Sacar Basura",
+              isLocked: true,
+            },
+          })
+        );
+        piso2BasuraIdx++;
+      }
+
+      // Piso 2: Lavar Cafetera (Mon-Fri)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const emp = piso2Employees[piso2CafeteraIdx % piso2Employees.length];
+        assignmentPromises.push(
+          db.assignment.create({
+            data: {
+              groupId: piso2.id,
+              employeeId: emp.id,
+              date: new Date(datePointer),
+              taskType: "Lavar Cafetera",
+              isLocked: true,
+            },
+          })
+        );
+        piso2CafeteraIdx++;
       }
 
       datePointer.setDate(datePointer.getDate() + 1);
     }
 
-    // Create audit logs
+    await Promise.all(assignmentPromises);
+
+    // ─── Audit Logs ────────────────────────────────────────────────
     await db.auditLog.createMany({
       data: [
+        { entityType: "group", entityId: piso1.id, action: "create", changedBy: "seed", groupId: piso1.id },
         { entityType: "group", entityId: piso2.id, action: "create", changedBy: "seed", groupId: piso2.id },
-        { entityType: "group", entityId: piso3.id, action: "create", changedBy: "seed", groupId: piso3.id },
-        { entityType: "group", entityId: cocina.id, action: "create", changedBy: "seed", groupId: cocina.id },
-        { entityType: "group", entityId: recepcion.id, action: "create", changedBy: "seed", groupId: recepcion.id },
       ],
     });
 
+    const totalRules = 14; // 2 groups × (2 sacar basura + 5 lavar cafetera) = 14
+
     return NextResponse.json({
-      message: "Datos demo creados exitosamente",
-      groups: 4,
-      employees: piso2Employees.length + piso3Employees.length + cocinaEmployees.length + recepcionEmployees.length,
-      rules: 2 + 3 + 5 + 5, // 15 rules
+      message: "Datos creados exitosamente",
+      groups: 2,
+      employees: piso1Employees.length + piso2Employees.length,
+      rules: totalRules,
+      tasks: ["Sacar Basura (Mar, Jue)", "Lavar Cafetera (Lun-Vie)"],
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error en seed";
+    console.error("Seed error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

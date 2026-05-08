@@ -24,31 +24,114 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CalendarDays, Play, BarChart3, Lock, Unlock, Sparkles } from "lucide-react";
+import { BarChart3, Lock, Unlock, Sparkles, Play, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+
+// Task type colors
+const TASK_COLORS: Record<string, string> = {
+  "Sacar Basura": "#ef4444",
+  "Lavar Cafetera": "#3b82f6",
+  "Aseo General": "#10b981",
+};
+
+const DAY_NAMES_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MONTH_NAMES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+interface CalendarDay {
+  date: Date;
+  dayOfMonth: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  isWeekend: boolean;
+  assignments: Array<{
+    id: string;
+    taskType: string;
+    employeeName: string;
+    groupName: string;
+    isLocked: boolean;
+    groupColor: string;
+  }>;
+}
+
+function getCalendarDays(year: number, month: number): CalendarDay[] {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startPad = firstDay.getDay(); // 0=Sun
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days: CalendarDay[] = [];
+
+  // Previous month padding
+  for (let i = startPad - 1; i >= 0; i--) {
+    const d = new Date(year, month, -i);
+    days.push({
+      date: d,
+      dayOfMonth: d.getDate(),
+      isCurrentMonth: false,
+      isToday: d.getTime() === today.getTime(),
+      isWeekend: d.getDay() === 0 || d.getDay() === 6,
+      assignments: [],
+    });
+  }
+
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const date = new Date(year, month, d);
+    days.push({
+      date,
+      dayOfMonth: d,
+      isCurrentMonth: true,
+      isToday: date.getTime() === today.getTime(),
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+      assignments: [],
+    });
+  }
+
+  // Next month padding
+  const remaining = 42 - days.length;
+  for (let d = 1; d <= remaining; d++) {
+    const date = new Date(year, month + 1, d);
+    days.push({
+      date,
+      dayOfMonth: d,
+      isCurrentMonth: false,
+      isToday: false,
+      isWeekend: date.getDay() === 0 || date.getDay() === 6,
+      assignments: [],
+    });
+  }
+
+  return days;
+}
 
 export function DashboardModule() {
   const { data: groups, isLoading: loadingGroups } = useGroups();
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("_all");
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generateRange, setGenerateRange] = useState({ startDate: "", endDate: "" });
+  const [generateGroupId, setGenerateGroupId] = useState<string>("");
   const generateAssignments = useGenerateAssignments();
 
-  // Date range: current month ± 2 months
-  const [calendarDates] = useState(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+  // Calendar navigation
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+
+  // Date range for fetching (covers visible calendar range)
+  const calendarDates = useMemo(() => {
+    const start = new Date(viewYear, viewMonth - 1, 1);
+    const end = new Date(viewYear, viewMonth + 2, 0);
     return {
       startDate: start.toISOString().split("T")[0],
       endDate: end.toISOString().split("T")[0],
     };
-  });
+  }, [viewYear, viewMonth]);
 
-  // Fetch ALL assignments (no groupId = all groups, _all = all groups)
   const effectiveGroupId = selectedGroupId && selectedGroupId !== "_all" ? selectedGroupId : undefined;
   const { data: assignments, isLoading: loadingAssignments } = useAssignments(
     effectiveGroupId,
@@ -58,39 +141,60 @@ export function DashboardModule() {
 
   const { data: balanceReport } = useBalanceReport(effectiveGroupId);
 
-  // Transform for FullCalendar
-  const calendarEvents = useMemo(() => {
-    if (!assignments || !groups) return [];
-    return assignments.map((a) => {
+  // Build calendar days with assignments
+  const calendarDays = useMemo(() => {
+    const days = getCalendarDays(viewYear, viewMonth);
+    if (!assignments || !groups) return days;
+
+    // Map assignments to dates
+    const dateMap = new Map<string, Array<{
+      id: string;
+      taskType: string;
+      employeeName: string;
+      groupName: string;
+      isLocked: boolean;
+      groupColor: string;
+    }>>();
+
+    for (const a of assignments) {
+      const dateKey = new Date(a.date).toISOString().split("T")[0];
+      if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
       const group = groups.find((g) => g.id === a.groupId);
-      const emp = a.employee;
-      const groupName = group?.name ?? "";
-      return {
+      dateMap.get(dateKey)!.push({
         id: a.id,
-        title: emp ? `${emp.name} (${groupName})` : "Sin asignar",
-        start: new Date(a.date).toISOString().split("T")[0],
-        backgroundColor: group?.color ?? "#6b7280",
-        borderColor: group?.color ?? "#6b7280",
-        textColor: "#ffffff",
-        extendedProps: {
-          employeeId: a.employeeId,
-          groupId: a.groupId,
-          isLocked: a.isLocked,
-          taskType: a.taskType,
-          groupName,
-        },
-      };
-    });
-  }, [assignments, groups]);
+        taskType: a.taskType ?? "",
+        employeeName: a.employee?.name ?? "",
+        groupName: group?.name ?? "",
+        isLocked: a.isLocked,
+        groupColor: group?.color ?? "#6b7280",
+      });
+    }
+
+    // Assign to calendar days
+    for (const day of days) {
+      const key = day.date.toISOString().split("T")[0];
+      day.assignments = dateMap.get(key) ?? [];
+    }
+
+    return days;
+  }, [viewYear, viewMonth, assignments, groups]);
+
+  // Task legend
+  const taskLegend = useMemo(() => {
+    if (!assignments) return [];
+    const taskTypes = new Set<string>();
+    assignments.forEach((a) => { if (a.taskType) taskTypes.add(a.taskType); });
+    return Array.from(taskTypes).sort();
+  }, [assignments]);
 
   const handleGenerate = async () => {
-    if (!selectedGroupId || !generateRange.startDate || !generateRange.endDate) {
+    if (!generateGroupId || !generateRange.startDate || !generateRange.endDate) {
       toast.error("Completa todos los campos");
       return;
     }
     try {
       const result = await generateAssignments.mutateAsync({
-        groupId: selectedGroupId,
+        groupId: generateGroupId,
         startDate: generateRange.startDate,
         endDate: generateRange.endDate,
       });
@@ -101,42 +205,41 @@ export function DashboardModule() {
     }
   };
 
-  const openGenerateDialog = useCallback((groupId?: string) => {
-    const gid = groupId || (selectedGroupId !== "_all" ? selectedGroupId : "");
-    if (!gid) {
-      toast.error("Selecciona un grupo primero");
+  const openGenerateDialog = useCallback((groupId: string) => {
+    if (!groupId || groupId === "_all") {
+      toast.error("Selecciona un grupo específico");
       return;
     }
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+    setGenerateGroupId(groupId);
+    const n = new Date();
+    const start = new Date(n.getFullYear(), n.getMonth(), 1);
+    const end = new Date(n.getFullYear(), n.getMonth() + 3, 0);
     setGenerateRange({
       startDate: start.toISOString().split("T")[0],
       endDate: end.toISOString().split("T")[0],
     });
-    if (groupId && groupId !== selectedGroupId) setSelectedGroupId(groupId);
     setGenerateDialogOpen(true);
-  }, [selectedGroupId]);
-
-  const renderEventContent = useCallback((eventInfo: { event: { extendedProps: { isLocked: boolean; taskType: string | null; groupName: string }; title: string } }) => {
-    const isLocked = eventInfo.event.extendedProps.isLocked;
-    return (
-      <div className="flex items-center gap-1 px-1 py-0.5 text-[11px] leading-tight overflow-hidden">
-        {isLocked && <Lock className="h-2.5 w-2.5 shrink-0 opacity-60" />}
-        <span className="truncate">{eventInfo.event.title}</span>
-      </div>
-    );
   }, []);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
+    else setViewMonth(viewMonth - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
+    else setViewMonth(viewMonth + 1);
+  };
+  const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
 
   const isLoading = loadingGroups || loadingAssignments;
 
   return (
     <div className="space-y-4">
-      {/* Top toolbar */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-            <SelectTrigger className="w-52">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Todos los grupos" />
             </SelectTrigger>
             <SelectContent>
@@ -146,12 +249,6 @@ export function DashboardModule() {
               ))}
             </SelectContent>
           </Select>
-          {balanceReport && balanceReport.length > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <BarChart3 className="h-3 w-3" />
-              {balanceReport.length} empleados
-            </Badge>
-          )}
         </div>
         <div className="flex items-center gap-2">
           {groups && groups.length > 0 && groups.map((g) => (
@@ -161,56 +258,99 @@ export function DashboardModule() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow"
               style={{ borderColor: g.color, color: g.color }}
             >
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: g.color }} />
+              <Play className="h-3 w-3" />
               Generar {g.name}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Main layout: Calendar + Sidebar */}
+      {/* Calendar + Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Calendar */}
         <div className="lg:col-span-4">
-          {isLoading ? (
-            <Card>
-              <CardContent className="p-8">
-                <div className="animate-pulse h-[500px] bg-muted rounded-lg" />
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-2 sm:p-4">
-                <FullCalendar
-                  plugins={[dayGridPlugin, interactionPlugin]}
-                  initialView="dayGridMonth"
-                  events={calendarEvents}
-                  headerToolbar={{
-                    left: "prev,next today",
-                    center: "title",
-                    right: "dayGridMonth,dayGridWeek",
-                  }}
-                  height="auto"
-                  locale="es"
-                  buttonText={{
-                    today: "Hoy",
-                    month: "Mes",
-                    week: "Semana",
-                  }}
-                  eventContent={renderEventContent}
-                  eventDisplay="block"
-                  dayMaxEvents={4}
-                  editable={false}
-                  selectable={false}
-                  firstDay={1}
-                  weekends={false}
-                />
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardContent className="p-4">
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={goToday}>
+                    Hoy
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <h2 className="text-lg font-semibold">
+                  {MONTH_NAMES[viewMonth]} {viewYear}
+                </h2>
+              </div>
+
+              {/* Day headers */}
+              <div className="grid grid-cols-7 gap-px bg-border rounded-t-lg overflow-hidden">
+                {DAY_NAMES_SHORT.map((d, i) => (
+                  <div
+                    key={d}
+                    className={`text-center text-xs font-medium py-2 ${i === 0 || i === 6 ? "bg-muted text-muted-foreground" : "bg-card"}`}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              {isLoading ? (
+                <div className="flex items-center justify-center h-96">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-7 gap-px bg-border rounded-b-lg overflow-hidden">
+                  {calendarDays.map((day, i) => (
+                    <div
+                      key={i}
+                      className={`min-h-[80px] sm:min-h-[100px] p-1 transition-colors ${
+                        day.isCurrentMonth ? "bg-card" : "bg-muted/30"
+                      } ${day.isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                    >
+                      <div className={`text-xs font-medium mb-1 ${
+                        day.isToday ? "text-primary" : day.isCurrentMonth ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        {day.dayOfMonth}
+                      </div>
+                      <div className="space-y-0.5">
+                        {day.assignments.slice(0, 3).map((a) => (
+                          <div
+                            key={a.id}
+                            className="text-[10px] leading-tight px-1 py-0.5 rounded truncate"
+                            style={{
+                              backgroundColor: `${TASK_COLORS[a.taskType] ?? a.groupColor}20`,
+                              color: TASK_COLORS[a.taskType] ?? a.groupColor,
+                              borderLeft: `2px solid ${TASK_COLORS[a.taskType] ?? a.groupColor}`,
+                            }}
+                            title={`${a.taskType} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
+                          >
+                            <span className="font-medium">{a.taskType === "Sacar Basura" ? "🗑️" : a.taskType === "Lavar Cafetera" ? "☕" : "📋"}</span>{" "}
+                            {a.employeeName}
+                          </div>
+                        ))}
+                        {day.assignments.length > 3 && (
+                          <div className="text-[10px] text-muted-foreground text-center">
+                            +{day.assignments.length - 3} más
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Right sidebar: Balance + Legend + Stats */}
+        {/* Sidebar */}
         <div className="space-y-4">
           {/* Balance */}
           <Card>
@@ -234,9 +374,7 @@ export function DashboardModule() {
                         <div className="w-full bg-muted rounded-full h-1.5">
                           <div
                             className="bg-primary rounded-full h-1.5 transition-all"
-                            style={{
-                              width: `${Math.min(100, (item.totalAssignments / Math.max(...balanceReport.map((b) => b.totalAssignments), 1)) * 100)}%`,
-                            }}
+                            style={{ width: `${Math.min(100, (item.totalAssignments / Math.max(...balanceReport.map((b) => b.totalAssignments), 1)) * 100)}%` }}
                           />
                         </div>
                       </div>
@@ -244,16 +382,39 @@ export function DashboardModule() {
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  {selectedGroupId && selectedGroupId !== "_all" ? "Sin datos" : "Selecciona un grupo"}
+                  {effectiveGroupId ? "Sin datos" : "Selecciona un grupo"}
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {/* Legend */}
+          {/* Task Legend */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Leyenda</CardTitle>
+              <CardTitle className="text-sm">Tareas</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-1.5">
+              {taskLegend.map((task) => (
+                <div key={task} className="flex items-center gap-2 text-xs">
+                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: TASK_COLORS[task] ?? "#6b7280" }} />
+                  <span className="truncate">{task}</span>
+                </div>
+              ))}
+              <div className="border-t pt-1.5 mt-1.5 space-y-1.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" /><span>Histórico</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Unlock className="h-3 w-3" /><span>Futuro</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Groups */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Grupos</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-1.5">
               {groups?.map((g) => (
@@ -262,20 +423,10 @@ export function DashboardModule() {
                   <span className="truncate">{g.name}</span>
                 </div>
               ))}
-              <div className="border-t border-border pt-1.5 mt-1.5 space-y-1.5">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Lock className="h-3 w-3" />
-                  <span>Histórico (bloqueado)</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Unlock className="h-3 w-3" />
-                  <span>Futuro (editable)</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          {/* Quick stats */}
+          {/* Stats */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
@@ -312,16 +463,13 @@ export function DashboardModule() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              El motor de fairness distribuirá las tareas justamente entre los empleados.
+              El motor de fairness distribuirá las tareas justamente.
               Las asignaciones pasadas <strong>NO</strong> se modificarán.
             </p>
             <div className="space-y-2">
               <Label>Grupo</Label>
-              <Select
-                value={selectedGroupId}
-                onValueChange={setSelectedGroupId}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={generateGroupId} onValueChange={setGenerateGroupId}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar grupo" /></SelectTrigger>
                 <SelectContent>
                   {groups?.map((g) => (
                     <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
@@ -332,18 +480,14 @@ export function DashboardModule() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Desde</Label>
-                <input
-                  type="date"
-                  className="w-full px-3 py-2 border rounded-md text-sm"
+                <input type="date" className="w-full px-3 py-2 border rounded-md text-sm bg-background"
                   value={generateRange.startDate}
                   onChange={(e) => setGenerateRange((r) => ({ ...r, startDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Hasta</Label>
-                <input
-                  type="date"
-                  className="w-full px-3 py-2 border rounded-md text-sm"
+                <input type="date" className="w-full px-3 py-2 border rounded-md text-sm bg-background"
                   value={generateRange.endDate}
                   onChange={(e) => setGenerateRange((r) => ({ ...r, endDate: e.target.value }))}
                 />
@@ -353,11 +497,7 @@ export function DashboardModule() {
               <Lock className="h-4 w-4 shrink-0" />
               <span>Las asignaciones pasadas están bloqueadas y nunca se modificarán.</span>
             </div>
-            <Button
-              onClick={handleGenerate}
-              className="w-full"
-              disabled={generateAssignments.isPending || !selectedGroupId}
-            >
+            <Button onClick={handleGenerate} className="w-full" disabled={generateAssignments.isPending || !generateGroupId}>
               {generateAssignments.isPending ? "Generando..." : "Generar Asignaciones"}
             </Button>
           </div>

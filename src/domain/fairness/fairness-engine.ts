@@ -2,6 +2,7 @@
 // Input: employees, rules, historical assignments
 // Output: fair assignments
 // Can be tested in isolation without any framework dependency
+// Supports MULTIPLE tasks per day per group (e.g. "Sacar Basura" + "Lavar Cafetera" on same day)
 
 import type { DayOfWeek } from "../entities/types";
 
@@ -21,7 +22,7 @@ export interface FairnessRule {
   groupId: string;
   dayOfWeek: DayOfWeek;
   frequency: number;
-  taskLabel: string | null;
+  taskLabel: string; // REQUIRED: defines the specific task
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
@@ -32,6 +33,7 @@ export interface FairnessHistoricalAssignment {
   employeeId: string;
   groupId: string;
   date: Date;
+  taskType: string; // REQUIRED: the specific task this assignment is for
   isLocked: boolean;
 }
 
@@ -51,7 +53,7 @@ export interface FairnessAssignment {
   groupId: string;
   date: Date;
   ruleId: string;
-  taskType: string | null;
+  taskType: string;
   fairnessScore: number;
 }
 
@@ -82,6 +84,7 @@ export interface FairnessConfig {
   balanceWeight: number;      // weight for overall balance in scoring (default: 1.0)
   monthlyBalanceWeight: number; // weight for monthly balance (default: 1.5)
   joinDateWeight: number;     // bonus weight for newer employees who haven't had turns (default: 0.5)
+  sameDayPenalty: number;     // penalty for being assigned another task on the same day (default: 5.0)
 }
 
 const DEFAULT_CONFIG: FairnessConfig = {
@@ -91,6 +94,7 @@ const DEFAULT_CONFIG: FairnessConfig = {
   balanceWeight: 1.0,
   monthlyBalanceWeight: 1.5,
   joinDateWeight: 0.5,
+  sameDayPenalty: 5.0,
 };
 
 // ─── Fairness Engine ──────────────────────────────────────────
@@ -104,12 +108,12 @@ export class FairnessEngine {
 
   /**
    * Main entry point: Generate fair assignments for a date range
+   * Supports multiple tasks per day per group
    */
   generateAssignments(input: FairnessEngineInput): FairnessReport {
     const { employees, rules, historicalAssignments, groupId, startDate, endDate } = input;
 
     // Filter active employees in this group
-    // Only check isActive and groupId here; date availability is checked per-assignment
     const activeEmployees = employees.filter(
       (e) => e.isActive && e.groupId === groupId && (!e.leaveDate || e.leaveDate >= startDate)
     );
@@ -139,10 +143,11 @@ export class FairnessEngine {
       };
     }
 
-    // Generate the dates that need assignments
+    // Generate the dates that need assignments (one per rule per matching date)
     const datesNeedingAssignment = this.generateAssignmentDates(activeRules, startDate, endDate);
 
     // Build existing assignments map for quick lookup
+    // Key: groupId:date:taskType -> allows multiple tasks per day
     const existingMap = this.buildExistingAssignmentsMap(historicalAssignments);
 
     // Calculate base balance from historical data
@@ -153,11 +158,17 @@ export class FairnessEngine {
 
     for (const { date, rule } of datesNeedingAssignment) {
       const dateKey = this.dateToKey(date);
+      const taskKey = `${groupId}:${dateKey}:${rule.taskLabel}`;
 
-      // Skip if already has a locked assignment
-      if (existingMap.has(`${groupId}:${dateKey}`)) {
+      // Skip if already has a locked assignment for this specific task on this date
+      if (existingMap.has(taskKey)) {
         continue;
       }
+
+      // Find who is already assigned on this date for this group (same-day penalty)
+      const alreadyAssignedToday = this.getEmployeesAssignedOnDate(
+        date, groupId, historicalAssignments, assignments
+      );
 
       // Score each employee for this date
       const scored = activeEmployees
@@ -166,9 +177,11 @@ export class FairnessEngine {
           const score = this.calculateScore(
             employee,
             date,
+            rule.taskLabel,
             balanceMap,
-            assignments, // already-planned future assignments
-            historicalAssignments
+            assignments,
+            historicalAssignments,
+            alreadyAssignedToday
           );
           return { employee, score };
         })
@@ -219,15 +232,17 @@ export class FairnessEngine {
   // ─── Scoring Algorithm ────────────────────────────────────────
 
   /**
-   * Calculate fairness score for an employee on a given date.
+   * Calculate fairness score for an employee on a given date for a given task.
    * Higher score = more deserving of assignment.
    */
   private calculateScore(
     employee: FairnessEmployee,
     date: Date,
+    taskType: string,
     balanceMap: Map<string, BalanceEntry>,
     plannedAssignments: FairnessAssignment[],
-    historicalAssignments: FairnessHistoricalAssignment[]
+    historicalAssignments: FairnessHistoricalAssignment[],
+    alreadyAssignedToday: Set<string>
   ): number {
     let score = 0;
 
@@ -272,17 +287,15 @@ export class FairnessEngine {
       score += this.config.joinDateWeight;
     }
 
+    // 6. Same-day penalty: strongly penalize if already assigned another task on this date
+    if (alreadyAssignedToday.has(employee.id)) {
+      score -= this.config.sameDayPenalty;
+    }
+
     return score;
   }
 
   // ─── Helper Methods ───────────────────────────────────────────
-
-  private isEmployeeAvailable(employee: FairnessEmployee, startDate: Date): boolean {
-    if (!employee.isActive) return false;
-    if (employee.joinDate > startDate) return false;
-    if (employee.leaveDate && employee.leaveDate < startDate) return false;
-    return true;
-  }
 
   private isEmployeeAvailableOnDate(employee: FairnessEmployee, date: Date): boolean {
     if (!employee.isActive) return false;
@@ -333,17 +346,49 @@ export class FairnessEngine {
     return dates;
   }
 
+  /**
+   * Build map of existing LOCKED assignments
+   * Key: groupId:date:taskType -> allows multiple tasks per day
+   */
   private buildExistingAssignmentsMap(
     assignments: FairnessHistoricalAssignment[]
   ): Map<string, boolean> {
     const map = new Map<string, boolean>();
     for (const a of assignments) {
       if (a.isLocked) {
-        const key = `${a.groupId}:${this.dateToKey(a.date)}`;
+        const key = `${a.groupId}:${this.dateToKey(a.date)}:${a.taskType}`;
         map.set(key, true);
       }
     }
     return map;
+  }
+
+  /**
+   * Get set of employee IDs already assigned on a specific date for a group
+   * Used to apply same-day penalty (avoid assigning same person multiple tasks on same day)
+   */
+  private getEmployeesAssignedOnDate(
+    date: Date,
+    groupId: string,
+    historical: FairnessHistoricalAssignment[],
+    planned: FairnessAssignment[]
+  ): Set<string> {
+    const dateKey = this.dateToKey(date);
+    const employees = new Set<string>();
+
+    for (const a of historical) {
+      if (a.groupId === groupId && this.dateToKey(a.date) === dateKey && a.isLocked) {
+        employees.add(a.employeeId);
+      }
+    }
+
+    for (const a of planned) {
+      if (a.groupId === groupId && this.dateToKey(a.date) === dateKey) {
+        employees.add(a.employeeId);
+      }
+    }
+
+    return employees;
   }
 
   private calculateBalanceFromHistory(
