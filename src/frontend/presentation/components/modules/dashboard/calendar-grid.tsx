@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   DAY_NAMES_SHORT, MONTH_NAMES, type CalendarDay, type ViewMode,
-  formatFullDate, formatWeekRange,
+  formatFullDate, formatWeekRange, getWeekDays as getWeekDaysUtil,
 } from "./calendar-utils";
 import { getEventColor, getEventBgColor } from "./color-utils";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
@@ -229,7 +229,7 @@ export function CalendarGrid({
       return `${MONTH_NAMES[viewMonth]} ${viewYear}`;
     }
     if (viewMode === "week") {
-      const weekDays = getWeekDays(viewYear, viewMonth, viewDay);
+      const weekDays = getWeekDaysUtil(viewYear, viewMonth, viewDay);
       return formatWeekRange(weekDays);
     }
     // day
@@ -237,21 +237,7 @@ export function CalendarGrid({
     return formatFullDate(d);
   })();
 
-  // Referencia interna para week header (no afecta estado)
-  function getWeekDays(year: number, month: number, day: number) {
-    const ref = new Date(year, month, day);
-    const dow = ref.getDay();
-    const mondayOff = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(ref);
-    monday.setDate(ref.getDate() + mondayOff);
-    const result: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      result.push(d);
-    }
-    return result;
-  }
+
 
   return (
     <Card>
