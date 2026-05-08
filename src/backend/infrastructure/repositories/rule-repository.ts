@@ -1,7 +1,7 @@
 // Rule Repository - Database access layer for AssignmentRule
 // Rules are configurable (NOT hardcoded)
 
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 import type { Prisma } from "@prisma/client";
 
 export interface FindRulesOptions {

@@ -4,8 +4,7 @@
 // POST /api/holidays?seed=true - Seed Colombian holidays for 2024-2030
 
 import { NextRequest, NextResponse } from "next/server";
-import { holidayRepository } from "@/backend/infrastructure/repositories";
-import { generateColombianHolidaysForRange, formatDateKey } from "@/backend/domain/holidays/colombian-holidays";
+import { holidayService } from "@/backend/application/services";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,10 +12,9 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const holidays = await holidayRepository.findAll({
+    const holidays = await holidayService.getAll({
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      isActive: true,
     });
 
     return NextResponse.json(holidays);
@@ -35,42 +33,12 @@ export async function POST(request: NextRequest) {
     if (body.seed === true) {
       const startYear = body.startYear ?? 2024;
       const endYear = body.endYear ?? 2030;
-
-      const holidays = generateColombianHolidaysForRange(startYear, endYear);
-
-      const data = holidays.map((h) => ({
-        date: new Date(h.date.getFullYear(), h.date.getMonth(), h.date.getDate()),
-        name: h.name,
-        type: h.type,
-        isRecurring: h.type === "fixed",
-        isActive: true,
-      }));
-
-      // Delete existing and re-seed
-      await holidayRepository.deleteAll();
-      const result = await holidayRepository.createMany(data);
-
-      return NextResponse.json({
-        message: `Seeded ${result.count} Colombian holidays (${startYear}-${endYear})`,
-        count: result.count,
-        years: endYear - startYear + 1,
-      });
+      const result = await holidayService.seedColombianHolidays(startYear, endYear);
+      return NextResponse.json(result);
     }
 
     // Normal: create a single holiday
-    const { date, name, type = "national", isRecurring = true } = body;
-    if (!date || !name) {
-      return NextResponse.json({ error: "Fecha y nombre son requeridos" }, { status: 400 });
-    }
-
-    const holiday = await holidayRepository.create({
-      date: new Date(date),
-      name,
-      type,
-      isRecurring,
-      isActive: true,
-    });
-
+    const holiday = await holidayService.create(body);
     return NextResponse.json(holiday, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al crear festivo";

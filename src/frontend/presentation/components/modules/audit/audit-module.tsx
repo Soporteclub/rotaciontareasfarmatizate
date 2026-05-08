@@ -139,7 +139,8 @@ export function AuditModule() {
                           {(() => {
                             try {
                               return JSON.stringify(JSON.parse(log.changes), null, 2);
-                            } catch {
+                            } catch (e) {
+                              console.warn("Failed to parse audit log changes:", e);
                               return log.changes;
                             }
                           })()}

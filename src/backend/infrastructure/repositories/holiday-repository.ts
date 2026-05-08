@@ -1,7 +1,7 @@
 // Holiday Repository - Database access layer for Holiday
 // Manages Colombian public holidays (festivos)
 
-import { db } from "@/lib/db";
+import { db } from "@/backend/infrastructure/database";
 import type { Prisma } from "@prisma/client";
 
 export interface FindHolidaysOptions {

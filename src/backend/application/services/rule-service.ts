@@ -35,8 +35,7 @@ export const ruleService = {
       throw new Error("Ya existe una regla para este día y tarea en el grupo");
     }
 
-    // Note: We don't require employees to exist before creating rules anymore
-    // Rules can be created first, then employees added
+    // Rules can be created before employees are added
 
     const data: Prisma.AssignmentRuleCreateInput = {
       dayOfWeek: input.dayOfWeek,

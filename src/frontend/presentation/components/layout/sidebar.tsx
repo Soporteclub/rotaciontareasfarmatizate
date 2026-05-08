@@ -12,7 +12,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
-import { cn } from "@/lib/utils";
+import { cn } from "@/frontend/lib/utils";
 import { useState } from "react";
 import Image from "next/image";
 
