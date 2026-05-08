@@ -25,3 +25,23 @@ Stage Summary:
 - frequencyType field added (daily/weekly/monthly) replacing old numeric frequency concept
 - Fairness engine enforces max difference of 1 between employees
 - Distribution now equitable instead of 7/7/6/5/5 pattern
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix 502 Bad Gateway error - restart dev server
+
+Work Log:
+- Diagnosed 502 Bad Gateway: Next.js dev server had crashed
+- Discovered background processes were being killed after ~30 seconds
+- Found that double-fork technique keeps the process alive
+- Successfully restarted dev server on port 3000
+- Verified all APIs working: /api/employees, /api/rules, /api/groups
+- Confirmed all 4 features from previous session are present and working
+
+Stage Summary:
+- Dev server restarted and stable
+- Employee fields (position/area) working - no email field
+- Rules with frequencyType (daily/weekly/monthly) + edit/delete working
+- Calendar with day/week/month views working
+- Fairness engine with maxImbalance=1 producing equitable distributions
