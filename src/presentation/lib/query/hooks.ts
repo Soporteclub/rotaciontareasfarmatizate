@@ -2,6 +2,7 @@
 // Centralized data access layer for the frontend
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── API Helper ───────────────────────────────────────────────
 
@@ -18,6 +19,21 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
   const data = await res.json();
   return data.data as T;
+}
+
+// Raw fetch that returns the full JSON response (for endpoints that don't wrap in { data })
+async function rawFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: "Error de conexión" }));
+    throw new Error(error.error || `Error ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
 }
 
 // ─── Types ────────────────────────────────────────────────────
@@ -316,4 +332,137 @@ export function useAuditLogs(options?: { entityType?: string; groupId?: string; 
     queryFn: () =>
       apiFetch<{ items: AuditLogResponse[]; total: number }>(`/api/audit?${params.toString()}`),
   });
+}
+
+// ─── Auto-Initialize Hook ──────────────────────────────────────
+// On mount, checks if groups exist → seeds if needed → checks assignments → generates if needed
+// Ensures the calendar always shows data immediately on first load
+
+interface AutoInitState {
+  isInitializing: boolean;
+  step: "idle" | "checking-groups" | "seeding" | "checking-assignments" | "generating" | "done" | "error";
+  message: string;
+}
+
+export function useAutoInitialize() {
+  const [state, setState] = useState<AutoInitState>({
+    isInitializing: true,
+    step: "idle",
+    message: "",
+  });
+
+  const queryClient = useQueryClient();
+  const hasRun = useRef(false);
+
+  const initialize = useCallback(async () => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
+    try {
+      // Step 1: Check if groups exist
+      setState({ isInitializing: true, step: "checking-groups", message: "Verificando datos..." });
+
+      const groupsRes = await fetch("/api/groups?includeInactive=false");
+      if (!groupsRes.ok) throw new Error("Error al verificar grupos");
+      const groupsJson = await groupsRes.json();
+      const groups: GroupResponse[] = groupsJson.data ?? [];
+
+      // Step 2: If no groups, seed the database
+      if (groups.length === 0) {
+        setState({ isInitializing: true, step: "seeding", message: "Inicializando datos base..." });
+        await rawFetch<{ message: string }>("/api/seed", { method: "POST" });
+
+        // Invalidate groups cache after seeding
+        await queryClient.invalidateQueries({ queryKey: ["groups"] });
+
+        // Re-fetch groups after seeding
+        const newGroupsRes = await fetch("/api/groups?includeInactive=false");
+        const newGroupsJson = await newGroupsRes.json();
+        const newGroups: GroupResponse[] = newGroupsJson.data ?? [];
+
+        if (newGroups.length === 0) {
+          throw new Error("No se pudieron crear los grupos");
+        }
+
+        // After seeding, historical assignments are already created by the seed endpoint.
+        // But we still need to generate future assignments for current month ±1.
+        setState({ isInitializing: true, step: "generating", message: "Generando asignaciones..." });
+
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        const startStr = startDate.toISOString().split("T")[0];
+        const endStr = endDate.toISOString().split("T")[0];
+
+        for (const group of newGroups) {
+          try {
+            await apiFetch<GenerateResult>("/api/assignments/generate", {
+              method: "POST",
+              body: JSON.stringify({ groupId: group.id, startDate: startStr, endDate: endStr }),
+            });
+          } catch {
+            // Generation might fail if assignments already exist from seed, that's okay
+          }
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ["assignments"] });
+        await queryClient.invalidateQueries({ queryKey: ["groups"] });
+        setState({ isInitializing: false, step: "done", message: "" });
+        return;
+      }
+
+      // Step 3: Groups exist — check if assignments exist for current month
+      setState({ isInitializing: true, step: "checking-assignments", message: "Verificando asignaciones..." });
+
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const startStr = monthStart.toISOString().split("T")[0];
+      const endStr = monthEnd.toISOString().split("T")[0];
+
+      const assignmentsParams = new URLSearchParams({ startDate: startStr, endDate: endStr });
+      const assignmentsRes = await fetch(`/api/assignments?${assignmentsParams.toString()}`);
+      if (!assignmentsRes.ok) throw new Error("Error al verificar asignaciones");
+      const assignmentsJson = await assignmentsRes.json();
+      const existingAssignments: AssignmentResponse[] = assignmentsJson.data ?? [];
+
+      // Step 4: If no assignments for current month, auto-generate for all groups (current month ±1)
+      if (existingAssignments.length === 0) {
+        setState({ isInitializing: true, step: "generating", message: "Generando asignaciones..." });
+
+        const genStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const genEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        const genStartStr = genStart.toISOString().split("T")[0];
+        const genEndStr = genEnd.toISOString().split("T")[0];
+
+        for (const group of groups) {
+          try {
+            await apiFetch<GenerateResult>("/api/assignments/generate", {
+              method: "POST",
+              body: JSON.stringify({ groupId: group.id, startDate: genStartStr, endDate: genEndStr }),
+            });
+          } catch {
+            // Silently handle — manual generate buttons are still available
+          }
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      }
+
+      setState({ isInitializing: false, step: "done", message: "" });
+    } catch (error) {
+      console.error("Auto-initialize error:", error);
+      setState({
+        isInitializing: false,
+        step: "error",
+        message: error instanceof Error ? error.message : "Error de inicialización",
+      });
+    }
+  }, [queryClient]);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return state;
 }

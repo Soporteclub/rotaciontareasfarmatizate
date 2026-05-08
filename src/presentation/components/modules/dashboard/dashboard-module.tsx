@@ -6,6 +6,7 @@ import {
   useAssignments,
   useGenerateAssignments,
   useBalanceReport,
+  useAutoInitialize,
 } from "@/presentation/lib/query/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,12 +28,23 @@ import {
 import { BarChart3, Lock, Unlock, Sparkles, Play, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Task type colors
+// Task type colors — distinct hues for each task
 const TASK_COLORS: Record<string, string> = {
-  "Sacar Basura": "#ef4444",
-  "Lavar Cafetera": "#3b82f6",
-  "Aseo General": "#10b981",
+  "Sacar Basura": "#ea580c",   // orange-600 — trash duty
+  "Lavar Cafetera": "#0d9488", // teal-600 — coffee duty
+  "Aseo General": "#16a34a",  // green-600 — general cleaning
 };
+
+// Task type emojis
+const TASK_EMOJIS: Record<string, string> = {
+  "Sacar Basura": "🗑️",
+  "Lavar Cafetera": "☕",
+  "Aseo General": "🧹",
+};
+
+function getTaskEmoji(taskType: string): string {
+  return TASK_EMOJIS[taskType] ?? "📋";
+}
 
 const DAY_NAMES_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -110,6 +122,9 @@ function getCalendarDays(year: number, month: number): CalendarDay[] {
 }
 
 export function DashboardModule() {
+  // Auto-initialize: seed & generate on first load
+  const { isInitializing, step: initStep, message: initMessage } = useAutoInitialize();
+
   const { data: groups, isLoading: loadingGroups } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string>("_all");
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
@@ -231,10 +246,17 @@ export function DashboardModule() {
   };
   const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
 
-  const isLoading = loadingGroups || loadingAssignments;
+  const isLoading = isInitializing || loadingGroups || loadingAssignments;
 
   return (
     <div className="space-y-4">
+      {/* Auto-init banner */}
+      {isInitializing && (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/60 text-sm text-muted-foreground animate-pulse">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>{initMessage || "Inicializando..."}</span>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -321,21 +343,24 @@ export function DashboardModule() {
                         {day.dayOfMonth}
                       </div>
                       <div className="space-y-0.5">
-                        {day.assignments.slice(0, 3).map((a) => (
-                          <div
-                            key={a.id}
-                            className="text-[10px] leading-tight px-1 py-0.5 rounded truncate"
-                            style={{
-                              backgroundColor: `${TASK_COLORS[a.taskType] ?? a.groupColor}20`,
-                              color: TASK_COLORS[a.taskType] ?? a.groupColor,
-                              borderLeft: `2px solid ${TASK_COLORS[a.taskType] ?? a.groupColor}`,
-                            }}
-                            title={`${a.taskType} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
-                          >
-                            <span className="font-medium">{a.taskType === "Sacar Basura" ? "🗑️" : a.taskType === "Lavar Cafetera" ? "☕" : "📋"}</span>{" "}
-                            {a.employeeName}
-                          </div>
-                        ))}
+                        {day.assignments.slice(0, 3).map((a) => {
+                          const taskColor = TASK_COLORS[a.taskType] ?? a.groupColor;
+                          return (
+                            <div
+                              key={a.id}
+                              className="text-[10px] leading-tight px-1 py-0.5 rounded truncate flex items-center gap-0.5"
+                              style={{
+                                backgroundColor: `${taskColor}18`,
+                                color: taskColor,
+                                borderLeft: `3px solid ${taskColor}`,
+                              }}
+                              title={`${a.taskType} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
+                            >
+                              <span className="shrink-0">{getTaskEmoji(a.taskType)}</span>
+                              <span className="font-medium truncate">{a.employeeName}</span>
+                            </div>
+                          );
+                        })}
                         {day.assignments.length > 3 && (
                           <div className="text-[10px] text-muted-foreground text-center">
                             +{day.assignments.length - 3} más
@@ -396,8 +421,13 @@ export function DashboardModule() {
             <CardContent className="p-4 pt-0 space-y-1.5">
               {taskLegend.map((task) => (
                 <div key={task} className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: TASK_COLORS[task] ?? "#6b7280" }} />
-                  <span className="truncate">{task}</span>
+                  <div
+                    className="w-4 h-4 rounded-sm shrink-0 flex items-center justify-center text-[10px]"
+                    style={{ backgroundColor: `${TASK_COLORS[task] ?? "#6b7280"}25` }}
+                  >
+                    {getTaskEmoji(task)}
+                  </div>
+                  <span className="truncate font-medium" style={{ color: TASK_COLORS[task] ?? undefined }}>{task}</span>
                 </div>
               ))}
               <div className="border-t pt-1.5 mt-1.5 space-y-1.5">
