@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   useGroups, useAssignments, useGenerateAssignments,
   useBalanceReport, useAutoInitialize, useRules, useEmployees,
 } from "@/frontend/presentation/lib/query/hooks";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getCalendarDays, type CalendarDay } from "./calendar-utils";
+import {
+  getCalendarDays, getWeekDays, getDayView, type CalendarDay, type ViewMode,
+} from "./calendar-utils";
 import { CalendarGrid } from "./calendar-grid";
 import { DashboardFilters } from "./dashboard-filters";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -32,18 +34,37 @@ export function DashboardModule() {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [viewDay, setViewDay] = useState(now.getDate());
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
 
   // ─── Datos derivados ─────────────────────────────────────────
   const effectiveGroupId = selectedGroupId !== "_all" ? selectedGroupId : undefined;
 
   const calendarDates = useMemo(() => {
-    const start = new Date(viewYear, viewMonth - 1, 1);
-    const end = new Date(viewYear, viewMonth + 2, 0);
+    if (viewMode === "month") {
+      const start = new Date(viewYear, viewMonth - 1, 1);
+      const end = new Date(viewYear, viewMonth + 2, 0);
+      return {
+        startDate: start.toISOString().split("T")[0],
+        endDate: end.toISOString().split("T")[0],
+      };
+    }
+    if (viewMode === "week") {
+      const weekDays = getWeekDays(viewYear, viewMonth, viewDay);
+      const start = weekDays[0].date;
+      const end = weekDays[6].date;
+      return {
+        startDate: start.toISOString().split("T")[0],
+        endDate: end.toISOString().split("T")[0],
+      };
+    }
+    // day view — fetch a small window around the day
+    const d = new Date(viewYear, viewMonth, viewDay);
     return {
-      startDate: start.toISOString().split("T")[0],
-      endDate: end.toISOString().split("T")[0],
+      startDate: d.toISOString().split("T")[0],
+      endDate: d.toISOString().split("T")[0],
     };
-  }, [viewYear, viewMonth]);
+  }, [viewYear, viewMonth, viewDay, viewMode]);
 
   const { data: assignments, isLoading: loadingAssignments } = useAssignments(
     effectiveGroupId, calendarDates.startDate, calendarDates.endDate,
@@ -72,7 +93,15 @@ export function DashboardModule() {
   }, [assignments, selectedTaskType, searchName]);
 
   const calendarDays: CalendarDay[] = useMemo(() => {
-    const days = getCalendarDays(viewYear, viewMonth);
+    let days: CalendarDay[];
+    if (viewMode === "week") {
+      days = getWeekDays(viewYear, viewMonth, viewDay);
+    } else if (viewMode === "day") {
+      days = [getDayView(viewYear, viewMonth, viewDay)];
+    } else {
+      days = getCalendarDays(viewYear, viewMonth);
+    }
+
     if (!filteredAssignments || !groups) return days;
 
     const dateMap = new Map<string, CalendarDay["assignments"]>();
@@ -93,7 +122,7 @@ export function DashboardModule() {
       day.assignments = dateMap.get(key) ?? [];
     }
     return days;
-  }, [viewYear, viewMonth, filteredAssignments, groups]);
+  }, [viewYear, viewMonth, viewDay, viewMode, filteredAssignments, groups]);
 
   const taskLegend = useMemo(() => {
     if (!filteredAssignments) return [];
@@ -105,11 +134,11 @@ export function DashboardModule() {
   // ─── Acciones ────────────────────────────────────────────────
   const hasActiveFilters = selectedGroupId !== "_all" || selectedTaskType !== "_all" || searchName.trim() !== "";
 
-  const clearFilters = useCallback(() => {
+  const clearFilters = () => {
     setSelectedGroupId("_all");
     setSelectedTaskType("_all");
     setSearchName("");
-  }, []);
+  };
 
   const handleGenerate = async () => {
     if (!generateGroupId || !generateRange.startDate || !generateRange.endDate) {
@@ -129,7 +158,7 @@ export function DashboardModule() {
     }
   };
 
-  const openGenerateDialog = useCallback((groupId: string) => {
+  const openGenerateDialog = (groupId: string) => {
     if (!groupId || groupId === "_all") {
       toast.error("Selecciona un grupo específico");
       return;
@@ -143,17 +172,41 @@ export function DashboardModule() {
       endDate: end.toISOString().split("T")[0],
     });
     setGenerateDialogOpen(true);
-  }, []);
+  };
 
-  const prevMonth = () => {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
-    else setViewMonth(viewMonth - 1);
+  // Navegación unificada según vista
+  const navigatePrev = () => {
+    if (viewMode === "month") {
+      if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
+      else setViewMonth(viewMonth - 1);
+    } else {
+      const offset = viewMode === "week" ? -7 : -1;
+      const d = new Date(viewYear, viewMonth, viewDay + offset);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+      setViewDay(d.getDate());
+    }
   };
-  const nextMonth = () => {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
-    else setViewMonth(viewMonth + 1);
+
+  const navigateNext = () => {
+    if (viewMode === "month") {
+      if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
+      else setViewMonth(viewMonth + 1);
+    } else {
+      const offset = viewMode === "week" ? 7 : 1;
+      const d = new Date(viewYear, viewMonth, viewDay + offset);
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+      setViewDay(d.getDate());
+    }
   };
-  const goToday = () => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); };
+
+  const goToday = () => {
+    const t = new Date();
+    setViewYear(t.getFullYear());
+    setViewMonth(t.getMonth());
+    setViewDay(t.getDate());
+  };
 
   const isLoading = isInitializing || loadingGroups || loadingAssignments;
 
@@ -189,8 +242,11 @@ export function DashboardModule() {
             isLoading={isLoading}
             viewYear={viewYear}
             viewMonth={viewMonth}
-            prevMonth={prevMonth}
-            nextMonth={nextMonth}
+            viewDay={viewDay}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            prevMonth={navigatePrev}
+            nextMonth={navigateNext}
             goToday={goToday}
             groups={groups}
             availableTaskTypes={availableTaskTypes}

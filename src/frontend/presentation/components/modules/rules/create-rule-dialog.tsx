@@ -31,7 +31,9 @@ import {
   ALL_DAYS,
   WEEKDAYS,
   DAY_ABBR,
+  FREQUENCY_OPTIONS,
   getTaskConfig,
+  getFrequencyLabel,
 } from "./rules-constants";
 
 interface CreateRuleDialogProps {
@@ -408,7 +410,7 @@ export function CreateRuleDialog({
           {/* Paso 5: Frecuencia */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold">
-              5. Frecuencia (cada N semanas)
+              5. Frecuencia
             </Label>
             <Select
               value={form.frequency}
@@ -420,10 +422,11 @@ export function CreateRuleDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="1">Cada semana</SelectItem>
-                <SelectItem value="2">Cada 2 semanas</SelectItem>
-                <SelectItem value="3">Cada 3 semanas</SelectItem>
-                <SelectItem value="4">Cada 4 semanas</SelectItem>
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={String(opt.value)}>
+                    {opt.label} — {opt.description}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -451,8 +454,7 @@ export function CreateRuleDialog({
                   : groups?.find(
                       (g) => g.id === (form.groupId || selectedGroupId)
                     )?.name ?? "Sin grupo"}{" "}
-                · Cada {form.frequency === "1" ? "" : `${form.frequency} `}
-                semana{form.frequency !== "1" ? "s" : ""}
+                · {getFrequencyLabel(parseInt(form.frequency))}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 Se crearán{" "}

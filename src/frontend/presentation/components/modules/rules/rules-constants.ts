@@ -6,6 +6,23 @@ import { getTaskColor } from "@/frontend/presentation/components/shared/task-ico
 export const WEEKDAYS: DayOfWeek[] = [1, 2, 3, 4, 5];
 export const ALL_DAYS: DayOfWeek[] = [0, 1, 2, 3, 4, 5, 6];
 
+// ─── Frecuencias ───────────────────────────────────────────────
+export const FREQUENCY_LABELS: Record<number, string> = {
+  1: "Semanal",
+  2: "Quincenal",
+  4: "Mensual",
+};
+
+export const FREQUENCY_OPTIONS: { value: number; label: string; description: string }[] = [
+  { value: 1, label: "Semanal", description: "Cada semana" },
+  { value: 2, label: "Quincenal", description: "Cada 2 semanas" },
+  { value: 4, label: "Mensual", description: "Cada 4 semanas" },
+];
+
+export function getFrequencyLabel(frequency: number): string {
+  return FREQUENCY_LABELS[frequency] ?? `Cada ${frequency} semanas`;
+}
+
 export const DAY_ABBR: Record<number, string> = {
   0: "Dom",
   1: "Lun",

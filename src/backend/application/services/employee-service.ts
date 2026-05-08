@@ -39,7 +39,8 @@ export const employeeService = {
 
     const data: Prisma.EmployeeCreateInput = {
       name: input.name,
-      email: input.email,
+      position: input.position,
+      area: input.area,
       joinDate: input.joinDate ? new Date(input.joinDate) : new Date(),
       group: { connect: { id: input.groupId } },
     };
@@ -73,7 +74,8 @@ export const employeeService = {
 
     const data: Prisma.EmployeeUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
-    if (input.email !== undefined) data.email = input.email;
+    if (input.position !== undefined) data.position = input.position;
+    if (input.area !== undefined) data.area = input.area;
     if (input.groupId !== undefined) data.group = { connect: { id: input.groupId } };
     if (input.isActive === false) data.leaveDate = new Date();
     if (input.leaveDate !== undefined) data.leaveDate = input.leaveDate ? new Date(input.leaveDate) : null;

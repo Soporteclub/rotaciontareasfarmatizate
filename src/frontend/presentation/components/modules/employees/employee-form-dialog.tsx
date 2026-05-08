@@ -23,7 +23,8 @@ import { BRAND_PRIMARY } from "./employee-columns";
 
 export interface EmployeeFormData {
   name: string;
-  email: string;
+  position: string;
+  area: string;
   groupId: string;
   joinDate: string;
 }
@@ -85,14 +86,23 @@ export function EmployeeFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Email (opcional)</Label>
+            <Label>Cargo (opcional)</Label>
             <Input
-              type="email"
-              value={form.email}
+              value={form.position}
               onChange={(e) =>
-                onFormChange((f) => ({ ...f, email: e.target.value }))
+                onFormChange((f) => ({ ...f, position: e.target.value }))
               }
-              placeholder="correo@ejemplo.com"
+              placeholder="Ej: Auxiliar, Administrador..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Área (opcional)</Label>
+            <Input
+              value={form.area}
+              onChange={(e) =>
+                onFormChange((f) => ({ ...f, area: e.target.value }))
+              }
+              placeholder="Ej: Farmacia, Bodega, Oficina..."
             />
           </div>
           <div className="space-y-2">

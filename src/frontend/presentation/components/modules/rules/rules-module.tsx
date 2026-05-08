@@ -27,7 +27,9 @@ import {
 import { DAY_NAMES } from "@/backend/domain/entities/types";
 import type { DayOfWeek } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
+import type { RuleResponse } from "@/frontend/presentation/lib/query/hooks";
 import { CreateRuleDialog } from "./create-rule-dialog";
+import { EditRuleDialog } from "./edit-rule-dialog";
 import { TaskGroupCard } from "./rule-card";
 
 export function RulesModule() {
@@ -41,14 +43,22 @@ export function RulesModule() {
   const generateAssignments = useGenerateAssignments();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<RuleResponse | null>(null);
   const [regenerating, setRegenerating] = useState(false);
 
-  // Eliminar regla
+  // Editar regla
+  const handleEdit = useCallback((rule: RuleResponse) => {
+    setEditingRule(rule);
+    setEditDialogOpen(true);
+  }, []);
+
+  // Eliminar regla permanentemente
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("¿Desactivar esta regla?")) return;
+    if (!confirm("¿Eliminar esta regla permanentemente? Esta acción no se puede deshacer.")) return;
     try {
-      await deleteRule.mutateAsync(id);
-      toast.success("Regla desactivada");
+      await deleteRule.mutateAsync({ id, permanent: true });
+      toast.success("Regla eliminada");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
     }
@@ -213,6 +223,7 @@ export function RulesModule() {
                 groupIds={groupIds}
                 frequencies={frequencies}
                 groups={groups}
+                onEdit={handleEdit}
                 onDelete={handleDelete}
               />
             )
@@ -259,6 +270,13 @@ export function RulesModule() {
         onOpenChange={setDialogOpen}
         groups={groups}
         selectedGroupId={selectedGroupId}
+      />
+
+      {/* Diálogo de edición */}
+      <EditRuleDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        rule={editingRule}
       />
     </div>
   );

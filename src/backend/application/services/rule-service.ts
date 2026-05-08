@@ -104,4 +104,23 @@ export const ruleService = {
 
     return rule;
   },
+
+  async hardDelete(id: string) {
+    const existing = await ruleRepository.findById(id);
+    if (!existing) {
+      throw new Error("Regla no encontrada");
+    }
+
+    await ruleRepository.hardDelete(id);
+
+    await auditLogRepository.create({
+      entityType: "rule",
+      entityId: id,
+      action: "delete",
+      changes: { dayOfWeek: existing.dayOfWeek, frequency: existing.frequency, taskLabel: existing.taskLabel },
+      groupId: existing.groupId,
+    });
+
+    return { deleted: true };
+  },
 };

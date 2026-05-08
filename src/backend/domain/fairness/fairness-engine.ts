@@ -92,8 +92,8 @@ const DEFAULT_CONFIG: FairnessConfig = {
   cooldownDays: 7,
   consecutivePenalty: 3.0,
   recencyPenalty: 2.0,
-  balanceWeight: 1.0,
-  monthlyBalanceWeight: 1.5,
+  balanceWeight: 3.0,
+  monthlyBalanceWeight: 2.5,
   joinDateWeight: 0.5,
   sameDayPenalty: 5.0,
 };
@@ -189,6 +189,22 @@ export class FairnessEngine {
         .sort((a, b) => b.score - a.score);
 
       if (scored.length > 0) {
+        // Equitabilidad: si el mejor candidato ya tiene 2+ asignaciones más que
+        // otro candidato cercano en puntaje, preferir el otro para equilibrar
+        if (scored.length > 1) {
+          const best = scored[0];
+          const bestTotal = (balanceMap.get(best.employee.id)?.total ?? 0)
+            + this.countPlannedAssignments(best.employee.id, assignments);
+          const second = scored[1];
+          const secondTotal = (balanceMap.get(second.employee.id)?.total ?? 0)
+            + this.countPlannedAssignments(second.employee.id, assignments);
+
+          if (bestTotal >= secondTotal + 2 && (best.score - second.score) < 0.5) {
+            scored[0] = second;
+            scored[1] = best;
+          }
+        }
+
         const best = scored[0];
         const monthKey = this.dateToMonthKey(date);
 

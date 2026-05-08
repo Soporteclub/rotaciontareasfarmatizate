@@ -42,11 +42,18 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const permanent = request.nextUrl.searchParams.get("permanent") === "true";
+
+    if (permanent) {
+      const result = await ruleService.hardDelete(id);
+      return NextResponse.json({ data: result });
+    }
+
     const rule = await ruleService.softDelete(id);
     return NextResponse.json({ data: rule });
   } catch (error) {

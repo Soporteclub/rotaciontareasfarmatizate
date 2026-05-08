@@ -10,7 +10,7 @@ export type StatusFilter = "all" | "active" | "inactive";
 // Definición de columnas de la tabla de empleados
 export const EMPLOYEE_COLUMNS = [
   { key: "name", label: "Nombre", className: "w-[260px]" },
-  { key: "email", label: "Email", className: "hidden sm:table-cell" },
+  { key: "position", label: "Cargo / Área", className: "hidden sm:table-cell" },
   { key: "group", label: "Grupo", className: "" },
   { key: "status", label: "Estado", className: "hidden md:table-cell" },
   { key: "joinDate", label: "Ingreso", className: "hidden lg:table-cell" },

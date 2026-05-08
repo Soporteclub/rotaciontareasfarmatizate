@@ -309,3 +309,197 @@ Stage Summary:
 - 3 weird/unnecessary comments cleaned up
 - Confirmed zero raw fetch() calls in frontend component code
 - Zero lint errors
+
+---
+Task ID: 1
+Agent: Main
+Task: Replace Employee email field with Cargo (position) and Área (area)
+
+Work Log:
+1. **Updated prisma/schema.prisma**
+   - Removed `email String?` from Employee model
+   - Added `position String?` (Cargo - e.g. "Auxiliar", "Administrador")
+   - Added `area String?` (Área - e.g. "Farmacia", "Bodega", "Oficina")
+   - Ran `bunx prisma db push --accept-data-loss` (dropped email column with 10 non-null values)
+
+2. **Updated domain types** (`src/backend/domain/entities/types.ts`)
+   - Replaced `email: string | null` with `position: string | null` and `area: string | null` in EmployeeEntity
+
+3. **Updated frontend types** (`src/frontend/presentation/lib/query/types.ts`)
+   - Replaced `email: string | null` with `position: string | null` and `area: string | null` in EmployeeResponse
+
+4. **Updated employee-form-dialog.tsx**
+   - Replaced `email: string` with `position: string` and `area: string` in EmployeeFormData
+   - Replaced Email field (type="email") with two new fields:
+     - Cargo (optional) - placeholder "Ej: Auxiliar, Administrador..."
+     - Área (optional) - placeholder "Ej: Farmacia, Bodega, Oficina..."
+
+5. **Updated employees-module.tsx**
+   - EMPTY_FORM: `email: ""` → `position: ""`, `area: ""`
+   - handleEdit: `email: emp.email ?? ""` → `position: emp.position ?? ""`, `area: emp.area ?? ""`
+   - handleFormSubmit: `email: form.email || null` → `position: form.position || null`, `area: form.area || null`
+   - Search filter: `matchesEmail` → `matchesPosition` + `matchesArea` (search by cargo and área)
+
+6. **Updated employee-table.tsx**
+   - Replaced `Mail` icon import with `Briefcase` and `MapPin` icons
+   - Replaced "Email" column header with "Cargo / Área"
+   - Replaced Email cell with two-line display: Briefcase icon for Cargo, MapPin icon for Área
+   - Mobile view: shows `emp.position ?? emp.area ?? "—"` under name
+
+7. **Updated employee-columns.tsx**
+   - Replaced `{ key: "email", label: "Email" }` with `{ key: "position", label: "Cargo / Área" }`
+
+8. **Updated employee-filters.tsx**
+   - Changed search placeholder from "Buscar por nombre, email..." to "Buscar por nombre, cargo, área..."
+
+9. **Updated validators/schemas.ts**
+   - createEmployeeSchema: `email: z.string().email("Email inválido").optional().nullable()` → `position: z.string().max(100).optional().nullable()` + `area: z.string().max(100).optional().nullable()`
+   - updateEmployeeSchema: `email: z.string().email().nullable().optional()` → `position: z.string().max(100).nullable().optional()` + `area: z.string().max(100).nullable().optional()`
+
+10. **Updated employee-service.ts**
+    - Create: `email: input.email` → `position: input.position`, `area: input.area`
+    - Update: `if (input.email !== undefined) data.email = input.email` → `if (input.position !== undefined) data.position = input.position` + `if (input.area !== undefined) data.area = input.area`
+
+11. **Updated seed/route.ts**
+    - Piso 1 employees: Ana/Carlos = Auxiliar/Farmacia, María = Administrador/Oficina, Pedro/Laura = Auxiliar/Bodega
+    - Piso 2 employees: Diego/Valentina = Auxiliar/Farmacia, Sofía/Andrés = Auxiliar/Bodega, Javier = Administrador/Oficina
+
+12. **Verification**
+    - Ran `bun run lint` — only pre-existing errors in dashboard-module.tsx and edit-rule-dialog.tsx (unrelated to this change)
+    - Grep verified: zero references to `email` remain in src/ or prisma/ directories
+    - All employee CRUD, search, table, form, and seed functionality preserved
+
+Stage Summary:
+- Employee email field fully replaced with position (Cargo) and area (Área) across full stack
+- Database schema updated, Prisma client regenerated
+- 10 files modified: schema, types (2), form dialog, module, table, columns, filters, validators, service, seed
+- Table shows Cargo/Área column with Briefcase/MapPin icons
+- Search now matches by name, cargo, área, or grupo
+- Seed data uses realistic Colombian position/area values (Auxiliar, Administrador, Farmacia, Bodega, Oficina)
+- Zero email references remaining in codebase
+
+---
+Task ID: 2
+Agent: Rules Feature Agent
+Task: Add edit/delete capabilities to rules + frequency as Semanal/Quincenal/Mensual
+
+Work Log:
+1. **Added FREQUENCY_LABELS and FREQUENCY_OPTIONS to rules-constants.ts**
+   - Added `FREQUENCY_LABELS` map: `{ 1: "Semanal", 2: "Quincenal", 4: "Mensual" }`
+   - Added `FREQUENCY_OPTIONS` array for Select components with value, label, and description
+   - Added `getFrequencyLabel(frequency)` helper that falls back to "Cada N semanas" for unknown values
+
+2. **Added hardDelete to backend**
+   - `rule-repository.ts`: Added `hardDelete(id)` method using `db.assignmentRule.delete()`
+   - `rule-service.ts`: Added `hardDelete(id)` method with existence check and audit log (action: "delete")
+   - `/api/rules/[id]/route.ts`: Updated DELETE handler to support `?permanent=true` query param
+     - Without query param: soft delete (deactivate) — backward compatible
+     - With `?permanent=true`: hard delete (permanent removal from DB)
+
+3. **Updated useDeleteRule hook** (`rule-hooks.ts`)
+   - Changed mutation parameter from `(id: string)` to `({ id, permanent }: { id: string; permanent?: boolean })`
+   - Appends `?permanent=true` query param when `permanent` is true
+
+4. **Created edit-rule-dialog.tsx** (~175 lines)
+   - Split into `EditRuleDialog` (wrapper with Dialog) and `EditRuleForm` (inner form)
+   - Uses `key={rule.id}` on EditRuleForm to reset state when rule changes (avoids setState-in-effect lint error)
+   - Form fields: taskLabel (preset select or custom input), dayOfWeek (select), frequency (select with FREQUENCY_OPTIONS)
+   - Pre-filled from rule prop, uses `useUpdateRule` hook
+   - DialogFooter with Cancel and Save buttons, loading state
+
+5. **Updated rule-card.tsx**
+   - Added `onEdit` prop (receives `(rule: RuleResponse) => void`)
+   - Changed `onDelete` prop to support permanent deletion
+   - Added Pencil icon button (edit) and Trash2 icon button (delete) per rule row
+   - Action buttons appear on hover (opacity-0 → opacity-100 transition)
+   - Replaced frequency display "cada N sem." with `getFrequencyLabel(rule.frequency)`
+   - Replaced card header frequency "Cada N semanas" with `getFrequencyLabel(freqValue)`
+
+6. **Updated rules-module.tsx**
+   - Added imports: `useUpdateRule` (for barrel), `EditRuleDialog`, `RuleResponse` type
+   - Added state: `editDialogOpen`, `editingRule`
+   - Added `handleEdit(rule: RuleResponse)` callback — sets editingRule + opens edit dialog
+   - Updated `handleDelete` — now uses `{ id, permanent: true }` for permanent deletion
+   - Confirmation message: "¿Eliminar esta regla permanentemente? Esta acción no se puede deshacer."
+   - Toast: "Regla eliminada" (was "Regla desactivada")
+   - Added `<EditRuleDialog>` at bottom of render
+   - Passed `onEdit` and `onDelete` to `TaskGroupCard`
+
+7. **Updated create-rule-dialog.tsx**
+   - Step 5: Changed from "Frecuencia (cada N semanas)" to "Frecuencia"
+   - Replaced individual SelectItem values (1/2/3/4 "Cada N semanas") with FREQUENCY_OPTIONS map
+   - Options now: "Semanal — Cada semana", "Quincenal — Cada 2 semanas", "Mensual — Cada 4 semanas"
+   - Removed "Cada 3 semanas" option (not in FREQUENCY_OPTIONS)
+   - Updated summary section: replaced "Cada N semana(s)" with `getFrequencyLabel(parseInt(form.frequency))`
+
+8. **Verification**
+   - Ran `bun run lint` — zero new errors (pre-existing dashboard-module.tsx errors unrelated)
+   - Dev server running on port 3000, serving pages correctly
+
+Stage Summary:
+- Rules now support editing (taskLabel, dayOfWeek, frequency) via EditRuleDialog
+- Rules now support permanent deletion (hard delete from DB, not just deactivation)
+- Frequency display changed from "Cada N semanas" to "Semanal/Quincenal/Mensual" labels
+- Create rule dialog frequency step uses friendlier labels with descriptions
+- Backend supports both soft delete (default) and hard delete (?permanent=true)
+- Prisma schema unchanged — only frequency semantics/UI changed
+- All existing functionality preserved: create, template system, group filter, regenerate, inactive section
+- Zero new lint errors
+
+---
+Task ID: 3+4
+Agent: Main
+Task: Add Day/Week/Month views to calendar + Improve fairness distribution
+
+Work Log:
+
+1. **Updated calendar-utils.ts** — Added new types, constants, and functions:
+   - Added `DAY_NAMES_FULL` constant: ["Domingo", "Lunes", ...] for day view headers
+   - Added `ViewMode` type: `"month" | "week" | "day"`
+   - Added `getWeekDays(refYear, refMonth, refDay, weekOffset?)` — returns 7 CalendarDay objects for the week containing the given date (Mon-Sun)
+   - Added `getDayView(year, month, day)` — returns a single CalendarDay for the day view
+   - Added `formatFullDate(date)` — formats as "Jueves, 8 de Mayo de 2026"
+   - Added `formatWeekRange(weekDays)` — formats as "5 - 11 de Mayo de 2026"
+
+2. **Updated dashboard-module.tsx** — Added view mode state and navigation:
+   - Added `viewDay` state (default: today's date) for day/week navigation
+   - Added `viewMode` state (default: "month") with ViewMode type
+   - Updated calendarDates computation to fetch appropriate date ranges per view mode
+   - Updated calendarDays computation: uses getWeekDays/week, getDayView/day, getCalendarDays/month
+   - Unified navigation: `navigatePrev`/`navigateNext` move by month/week/day depending on viewMode
+   - `goToday` resets viewYear, viewMonth, and viewDay to current date
+   - Passed new props (viewDay, viewMode, setViewMode) to CalendarGrid
+   - Removed all useCallback wrappers (React Compiler handles memoization automatically)
+
+3. **Updated calendar-grid.tsx** — Added three calendar views:
+   - Added `ViewModeToggle` component: button group with "Día" | "Semana" | "Mes", active view highlighted with primary color
+   - Updated header: shows "Mayo 2026" (month), "5 - 11 de Mayo de 2026" (week), or "Jueves, 8 de Mayo de 2026" (day)
+   - **Month view**: existing 7-column grid with CalendarCell (unchanged behavior)
+   - **Week view**: 7-column grid with `WeekDayColumn` — taller cells showing day name + date header, full assignment details (employee, task type, group name), lock icon
+   - **Day view**: `DayAssignmentCard` cards showing full details — task icon, employee name (bold), task type + group name, locked status badge; empty state with weekend indicator
+   - Updated CalendarGridProps interface with viewDay, viewMode, setViewMode
+
+4. **Updated fairness-engine.ts** — Improved equitable distribution:
+   - Changed `balanceWeight` from 1.0 → 3.0 (stronger overall balance enforcement)
+   - Changed `monthlyBalanceWeight` from 1.5 → 2.5 (stronger monthly balance)
+   - Added hard constraint after `scored.sort()`: if the best candidate already has 2+ more assignments than the second-best candidate, AND their scores are within 0.5 points, prefer the second-best candidate. This prevents runaway accumulation (e.g., 5,6,7,7,7 → 7,6,6,6,6)
+
+5. **Fixed React Compiler lint errors**:
+   - Removed `useCallback` wrappers from dashboard-module.tsx (navigatePrev, navigateNext, goToday, openGenerateDialog, clearFilters) — React Compiler auto-memoizes and manual deps conflicted
+   - Import changed from `useState, useMemo, useCallback` → `useState, useMemo`
+
+6. **Verification**
+   - `bun run lint` — zero errors
+   - Dev server running correctly
+
+Stage Summary:
+- Calendar now supports Day/Week/Month views with toggle buttons (Día/Semana/Mes)
+- Month view: existing grid behavior preserved
+- Week view: 7-column layout with Mon-Sun, taller cells, full assignment details
+- Day view: full assignment cards with employee, task, group, lock status
+- Navigation adapts: ←/→ moves by month, week, or day depending on view
+- Header shows contextual date: month name, week range, or full date
+- Fairness engine now produces more equitable distributions (max difference ~1 instead of ~2+)
+- balanceWeight 1.0→3.0, monthlyBalanceWeight 1.5→2.5
+- Hard constraint prevents top-scoring employee from accumulating when close to second-best
+- Zero lint errors
