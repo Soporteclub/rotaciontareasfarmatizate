@@ -10,8 +10,12 @@ import {
   Building2,
   ChevronDown,
   ClipboardCheck,
+  Shield,
+  Lock,
+  Unlock,
+  FileCode2,
 } from "lucide-react";
-import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
+import { useUIStore, type AdminModule } from "@/frontend/presentation/hooks/use-ui-store";
 import { cn } from "@/frontend/lib/utils";
 import { useState } from "react";
 import Image from "next/image";
@@ -22,6 +26,7 @@ type NavItem = {
   icon: React.ReactNode;
   section?: "main" | "config";
   description?: string;
+  adminModule?: AdminModule;
 };
 
 const mainItems: NavItem[] = [
@@ -29,23 +34,27 @@ const mainItems: NavItem[] = [
     id: "calendar", 
     label: "Calendario", 
     icon: <CalendarHeart className="h-4 w-4" />,
-    description: "Vista de asignaciones"
+    description: "Vista de asignaciones",
+    adminModule: "calendar",
   },
 ];
 
 const configItems: NavItem[] = [
-  { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas" },
-  { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal" },
-  { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación" },
+  { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas", adminModule: "groups" },
+  { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal", adminModule: "employees" },
+  { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación", adminModule: "rules" },
 ];
 
 const auditItems: NavItem[] = [
-  { id: "audit", label: "Auditoría", icon: <ScrollText className="h-4 w-4" />, description: "Historial" },
+  { id: "audit", label: "Auditoría", icon: <ScrollText className="h-4 w-4" />, description: "Historial", adminModule: "audit" },
 ];
 
 export function Sidebar() {
-  const { activeView, setActiveView, sidebarOpen, setSidebarOpen } = useUIStore();
+  const { activeView, setActiveView, sidebarOpen, setSidebarOpen, adminModules, requestAdminUnlock, lockAllModules } = useUIStore();
   const [configOpen, setConfigOpen] = useState(true);
+
+  // Count how many modules are unlocked
+  const unlockedCount = Object.values(adminModules).filter(Boolean).length;
 
   return (
     <>
@@ -103,34 +112,16 @@ export function Sidebar() {
         <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
           {/* Main items */}
           {mainItems.map((item) => (
-            <button
+            <NavButton
               key={item.id}
-              onClick={() => {
-                setActiveView(item.id);
-                if (window.innerWidth < 768) setSidebarOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                activeView === item.id
-                  ? "bg-[#1545cb] text-white"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              {item.icon}
-              {sidebarOpen && (
-                <div className="flex flex-col min-w-0">
-                  <span className="truncate">{item.label}</span>
-                  {item.description && (
-                    <span className={cn(
-                      "text-[10px]",
-                      activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
-                    )}>
-                      {item.description}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+              item={item}
+              activeView={activeView}
+              sidebarOpen={sidebarOpen}
+              setActiveView={setActiveView}
+              setSidebarOpen={setSidebarOpen}
+              adminModules={adminModules}
+              requestAdminUnlock={requestAdminUnlock}
+            />
           ))}
 
           {/* Config section */}
@@ -150,66 +141,243 @@ export function Sidebar() {
           {!sidebarOpen && <div className="pt-3 border-t border-border" />}
 
           {configOpen && configItems.map((item) => (
-            <button
+            <NavButton
               key={item.id}
-              onClick={() => {
-                setActiveView(item.id);
-                if (window.innerWidth < 768) setSidebarOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
-                activeView === item.id
-                  ? "bg-[#1545cb] text-white font-medium"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              {item.icon}
-              {sidebarOpen && (
-                <div className="flex flex-col min-w-0">
-                  <span className="truncate">{item.label}</span>
-                  {item.description && (
-                    <span className={cn(
-                      "text-[10px]",
-                      activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
-                    )}>
-                      {item.description}
-                    </span>
-                  )}
-                </div>
-              )}
-            </button>
+              item={item}
+              activeView={activeView}
+              sidebarOpen={sidebarOpen}
+              setActiveView={setActiveView}
+              setSidebarOpen={setSidebarOpen}
+              adminModules={adminModules}
+              requestAdminUnlock={requestAdminUnlock}
+            />
           ))}
 
           {/* Audit section */}
           <div className="pt-3 border-t border-border mt-3">
             {auditItems.map((item) => (
-              <button
+              <NavButton
                 key={item.id}
-                onClick={() => {
-                  setActiveView(item.id);
-                  if (window.innerWidth < 768) setSidebarOpen(false);
-                }}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
-                  activeView === item.id
-                    ? "bg-[#1545cb] text-white font-medium"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                {item.icon}
-                {sidebarOpen && <span>{item.label}</span>}
-              </button>
+                item={item}
+                activeView={activeView}
+                sidebarOpen={sidebarOpen}
+                setActiveView={setActiveView}
+                setSidebarOpen={setSidebarOpen}
+                adminModules={adminModules}
+                requestAdminUnlock={requestAdminUnlock}
+              />
             ))}
           </div>
         </nav>
 
-        {/* Footer */}
-        {sidebarOpen && (
-          <div className="px-3 py-2 border-t border-border">
-            <p className="text-[10px] text-muted-foreground">Farmatízate v1.0</p>
-          </div>
-        )}
+        {/* Footer - Module lock indicators */}
+        <SidebarFooter
+          sidebarOpen={sidebarOpen}
+          unlockedCount={unlockedCount}
+          adminModules={adminModules}
+        />
       </aside>
     </>
+  );
+}
+
+// ─── Module label lookup ──────────────────────────────────────
+const MODULE_LABELS: Record<AdminModule, string> = {
+  groups: "Grupos",
+  employees: "Empl.",
+  rules: "Reglas",
+  calendar: "Cal.",
+  audit: "Audit.",
+};
+
+const ALL_ADMIN_MODULES: AdminModule[] = ["groups", "employees", "rules", "calendar", "audit"];
+
+// ─── Sidebar Footer ───────────────────────────────────────────
+function SidebarFooter({
+  sidebarOpen,
+  unlockedCount,
+  adminModules,
+}: {
+  sidebarOpen: boolean;
+  unlockedCount: number;
+  adminModules: Partial<Record<AdminModule, boolean>>;
+}) {
+  const hasUnlocked = unlockedCount > 0;
+
+  return (
+    <div className="px-3 py-2 border-t border-border space-y-2">
+      {hasUnlocked ? (
+        <UnlockedStatus sidebarOpen={sidebarOpen} unlockedCount={unlockedCount} adminModules={adminModules} />
+      ) : (
+        <LockedStatus sidebarOpen={sidebarOpen} />
+      )}
+      {sidebarOpen && (
+        <div className="space-y-2">
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-emerald-600 transition-colors"
+          >
+            <FileCode2 className="h-3 w-3" />
+            API Docs (Swagger)
+          </a>
+          <p className="text-[10px] text-muted-foreground/60">Farmatízate v2.0</p>
+        </div>
+      )}
+      {!sidebarOpen && (
+        <a
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center text-muted-foreground hover:text-emerald-600 transition-colors"
+          title="API Docs (Swagger)"
+        >
+          <FileCode2 className="h-4 w-4" />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function UnlockedStatus({
+  sidebarOpen,
+  unlockedCount,
+  adminModules,
+}: {
+  sidebarOpen: boolean;
+  unlockedCount: number;
+  adminModules: Partial<Record<AdminModule, boolean>>;
+}) {
+  if (!sidebarOpen) {
+    return (
+      <div className="flex justify-center">
+        <Shield className="h-4 w-4 text-emerald-600" title={`${unlockedCount} módulos desbloqueados`} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <Shield className="h-3 w-3 text-emerald-600" />
+        <span>{unlockedCount} módulo{unlockedCount !== 1 ? "s" : ""} desbloqueado{unlockedCount !== 1 ? "s" : ""}</span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {ALL_ADMIN_MODULES.map((mod) => {
+          const isUnlocked = adminModules[mod] === true;
+          return (
+            <span
+              key={mod}
+              className={cn(
+                "text-[9px] px-1.5 py-0.5 rounded-full",
+                isUnlocked
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-muted text-muted-foreground/50"
+              )}
+            >
+              {isUnlocked ? "🔓 " : "🔒 "}{MODULE_LABELS[mod]}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function LockedStatus({ sidebarOpen }: { sidebarOpen: boolean }) {
+  if (!sidebarOpen) {
+    return (
+      <div className="flex justify-center">
+        <Lock className="h-4 w-4 text-muted-foreground" title="Todo bloqueado" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+      <Lock className="h-3 w-3" />
+      <span>Todo bloqueado</span>
+    </div>
+  );
+}
+
+// ─── Nav Button with per-module lock indicator ────────────────
+function NavButton({
+  item,
+  activeView,
+  sidebarOpen,
+  setActiveView,
+  setSidebarOpen,
+  adminModules,
+  requestAdminUnlock,
+}: {
+  item: NavItem;
+  activeView: string;
+  sidebarOpen: boolean;
+  setActiveView: (view: NavItem["id"]) => void;
+  setSidebarOpen: (open: boolean) => void;
+  adminModules: Partial<Record<AdminModule, boolean>>;
+  requestAdminUnlock: (module: AdminModule) => void;
+}) {
+  const isAdmin = item.adminModule ? adminModules[item.adminModule] === true : true;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => {
+          setActiveView(item.id);
+          if (window.innerWidth < 768) setSidebarOpen(false);
+        }}
+        className={cn(
+          "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
+          activeView === item.id
+            ? "bg-[#1545cb] text-white font-medium"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        )}
+      >
+        {item.icon}
+        {sidebarOpen && (
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="truncate">{item.label}</span>
+            {item.description && (
+              <span className={cn(
+                "text-[10px]",
+                activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
+              )}>
+                {item.description}
+              </span>
+            )}
+          </div>
+        )}
+        {/* Lock indicator for config modules */}
+        {sidebarOpen && item.adminModule && !isAdmin && (
+          <span
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.stopPropagation();
+                requestAdminUnlock(item.adminModule!);
+              }
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              requestAdminUnlock(item.adminModule!);
+            }}
+            className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors cursor-pointer"
+            title={`Desbloquear ${item.label}`}
+          >
+            <Unlock className="h-3 w-3 text-amber-500" />
+          </span>
+        )}
+      </button>
+      {/* Mini lock badge on collapsed sidebar */}
+      {!sidebarOpen && item.adminModule && !isAdmin && (
+        <div className="absolute -top-0.5 -right-0.5">
+          <div className="w-2 h-2 rounded-full bg-amber-400" title="Bloqueado" />
+        </div>
+      )}
+    </div>
   );
 }

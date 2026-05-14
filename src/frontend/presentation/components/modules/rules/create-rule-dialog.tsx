@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -18,11 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Sparkles, Users } from "lucide-react";
+import { Loader2, Sparkles, Users, Check, ArrowRight } from "lucide-react";
 import { TASK_LABELS } from "@/backend/domain/entities/types";
 import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
-import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
+import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import { useCreateRule } from "@/frontend/presentation/lib/query/hooks";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 import {
@@ -57,6 +60,32 @@ const INITIAL_FORM: FormState = {
   groupId: "",
   applyToAllGroups: false,
 };
+
+// ─── Step Indicator ──────────────────────────────────────────
+function StepIndicator({
+  number,
+  label,
+  isComplete,
+}: {
+  number: number;
+  label: string;
+  isComplete: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors ${
+          isComplete
+            ? "bg-emerald-500 text-white"
+            : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {isComplete ? <Check className="h-3 w-3" /> : number}
+      </div>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    </div>
+  );
+}
 
 export function CreateRuleDialog({
   open,
@@ -115,11 +144,10 @@ export function CreateRuleDialog({
     try {
       const taskLabel = form.taskLabel.trim();
       if (!taskLabel) {
-        toast.error("La etiqueta de tarea es requerida");
+        toast.error("El nombre de la tarea es requerido");
         return;
       }
 
-      // Daily rules don't need specific days — they apply to all weekdays
       if (form.frequencyType !== "daily" && form.selectedDays.length === 0) {
         toast.error("Selecciona al menos un día");
         return;
@@ -129,13 +157,14 @@ export function CreateRuleDialog({
         ? (groups?.map((g) => g.id) ?? [])
         : [form.groupId || selectedGroupId];
 
-      if (targetGroupIds.length === 0 || (!form.applyToAllGroups && !targetGroupIds[0])) {
+      if (
+        targetGroupIds.length === 0 ||
+        (!form.applyToAllGroups && !targetGroupIds[0])
+      ) {
         toast.error("Selecciona un grupo");
         return;
       }
 
-      // For daily frequency, create ONE rule per group (dayOfWeek is ignored)
-      // For weekly/monthly, create one rule per day per group
       const promises: Promise<unknown>[] = [];
 
       for (const groupId of targetGroupIds) {
@@ -143,7 +172,7 @@ export function CreateRuleDialog({
           promises.push(
             createRule.mutateAsync({
               groupId,
-              dayOfWeek: 1, // arbitrary — ignored for daily
+              dayOfWeek: 1,
               frequencyType: form.frequencyType,
               taskLabel,
             })
@@ -180,54 +209,98 @@ export function CreateRuleDialog({
   };
 
   const taskConfig = getTaskConfig(form.taskLabel);
+  const taskColor = form.taskLabel ? getTaskColor(form.taskLabel) : "#888";
+
+  // Step completion
+  const step1Complete = form.taskLabel.trim().length > 0;
+  const step2Complete =
+    form.frequencyType === "daily" || form.selectedDays.length > 0;
+  const step3Complete =
+    form.applyToAllGroups ||
+    form.groupId ||
+    selectedGroupId;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "#f15a2415", color: "#f15a24" }}
+            >
+              <Sparkles className="h-4 w-4" />
+            </div>
             Nueva Regla de Asignación
           </DialogTitle>
+          <DialogDescription>
+            Configura qué tarea se rota, en qué días y para qué grupo.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
-          {/* Paso 1: Plantilla */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">
-              1. Elige una plantilla
-            </Label>
+          {/* ─── Quick Templates ──────────────────────────────── */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Plantillas rápidas
+              </Label>
+              {selectedTemplate && (
+                <Badge variant="secondary" className="text-[10px] gap-1">
+                  <Check className="h-2.5 w-2.5" />
+                  Aplicada
+                </Badge>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
-              {TEMPLATES.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => applyTemplate(template.id)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border-2 text-left transition-all hover:shadow-sm ${
-                    selectedTemplate === template.id
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/40"
-                  }`}
-                >
-                  <TaskIcon taskType={template.taskLabel || "custom"} size="md" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {template.label}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {template.description}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {TEMPLATES.map((template) => {
+                const templateColor = getTaskColor(template.taskLabel || "custom");
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template.id)}
+                    className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
+                      selectedTemplate === template.id
+                        ? "shadow-sm"
+                        : "hover:shadow-sm"
+                    }`}
+                    style={
+                      selectedTemplate === template.id
+                        ? {
+                            borderColor: templateColor,
+                            backgroundColor: `${templateColor}08`,
+                          }
+                        : { borderColor: "transparent" }
+                    }
+                  >
+                    <TaskIcon
+                      taskType={template.taskLabel || "custom"}
+                      size="md"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {template.label}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {template.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Paso 2: Nombre de tarea */}
+          <Separator />
+
+          {/* ─── Task Name ────────────────────────────────────── */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">
-              2. Nombre de la tarea
-            </Label>
+            <StepIndicator
+              number={1}
+              label="Nombre de la tarea"
+              isComplete={step1Complete}
+            />
             {TASK_LABELS.includes(
               form.taskLabel as (typeof TASK_LABELS)[number]
             ) ? (
@@ -253,9 +326,7 @@ export function CreateRuleDialog({
                       </div>
                     </SelectItem>
                   ))}
-                  <SelectItem value="_custom">
-                    ✏️ Otra (escribir)...
-                  </SelectItem>
+                  <SelectItem value="_custom">✏️ Otra (escribir)...</SelectItem>
                 </SelectContent>
               </Select>
             ) : (
@@ -282,11 +353,13 @@ export function CreateRuleDialog({
             )}
           </div>
 
-          {/* Paso 3: Frecuencia */}
+          {/* ─── Frequency ────────────────────────────────────── */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">
-              3. Frecuencia
-            </Label>
+            <StepIndicator
+              number={2}
+              label="Frecuencia"
+              isComplete={step2Complete}
+            />
             <Select
               value={form.frequencyType}
               onValueChange={(v) =>
@@ -299,25 +372,30 @@ export function CreateRuleDialog({
               <SelectContent>
                 {FREQUENCY_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label} — {opt.description}
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{opt.label}</span>
+                      <span className="text-muted-foreground text-xs">
+                        — {opt.description}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Paso 4: Días de la semana (solo si no es diaria) */}
+          {/* ─── Days (only for non-daily) ────────────────────── */}
           {form.frequencyType !== "daily" && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">
-                  4. Días de la semana
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Días de la semana
                 </Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-6 text-[11px] px-2"
                     onClick={selectWeekdays}
                   >
                     Lun-Vie
@@ -325,78 +403,90 @@ export function CreateRuleDialog({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-6 text-[11px] px-2"
                     onClick={clearDays}
                   >
                     Limpiar
                   </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
                 {ALL_DAYS.map((d) => {
                   const isChecked = form.selectedDays.includes(d);
                   const isWeekend = d === 0 || d === 6;
-                  const config = getTaskConfig(form.taskLabel);
                   return (
-                    <label
+                    <button
                       key={d}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
+                      type="button"
+                      onClick={() => toggleDay(d)}
+                      className={`flex flex-col items-center gap-0.5 px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-lg border-2 cursor-pointer transition-all select-none ${
                         isChecked
-                          ? "border-primary bg-primary/5 shadow-sm"
+                          ? "shadow-sm"
                           : isWeekend
-                          ? "border-border bg-muted/30 hover:border-primary/30"
-                          : "border-border hover:border-primary/30"
+                          ? "border-transparent bg-muted/20 hover:bg-muted/40"
+                          : "border-transparent bg-muted/30 hover:bg-muted/50"
                       }`}
+                      style={
+                        isChecked
+                          ? {
+                              borderColor: taskColor,
+                              backgroundColor: `${taskColor}10`,
+                            }
+                          : undefined
+                      }
                     >
-                      <Checkbox
-                        checked={isChecked}
-                        onCheckedChange={() => toggleDay(d)}
-                        className={
-                          isChecked
-                            ? ""
-                            : "data-[state=unchecked]:border-muted-foreground/40"
-                        }
-                        style={
-                          isChecked
-                            ? {
-                                backgroundColor: config.color,
-                                borderColor: config.color,
-                              }
-                            : undefined
-                        }
-                      />
                       <span
-                        className={`text-sm font-medium ${
-                          isChecked
-                            ? ""
-                            : isWeekend
-                            ? "text-muted-foreground/60"
-                            : "text-muted-foreground"
+                        className={`text-[10px] font-semibold ${
+                          isChecked ? "" : isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/50"
                         }`}
+                        style={isChecked ? { color: taskColor } : undefined}
                       >
                         {DAY_ABBR[d]}
                       </span>
-                    </label>
+                      <div
+                        className={`w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-[10px] sm:text-xs font-bold ${
+                          isChecked
+                            ? "text-white"
+                            : "text-muted-foreground/20"
+                        }`}
+                        style={
+                          isChecked
+                            ? { backgroundColor: taskColor }
+                            : { backgroundColor: "var(--muted)" }
+                        }
+                      >
+                        {isChecked ? "✓" : "·"}
+                      </div>
+                    </button>
                   );
                 })}
               </div>
               {form.selectedDays.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Seleccionados:{" "}
-                  {form.selectedDays
-                    .sort()
-                    .map((d) => DAY_ABBR[d])
-                    .join(", ")}
+                  <strong>
+                    {form.selectedDays
+                      .sort()
+                      .map((d) => DAY_ABBR[d])
+                      .join(", ")}
+                  </strong>
                 </p>
               )}
             </div>
           )}
 
-          {/* Paso 5: Grupo */}
+          {/* ─── Group ────────────────────────────────────────── */}
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">{form.frequencyType !== "daily" ? "5" : "4"}. Grupo</Label>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
+            <StepIndicator
+              number={form.frequencyType !== "daily" ? 3 : 3}
+              label="Grupo"
+              isComplete={step3Complete}
+            />
+            <div className="space-y-2.5">
+              <label
+                htmlFor="all-groups"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors"
+              >
                 <Checkbox
                   id="all-groups"
                   checked={form.applyToAllGroups}
@@ -407,14 +497,11 @@ export function CreateRuleDialog({
                     }))
                   }
                 />
-                <label
-                  htmlFor="all-groups"
-                  className="text-sm font-medium cursor-pointer flex items-center gap-1.5"
-                >
-                  <Users className="h-4 w-4" />
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
                   Aplicar a todos los grupos
-                </label>
-              </div>
+                </span>
+              </label>
               {!form.applyToAllGroups && (
                 <Select
                   value={form.groupId || selectedGroupId}
@@ -430,7 +517,7 @@ export function CreateRuleDialog({
                       <SelectItem key={g.id} value={g.id}>
                         <div className="flex items-center gap-2">
                           <div
-                            className="w-2.5 h-2.5 rounded-full"
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: g.color }}
                           />
                           {g.name}
@@ -441,71 +528,102 @@ export function CreateRuleDialog({
                 </Select>
               )}
               {form.applyToAllGroups && (
-                <p className="text-xs text-muted-foreground bg-muted p-2 rounded-md">
-                  Se creará la misma regla para cada grupo (
-                  {groups?.map((g) => g.name).join(", ")})
-                </p>
+                <div className="flex items-center gap-2 flex-wrap px-1">
+                  {groups?.map((g) => (
+                    <Badge
+                      key={g.id}
+                      variant="outline"
+                      className="text-xs gap-1"
+                      style={{ borderColor: g.color, color: g.color }}
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: g.color }}
+                      />
+                      {g.name}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
-          {/* Resumen */}
-          {form.taskLabel && (form.frequencyType === "daily" || form.selectedDays.length > 0) && (
-            <div
-              className="p-3 rounded-lg border"
-              style={{
-                backgroundColor: taskConfig.bgLight,
-                borderColor: taskConfig.border,
-              }}
-            >
-              <p className="text-sm font-medium mb-1">Resumen</p>
-              <p className="text-xs text-muted-foreground">
-                <TaskIcon taskType={form.taskLabel} size="xs" showBg={false} />{" "}
-                <strong>{form.taskLabel}</strong> ·{" "}
-                {form.frequencyType === "daily"
-                  ? "Todos los días hábiles (Lun-Vie)"
-                  : form.selectedDays
-                      .sort()
-                      .map((d) => DAY_ABBR[d])
-                      .join(", ")}{" "}
-                ·{" "}
-                {form.applyToAllGroups
-                  ? "Todos los grupos"
-                  : groups?.find(
-                      (g) => g.id === (form.groupId || selectedGroupId)
-                    )?.name ?? "Sin grupo"}{" "}
-                · {getFrequencyTypeLabel(form.frequencyType)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Se crearán{" "}
-                <strong>
-                  {form.frequencyType === "daily"
-                    ? form.applyToAllGroups ? groups?.length ?? 0 : 1
-                    : (form.applyToAllGroups ? groups?.length ?? 0 : 1) * form.selectedDays.length}
-                </strong>{" "}
-                regla
-                {(form.frequencyType === "daily"
-                  ? form.applyToAllGroups ? groups?.length ?? 0 : 1
-                  : (form.applyToAllGroups ? groups?.length ?? 0 : 1) * form.selectedDays.length) !== 1
-                  ? "s"
-                  : ""}
-              </p>
-            </div>
-          )}
+          <Separator />
 
+          {/* ─── Summary ──────────────────────────────────────── */}
+          {form.taskLabel &&
+            (form.frequencyType === "daily" || form.selectedDays.length > 0) && (
+              <div
+                className="p-4 rounded-xl border"
+                style={{
+                  backgroundColor: taskConfig.bgLight,
+                  borderColor: taskConfig.border,
+                }}
+              >
+                <p className="text-sm font-semibold mb-2">Resumen</p>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <TaskIcon
+                    taskType={form.taskLabel}
+                    size="sm"
+                    showBg={false}
+                  />
+                  <span className="font-medium">{form.taskLabel}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span>Días:</span>
+                  <span className="font-medium text-foreground">
+                    {form.frequencyType === "daily"
+                      ? "Lun-Vie (todos los hábiles)"
+                      : form.selectedDays
+                          .sort()
+                          .map((d) => DAY_ABBR[d])
+                          .join(", ")}
+                  </span>
+                  <span>Frecuencia:</span>
+                  <span className="font-medium text-foreground">
+                    {getFrequencyTypeLabel(form.frequencyType)}
+                  </span>
+                  <span>Grupo:</span>
+                  <span className="font-medium text-foreground">
+                    {form.applyToAllGroups
+                      ? "Todos los grupos"
+                      : groups?.find(
+                          (g) =>
+                            g.id === (form.groupId || selectedGroupId)
+                        )?.name ?? "Sin grupo"}
+                  </span>
+                  <span>Reglas a crear:</span>
+                  <span className="font-bold text-foreground">
+                    {form.frequencyType === "daily"
+                      ? form.applyToAllGroups
+                        ? groups?.length ?? 0
+                        : 1
+                      : (form.applyToAllGroups
+                          ? groups?.length ?? 0
+                          : 1) * form.selectedDays.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+          {/* ─── Submit ───────────────────────────────────────── */}
           <Button
             onClick={handleSubmit}
-            className="w-full"
+            className="w-full gap-2"
             style={{ backgroundColor: "#f15a24" }}
             disabled={createRule.isPending}
+            size="lg"
           >
             {createRule.isPending ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Creando...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creando reglas...
               </>
             ) : (
-              "Crear Regla(s)"
+              <>
+                Crear Regla(s)
+                <ArrowRight className="h-4 w-4" />
+              </>
             )}
           </Button>
         </div>

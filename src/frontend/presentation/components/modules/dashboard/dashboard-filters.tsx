@@ -9,7 +9,8 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
-import { Users, Search, Filter, X, Info, Play } from "lucide-react";
+import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
+import { Users, Search, Filter, X, Info, Play, Lock } from "lucide-react";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface DashboardFiltersProps {
@@ -73,10 +74,10 @@ export function DashboardFilters({
   return (
     <div className="space-y-3">
       {/* Fila 1: Filtro de grupo + botones de generar */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48 h-9 text-sm">
               <SelectValue placeholder="Todos los grupos" />
             </SelectTrigger>
             <SelectContent>
@@ -98,18 +99,25 @@ export function DashboardFilters({
           </Select>
           <FairnessTooltip />
         </div>
-        <div className="flex items-center gap-2">
-          {groups && groups.length > 0 && groups.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => onOpenGenerateDialog(g.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow"
-              style={{ borderColor: g.color, color: g.color, backgroundColor: `${g.color}10` }}
-            >
-              <Play className="h-3 w-3" />
-              Generar {g.name}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <AdminOnly module="calendar" fallback={
+            <span className="text-xs text-muted-foreground italic flex items-center gap-1">
+              <Lock className="h-3 w-3" />
+              Generar requiere admin
+            </span>
+          }>
+            {groups && groups.length > 0 && groups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => onOpenGenerateDialog(g.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow whitespace-nowrap shrink-0"
+                style={{ borderColor: g.color, color: g.color, backgroundColor: `${g.color}10` }}
+              >
+                <Play className="h-3 w-3" />
+                <span className="hidden sm:inline">Generar </span>{g.name}
+              </button>
+            ))}
+          </AdminOnly>
         </div>
       </div>
 

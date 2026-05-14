@@ -12,13 +12,13 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 /** Color principal del evento: mezcla 60% grupo + 40% tipo de tarea */
-export function getEventColor(groupColor: string, taskType: string): string {
+export function getEventColor(groupColor: string, taskName: string): string {
   const taskColors: Record<string, string> = {
     "Sacar Basura": "#f15a24",
     "Lavar Cafetera": "#00cd98",
     "Aseo General": "#1545cb",
   };
-  const taskColor = taskColors[taskType];
+  const taskColor = taskColors[taskName];
   if (!taskColor) return groupColor;
 
   const g = hexToRgb(groupColor);
@@ -30,8 +30,8 @@ export function getEventColor(groupColor: string, taskType: string): string {
 }
 
 /** Versión clara para fondo de evento (10% opacidad) */
-export function getEventBgColor(groupColor: string, taskType: string): string {
-  const color = getEventColor(groupColor, taskType);
+export function getEventBgColor(groupColor: string, taskName: string): string {
+  const color = getEventColor(groupColor, taskName);
   const rgb = hexToRgb(color);
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.10)`;
 }

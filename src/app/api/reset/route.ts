@@ -9,10 +9,12 @@ export async function POST() {
     // Delete all data in reverse dependency order
     await db.auditLog.deleteMany();
     await db.assignment.deleteMany();
-    await db.assignmentRule.deleteMany();
+    await db.taskEligibility.deleteMany();
+    await db.rule.deleteMany();
     await db.employee.deleteMany();
-    await db.assignmentGroup.deleteMany();
+    await db.group.deleteMany();
     await db.holiday.deleteMany();
+    await db.settings.deleteMany();
 
     return NextResponse.json({ message: "Base de datos reiniciada exitosamente" });
   } catch (error) {

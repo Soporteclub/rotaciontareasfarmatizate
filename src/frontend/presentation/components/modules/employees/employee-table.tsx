@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,6 +38,7 @@ import {
   ShieldOff,
   UserCircle,
   Search,
+  ToggleRight,
 } from "lucide-react";
 import type {
   EmployeeResponse,
@@ -58,6 +60,7 @@ interface EmployeeTableProps {
   onEdit: (emp: EmployeeResponse) => void;
   onToggleActive: (emp: EmployeeResponse) => void;
   onDelete: (emp: EmployeeResponse) => Promise<void>;
+  onManageEligibility: (emp: EmployeeResponse) => void;
   isDeletePending: boolean;
 }
 
@@ -69,6 +72,7 @@ export function EmployeeTable({
   onEdit,
   onToggleActive,
   onDelete,
+  onManageEligibility,
   isDeletePending,
 }: EmployeeTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -115,8 +119,8 @@ export function EmployeeTable({
 
   return (
     <>
-      <div className="rounded-xl border overflow-hidden shadow-sm">
-        <Table>
+      <div className="rounded-xl border overflow-hidden shadow-sm overflow-x-auto">
+        <Table className="min-w-[600px]">
           <TableHeader>
             <TableRow
               className="border-b-2"
@@ -140,6 +144,7 @@ export function EmployeeTable({
                 onEdit={onEdit}
                 onToggleActive={onToggleActive}
                 onDelete={handleDeleteClick}
+                onManageEligibility={onManageEligibility}
               />
             ))}
           </TableBody>
@@ -189,6 +194,7 @@ function EmployeeRow({
   onEdit,
   onToggleActive,
   onDelete,
+  onManageEligibility,
 }: {
   employee: EmployeeResponse;
   index: number;
@@ -196,7 +202,10 @@ function EmployeeRow({
   onEdit: (emp: EmployeeResponse) => void;
   onToggleActive: (emp: EmployeeResponse) => void;
   onDelete: (emp: EmployeeResponse) => void;
+  onManageEligibility: (emp: EmployeeResponse) => void;
 }) {
+  const isAdmin = useUIStore((s) => s.adminModules.employees === true);
+  const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
   const groupColor = getGroupColor(groups, emp.groupId);
   const isEven = index % 2 === 0;
 
@@ -297,6 +306,7 @@ function EmployeeRow({
 
       {/* Acciones */}
       <TableCell className="text-right">
+        {isAdmin ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -307,6 +317,10 @@ function EmployeeRow({
             <DropdownMenuItem onClick={() => onEdit(emp)}>
               <Pencil className="h-4 w-4 mr-2" />
               Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onManageEligibility(emp)}>
+              <ToggleRight className="h-4 w-4 mr-2" />
+              Actividades
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onToggleActive(emp)}>
               {emp.isActive ? (
@@ -331,6 +345,28 @@ function EmployeeRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        ) : (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground"
+              onClick={() => onManageEligibility(emp)}
+              title="Ver actividades"
+            >
+              <ToggleRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-muted-foreground"
+              onClick={() => requestAdminUnlock("employees")}
+              title="Requiere clave admin"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );

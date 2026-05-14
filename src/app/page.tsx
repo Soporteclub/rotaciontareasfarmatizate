@@ -2,6 +2,8 @@
 
 import { Providers } from "@/frontend/presentation/components/layout/providers";
 import { Sidebar } from "@/frontend/presentation/components/layout/sidebar";
+import { AdminKeyModal } from "@/frontend/presentation/components/layout/admin-key-modal";
+import { AdminGuard } from "@/frontend/presentation/components/shared/admin-guard";
 import { DashboardModule } from "@/frontend/presentation/components/modules/dashboard/dashboard-module";
 import { GroupsModule } from "@/frontend/presentation/components/modules/groups/groups-module";
 import { EmployeesModule } from "@/frontend/presentation/components/modules/employees/employees-module";
@@ -18,15 +20,16 @@ function AppContent() {
         <Sidebar />
         <main className="flex-1 p-3 md:p-4 lg:p-6 overflow-y-auto">
           {activeView === "calendar" && <DashboardModule />}
-          {activeView === "groups" && <GroupsModule />}
-          {activeView === "employees" && <EmployeesModule />}
-          {activeView === "rules" && <RulesModule />}
-          {activeView === "audit" && <AuditModule />}
+          {activeView === "groups" && <AdminGuard module="groups"><GroupsModule /></AdminGuard>}
+          {activeView === "employees" && <AdminGuard module="employees"><EmployeesModule /></AdminGuard>}
+          {activeView === "rules" && <AdminGuard module="rules"><RulesModule /></AdminGuard>}
+          {activeView === "audit" && <AdminGuard module="audit"><AuditModule /></AdminGuard>}
         </main>
       </div>
       <footer className="border-t border-[#1545cb] bg-[#1545cb] px-4 py-2 text-center text-[10px] text-white">
         Farmatízate by Club del Droguista • Sistema de Rotación v1.0
       </footer>
+      <AdminKeyModal />
     </div>
   );
 }

@@ -14,7 +14,12 @@ export async function GET(request: NextRequest) {
     const endStr = searchParams.get("endDate");
 
     const startDate = startStr ? new Date(startStr) : undefined;
-    const endDate = endStr ? new Date(endStr) : undefined;
+    let endDate: Date | undefined;
+    if (endStr) {
+      const end = new Date(endStr);
+      end.setUTCHours(23, 59, 59, 999);
+      endDate = end;
+    }
 
     if (groupId && startDate && endDate) {
       const assignments = await assignmentService.getByGroupAndDateRange(groupId, startDate, endDate);

@@ -3,6 +3,53 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./api-client";
 import type { GroupResponse, AssignmentResponse, GenerateResult, AutoInitState } from "./types";
 
+// ─── Pure helpers (no hooks, no setState) ──────────────────────
+
+function formatLocalDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function getGenerationDateRange(): { startStr: string; endStr: string } {
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  return {
+    startStr: startDate.toISOString().split("T")[0],
+    endStr: endDate.toISOString().split("T")[0],
+  };
+}
+
+function getCurrentMonthRange(): { startStr: string; endStr: string } {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    startStr: formatLocalDate(monthStart),
+    endStr: formatLocalDate(monthEnd),
+  };
+}
+
+async function generateAssignmentsForGroups(
+  groups: GroupResponse[],
+  startDateStr: string,
+  endDateStr: string,
+): Promise<void> {
+  for (const group of groups) {
+    try {
+      await apiFetch<GenerateResult>("/api/assignments/generate", {
+        method: "POST",
+        body: JSON.stringify({ groupId: group.id, startDate: startDateStr, endDate: endDateStr }),
+      });
+    } catch (err) {
+      // Expected if seed already created assignments for this group
+      console.warn("Auto-init: generation failed for group", group.id, err);
+    }
+  }
+}
+
+// ─── Hook ─────────────────────────────────────────────────────
+
 /** On mount, checks if groups exist → seeds if needed → checks assignments → generates if needed.
  *  Ensures the calendar always shows data immediately on first load. */
 export function useAutoInitialize() {
@@ -20,7 +67,7 @@ export function useAutoInitialize() {
     hasRun.current = true;
 
     try {
-      // Step 1: Check if groups exist (via queryClient.fetchQuery — no raw fetch)
+      // Step 1: Check if groups exist
       setState({ isInitializing: true, step: "checking-groups", message: "Verificando datos..." });
 
       const groups = await queryClient.fetchQuery({
@@ -32,11 +79,8 @@ export function useAutoInitialize() {
       if (groups.length === 0) {
         setState({ isInitializing: true, step: "seeding", message: "Inicializando datos base..." });
         await apiFetch<{ message: string }>("/api/seed", { method: "POST" });
-
-        // Invalidate groups cache after seeding
         await queryClient.invalidateQueries({ queryKey: ["groups"] });
 
-        // Re-fetch groups after seeding (via queryClient.fetchQuery — no raw fetch)
         const newGroups = await queryClient.fetchQuery({
           queryKey: ["groups", { includeInactive: false }],
           queryFn: () => apiFetch<GroupResponse[]>("/api/groups?includeInactive=false"),
@@ -46,27 +90,9 @@ export function useAutoInitialize() {
           throw new Error("No se pudieron crear los grupos");
         }
 
-        // After seeding, historical assignments are already created by the seed endpoint.
-        // But we still need to generate future assignments for current month ±1.
         setState({ isInitializing: true, step: "generating", message: "Generando asignaciones..." });
-
-        const now = new Date();
-        const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-        const startStr = startDate.toISOString().split("T")[0];
-        const endStr = endDate.toISOString().split("T")[0];
-
-        for (const group of newGroups) {
-          try {
-            await apiFetch<GenerateResult>("/api/assignments/generate", {
-              method: "POST",
-              body: JSON.stringify({ groupId: group.id, startDate: startStr, endDate: endStr }),
-            });
-          } catch (err) {
-            // Expected if seed already created assignments for this group
-            console.warn("Auto-init: generation failed for group", group.id, err);
-          }
-        }
+        const { startStr, endStr } = getGenerationDateRange();
+        await generateAssignmentsForGroups(newGroups, startStr, endStr);
 
         await queryClient.invalidateQueries({ queryKey: ["assignments"] });
         await queryClient.invalidateQueries({ queryKey: ["groups"] });
@@ -74,14 +100,10 @@ export function useAutoInitialize() {
         return;
       }
 
-      // Step 3: Groups exist — check if assignments exist for current month (via queryClient.fetchQuery — no raw fetch)
+      // Step 3: Groups exist — check if assignments exist for current month
       setState({ isInitializing: true, step: "checking-assignments", message: "Verificando asignaciones..." });
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const startStr = monthStart.toISOString().split("T")[0];
-      const endStr = monthEnd.toISOString().split("T")[0];
+      const { startStr, endStr } = getCurrentMonthRange();
 
       const existingAssignments = await queryClient.fetchQuery({
         queryKey: ["assignments", { groupId: undefined, startDate: startStr, endDate: endStr }],
@@ -91,26 +113,11 @@ export function useAutoInitialize() {
         },
       });
 
-      // Step 4: If no assignments for current month, auto-generate for all groups (current month ±1)
+      // Step 4: If no assignments for current month, auto-generate for all groups
       if (existingAssignments.length === 0) {
         setState({ isInitializing: true, step: "generating", message: "Generando asignaciones..." });
-
-        const genStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const genEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-        const genStartStr = genStart.toISOString().split("T")[0];
-        const genEndStr = genEnd.toISOString().split("T")[0];
-
-        for (const group of groups) {
-          try {
-            await apiFetch<GenerateResult>("/api/assignments/generate", {
-              method: "POST",
-              body: JSON.stringify({ groupId: group.id, startDate: genStartStr, endDate: genEndStr }),
-            });
-          } catch (err) {
-            console.warn("Auto-init: generation failed for group", group.id, err);
-          }
-        }
-
+        const genRange = getGenerationDateRange();
+        await generateAssignmentsForGroups(groups, genRange.startStr, genRange.endStr);
         await queryClient.invalidateQueries({ queryKey: ["assignments"] });
       }
 

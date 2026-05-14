@@ -21,7 +21,7 @@ export interface CalendarDay {
   isWeekend: boolean;
   assignments: Array<{
     id: string;
-    taskType: string;
+    taskName: string;
     employeeName: string;
     groupName: string;
     groupId: string;

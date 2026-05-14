@@ -1,24 +1,32 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import {
-  BarChart3, Lock, Unlock, Sparkles, Building2, Scale,
+  BarChart3, Lock, Unlock, Sparkles, Building2, Scale, Calendar, Users, TrendingUp,
 } from "lucide-react";
 import type {
   GroupResponse, EmployeeResponse, RuleResponse,
-  BalanceReportItem, AssignmentResponse,
+  BalanceReportItem, BalanceReportResponse, AssignmentResponse,
 } from "@/frontend/presentation/lib/query/hooks";
 
 interface DashboardSidebarProps {
   groups: GroupResponse[] | undefined;
-  balanceReport: BalanceReportItem[] | undefined;
+  balanceData: BalanceReportResponse | undefined;
   allEmployees: EmployeeResponse[] | undefined;
   allRules: RuleResponse[] | undefined;
   filteredAssignments: AssignmentResponse[];
   availableTaskTypes: string[];
   taskLegend: string[];
   effectiveGroupId: string | undefined;
+}
+
+/** Format a date string "2026-05-13" to "13 May 2026" */
+function formatDateShort(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + "T00:00:00");
+  const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** Tarjeta: Motor de Equidad */
@@ -62,19 +70,24 @@ function FairnessCard() {
   );
 }
 
-/** Tarjeta: Balance de asignaciones */
+/** Tarjeta: Balance de asignaciones — MEJORADA con rango de fechas y stats */
 function BalanceCard({
-  balanceReport, allEmployees, groups, effectiveGroupId,
+  balanceData, allEmployees, groups, effectiveGroupId,
 }: {
-  balanceReport: BalanceReportItem[] | undefined;
+  balanceData: BalanceReportResponse | undefined;
   allEmployees: EmployeeResponse[] | undefined;
   groups: GroupResponse[] | undefined;
   effectiveGroupId: string | undefined;
 }) {
+  const balanceReport = balanceData?.report;
   const hasData = balanceReport && balanceReport.length > 0;
   const maxAssignments = hasData
     ? Math.max(...balanceReport!.map((b) => b.totalAssignments), 1)
     : 1;
+
+  const groupName = effectiveGroupId
+    ? groups?.find((g) => g.id === effectiveGroupId)?.name ?? ""
+    : "";
 
   return (
     <Card>
@@ -82,31 +95,86 @@ function BalanceCard({
         <CardTitle className="text-sm flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
           Balance
+          {groupName && (
+            <span className="text-xs font-normal text-muted-foreground">
+              — {groupName}
+            </span>
+          )}
         </CardTitle>
+        {hasData && balanceData && (
+          <CardDescription className="text-xs flex items-center gap-3 mt-1">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDateShort(balanceData.dateRange.from)} — {formatDateShort(balanceData.dateRange.to)}
+            </span>
+          </CardDescription>
+        )}
       </CardHeader>
       <CardContent className="p-4 pt-0">
+        {/* Stats row */}
+        {hasData && balanceData && (
+          <div className="grid grid-cols-3 gap-2 mb-3 pb-3 border-b">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                <Users className="h-3 w-3" />
+                <span className="text-[10px]">Empleados</span>
+              </div>
+              <span className="text-sm font-bold">{balanceData.employeeCount}</span>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                <BarChart3 className="h-3 w-3" />
+                <span className="text-[10px]">Total</span>
+              </div>
+              <span className="text-sm font-bold">{balanceData.totalAssignments}</span>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
+                <TrendingUp className="h-3 w-3" />
+                <span className="text-[10px]">Promedio</span>
+              </div>
+              <span className="text-sm font-bold">{balanceData.averagePerEmployee}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Employee bars */}
         {hasData ? (
-          <div className="space-y-2.5 max-h-72 overflow-y-auto">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             {[...balanceReport!]
               .sort((a, b) => b.totalAssignments - a.totalAssignments)
               .map((item) => {
                 const emp = allEmployees?.find((e) => e.id === item.employeeId);
                 const groupColor = groups?.find((g) => g.id === emp?.groupId)?.color ?? "#6b7280";
                 const pct = Math.min(100, (item.totalAssignments / maxAssignments) * 100);
+                const scoreColor = item.fairnessScore
+                  ? item.fairnessScore > 0.5
+                    ? "text-amber-600 dark:text-amber-400"
+                    : item.fairnessScore < -0.5
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : ""
+                  : "";
                 return (
                   <div key={item.employeeId} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
                         <span className="font-medium truncate">{item.employeeName}</span>
                       </div>
-                      <span className="text-muted-foreground tabular-nums shrink-0 ml-2">
-                        {item.totalAssignments}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {item.fairnessScore !== undefined && item.fairnessScore !== 0 && (
+                          <span className={`text-xs tabular-nums ${scoreColor}`} title={item.fairnessScore > 0 ? "Sub-asignado" : "Sobre-asignado"}>
+                            {item.fairnessScore > 0 ? "+" : ""}{item.fairnessScore.toFixed(1)}
+                          </span>
+                        )}
+                        <span className="text-muted-foreground tabular-nums font-bold">
+                          {item.totalAssignments}
+                        </span>
+                      </div>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-1.5">
+                    <div className="w-full bg-muted rounded-full h-2">
                       <div
-                        className="rounded-full h-1.5 transition-all"
+                        className="rounded-full h-2 transition-all"
                         style={{ width: `${pct}%`, backgroundColor: groupColor }}
                       />
                     </div>
@@ -115,8 +183,8 @@ function BalanceCard({
               })}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            {effectiveGroupId ? "Sin datos" : "Selecciona un grupo para ver balance"}
+          <p className="text-sm text-muted-foreground">
+            {effectiveGroupId ? "Sin datos — genera asignaciones primero" : "Selecciona un grupo para ver balance"}
           </p>
         )}
       </CardContent>
@@ -135,16 +203,16 @@ function TaskLegendCard({ taskLegend }: { taskLegend: string[] }) {
         {taskLegend.map((task) => (
           <div key={task} className="flex items-center gap-2">
             <TaskIcon taskType={task} size="sm" />
-            <span className="text-xs font-medium truncate" style={{ color: getTaskColor(task) }}>
+            <span className="text-sm font-medium truncate" style={{ color: getTaskColor(task) }}>
               {task}
             </span>
           </div>
         ))}
         <div className="border-t pt-2 mt-2 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Lock className="h-3 w-3" /><span>Histórico (bloqueado)</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Unlock className="h-3 w-3" /><span>Futuro (editable)</span>
           </div>
         </div>
@@ -174,14 +242,14 @@ function GroupsCard({
           const empCount = allEmployees?.filter((e) => e.groupId === g.id && e.isActive).length ?? 0;
           const ruleCount = allRules?.filter((r) => r.groupId === g.id && r.isActive).length ?? 0;
           return (
-            <div key={g.id} className="flex items-center gap-2 text-xs">
+            <div key={g.id} className="flex items-center gap-2 text-sm">
               <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
               <span className="font-medium">{g.name}</span>
               <span className="text-muted-foreground">— {empCount} emp. · {ruleCount} reglas</span>
             </div>
           );
         })}
-        <p className="text-[10px] text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Cada piso rota independientemente con su propio personal.
         </p>
       </CardContent>
@@ -208,19 +276,19 @@ function StatsCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0 space-y-2">
-        <div className="flex justify-between text-xs">
+        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Grupos</span>
           <span className="font-medium">{groups?.length ?? 0}</span>
         </div>
-        <div className="flex justify-between text-xs">
+        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Asignaciones visibles</span>
           <span className="font-medium">{filteredAssignments.length}</span>
         </div>
-        <div className="flex justify-between text-xs">
+        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Bloqueadas</span>
           <span className="font-medium">{lockedCount}</span>
         </div>
-        <div className="flex justify-between text-xs">
+        <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Tipos de tarea</span>
           <span className="font-medium">{availableTaskTypes.length}</span>
         </div>
@@ -231,14 +299,14 @@ function StatsCard({
 
 /** Barra lateral del dashboard con todas las tarjetas informativas */
 export function DashboardSidebar({
-  groups, balanceReport, allEmployees, allRules,
+  groups, balanceData, allEmployees, allRules,
   filteredAssignments, availableTaskTypes, taskLegend, effectiveGroupId,
 }: DashboardSidebarProps) {
   return (
     <div className="space-y-4">
       <FairnessCard />
       <BalanceCard
-        balanceReport={balanceReport}
+        balanceData={balanceData}
         allEmployees={allEmployees}
         groups={groups}
         effectiveGroupId={effectiveGroupId}

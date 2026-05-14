@@ -1,4 +1,4 @@
-// Group Service - Business logic for AssignmentGroup management
+// Group Service - Business logic for Group management
 // No framework dependencies, uses repositories for data access
 
 import { groupRepository, auditLogRepository } from "@/backend/infrastructure/repositories";
@@ -66,7 +66,7 @@ export const groupService = {
       }
     }
 
-    const data: Prisma.AssignmentGroupUpdateInput = {};
+    const data: Prisma.GroupUpdateInput = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.description !== undefined) data.description = input.description;
     if (input.taskType !== undefined) data.taskType = input.taskType;

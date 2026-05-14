@@ -58,6 +58,159 @@ const ACTION_STYLES: Record<string, { bg: string; dot: string; border: string }>
 
 /* ─── Human-readable description generator ──────────────────────── */
 
+function fallbackDescription(entity: string, action: string, groupName: string): string {
+  return `${entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
+}
+
+const FREQ_LABELS: Record<string, string> = {
+  daily: "diaria",
+  weekly: "semanal",
+  monthly: "mensual",
+};
+
+function resolveEmployeeName(
+  log: AuditLogItem,
+  changes: Record<string, unknown> | null,
+  employees: EmployeeInfo[],
+): string {
+  return employees.find(e => e.id === log.entityId)?.name
+    ?? (changes?.name as string)
+    ?? (changes?.after as Record<string, string>)?.name
+    ?? "";
+}
+
+function describeEmployeeCreate(
+  empName: string,
+  groupName: string,
+  changes: Record<string, unknown> | null,
+): string {
+  let detail = `${empName || "Empleado"} registrado en ${groupName}`;
+  if (changes?.position) detail += ` — ${changes.position}`;
+  if (changes?.area) detail += ` (${changes.area})`;
+  return detail;
+}
+
+function describeEmployeeUpdate(
+  empName: string,
+  changes: Record<string, unknown> | null,
+  groups: GroupInfo[],
+): string {
+  const before = (changes?.before ?? {}) as Record<string, string>;
+  const after = (changes?.after ?? {}) as Record<string, string>;
+  const fields: string[] = [];
+  if (after.name && before.name !== after.name) fields.push(`nombre: ${after.name}`);
+  if (after.position && before.position !== after.position) fields.push(`cargo: ${after.position}`);
+  if (after.area && before.area !== after.area) fields.push(`área: ${after.area}`);
+  if (after.groupId && before.groupId !== after.groupId) {
+    const newGroup = groups.find(g => g.id === after.groupId)?.name ?? after.groupId;
+    fields.push(`movido a ${newGroup}`);
+  }
+  return fields.length > 0
+    ? `${empName || "Empleado"}: ${fields.join(", ")}`
+    : `${empName || "Empleado"} actualizado`;
+}
+
+function describeEmployeeStatusChange(
+  action: string,
+  changes: Record<string, unknown> | null,
+  empName: string,
+  groupName: string,
+): string {
+  const name = (changes?.name as string) || empName || "Empleado";
+  const verb = action === "deactivate" ? "desactivado" : "reactivado";
+  return `${name} ${verb}${groupName ? ` en ${groupName}` : ""}`;
+}
+
+function describeEmployeeChange(
+  log: AuditLogItem,
+  changes: Record<string, unknown> | null,
+  groupName: string,
+  entity: string,
+  action: string,
+  groups: GroupInfo[],
+  employees: EmployeeInfo[],
+): string {
+  const empName = resolveEmployeeName(log, changes, employees);
+
+  if (log.action === "create") {
+    return describeEmployeeCreate(empName, groupName, changes);
+  }
+
+  if (log.action === "update") {
+    return describeEmployeeUpdate(empName, changes, groups);
+  }
+
+  if (log.action === "deactivate" || log.action === "reactivate") {
+    return describeEmployeeStatusChange(log.action, changes, empName, groupName);
+  }
+
+  return fallbackDescription(empName || entity, action, groupName);
+}
+
+function describeGroupChange(
+  log: AuditLogItem,
+  entity: string,
+  action: string,
+  groups: GroupInfo[],
+): string {
+  const gName = groups.find(g => g.id === log.entityId)?.name ?? "";
+  return gName
+    ? `Grupo "${gName}" ${action.toLowerCase()}`
+    : fallbackDescription(entity, action, "");
+}
+
+function describeRuleChange(
+  changes: Record<string, unknown> | null,
+  entity: string,
+  action: string,
+  groupName: string,
+): string {
+  if (!changes) {
+    return fallbackDescription(entity, action, groupName);
+  }
+  const taskLabel = (changes.taskLabel as string) ?? (changes.after as Record<string, string>)?.taskLabel ?? "";
+  const freq = (changes.frequencyType as string) ?? (changes.after as Record<string, string>)?.frequencyType ?? "";
+  const freqLabel = FREQ_LABELS[freq] ?? "";
+  return `Regla "${taskLabel}" (${freqLabel}) ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
+}
+
+function describeAssignmentChange(
+  log: AuditLogItem,
+  changes: Record<string, unknown> | null,
+  entity: string,
+  action: string,
+  groupName: string,
+): string {
+  if (log.action === "regenerate") {
+    const count = (changes?.count ?? changes?.generated ?? "") as string | number;
+    return `Asignaciones regeneradas${groupName ? ` para ${groupName}` : ""}${count ? ` (${count} generadas)` : ""}`;
+  }
+  if (log.action === "lock") {
+    const count = (changes?.count ?? "") as string | number;
+    return `Asignaciones bloqueadas${groupName ? ` — ${groupName}` : ""}${count ? ` (${count})` : ""}`;
+  }
+  return fallbackDescription(entity, action, groupName);
+}
+
+const ENTITY_DESCRIBERS: Record<string, (
+  log: AuditLogItem,
+  changes: Record<string, unknown> | null,
+  entity: string,
+  action: string,
+  groupName: string,
+  groups: GroupInfo[],
+  employees: EmployeeInfo[],
+) => string> = {
+  employee: (log, changes, entity, action, groupName, groups, employees) =>
+    describeEmployeeChange(log, changes, groupName, entity, action, groups, employees),
+  group: (log, _changes, entity, action, _groupName, groups) =>
+    describeGroupChange(log, entity, action, groups),
+  rule: (_log, changes, entity, action, groupName) =>
+    describeRuleChange(changes, entity, action, groupName),
+  assignment: (log, changes, entity, action, groupName) =>
+    describeAssignmentChange(log, changes, entity, action, groupName),
+};
+
 function describeChange(log: AuditLogItem, groups: GroupInfo[], employees: EmployeeInfo[]): string {
   const entity = ENTITY_LABELS[log.entityType] ?? log.entityType;
   const action = ACTION_LABELS[log.action] ?? log.action;
@@ -65,85 +218,16 @@ function describeChange(log: AuditLogItem, groups: GroupInfo[], employees: Emplo
     ? groups.find(g => g.id === log.groupId)?.name ?? ""
     : "";
 
-  let detail = "";
   try {
     const changes = log.changes ? JSON.parse(log.changes) : null;
-
-    switch (log.entityType) {
-      case "employee": {
-        const empName = employees.find(e => e.id === log.entityId)?.name
-          ?? changes?.name
-          ?? changes?.after?.name
-          ?? "";
-        if (log.action === "create") {
-          detail = `${empName || "Empleado"} registrado en ${groupName}`;
-          if (changes?.position) detail += ` — ${changes.position}`;
-          if (changes?.area) detail += ` (${changes.area})`;
-        } else if (log.action === "update") {
-          const before = changes?.before ?? {};
-          const after = changes?.after ?? {};
-          const fields: string[] = [];
-          if (after.name && before.name !== after.name) fields.push(`nombre: ${after.name}`);
-          if (after.position && before.position !== after.position) fields.push(`cargo: ${after.position}`);
-          if (after.area && before.area !== after.area) fields.push(`área: ${after.area}`);
-          if (after.groupId && before.groupId !== after.groupId) {
-            const newGroup = groups.find(g => g.id === after.groupId)?.name ?? after.groupId;
-            fields.push(`movido a ${newGroup}`);
-          }
-          detail = fields.length > 0
-            ? `${empName || "Empleado"}: ${fields.join(", ")}`
-            : `${empName || "Empleado"} actualizado`;
-        } else if (log.action === "deactivate") {
-          detail = `${changes?.name || empName || "Empleado"} desactivado${groupName ? ` en ${groupName}` : ""}`;
-        } else if (log.action === "reactivate") {
-          detail = `${changes?.name || empName || "Empleado"} reactivado${groupName ? ` en ${groupName}` : ""}`;
-        } else {
-          detail = `${empName || entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
-        }
-        break;
-      }
-
-      case "group": {
-        const gName = groups.find(g => g.id === log.entityId)?.name ?? "";
-        detail = gName
-          ? `Grupo "${gName}" ${action.toLowerCase()}`
-          : `${entity} ${action.toLowerCase()}`;
-        break;
-      }
-
-      case "rule": {
-        if (changes) {
-          const taskLabel = changes.taskLabel ?? changes.after?.taskLabel ?? "";
-          const freq = changes.frequencyType ?? changes.after?.frequencyType ?? "";
-          const freqLabel = freq === "daily" ? "diaria" : freq === "weekly" ? "semanal" : freq === "monthly" ? "mensual" : "";
-          detail = `Regla "${taskLabel}" (${freqLabel}) ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
-        } else {
-          detail = `${entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
-        }
-        break;
-      }
-
-      case "assignment": {
-        if (log.action === "regenerate") {
-          const count = changes?.count ?? changes?.generated ?? "";
-          detail = `Asignaciones regeneradas${groupName ? ` para ${groupName}` : ""}${count ? ` (${count} generadas)` : ""}`;
-        } else if (log.action === "lock") {
-          const count = changes?.count ?? "";
-          detail = `Asignaciones bloqueadas${groupName ? ` — ${groupName}` : ""}${count ? ` (${count})` : ""}`;
-        } else {
-          detail = `${entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
-        }
-        break;
-      }
-
-      default:
-        detail = `${entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
+    const describer = ENTITY_DESCRIBERS[log.entityType];
+    if (describer) {
+      return describer(log, changes, entity, action, groupName, groups, employees);
     }
+    return fallbackDescription(entity, action, groupName);
   } catch {
-    detail = `${entity} ${action.toLowerCase()}${groupName ? ` — ${groupName}` : ""}`;
+    return fallbackDescription(entity, action, groupName);
   }
-
-  return detail;
 }
 
 /* ─── Types ─────────────────────────────────────────────────────── */
@@ -207,6 +291,16 @@ function formatTime(iso: string): string {
   return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+/* ─── Helper: format raw JSON changes ──────────────────────────── */
+
+function formatRawChanges(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
+
 /* ─── Stats ─────────────────────────────────────────────────────── */
 
 function StatsBar({ logs }: { logs: AuditLogItem[] }) {
@@ -243,6 +337,130 @@ function StatsBar({ logs }: { logs: AuditLogItem[] }) {
           </Card>
         ))}
     </div>
+  );
+}
+
+/* ─── Filter Bar ─────────────────────────────────────────────────── */
+
+interface AuditFilterProps {
+  entityType: string;
+  groupId: string;
+  groups: { id: string; name: string }[] | undefined;
+  total: number;
+  onEntityTypeChange: (v: string) => void;
+  onGroupIdChange: (v: string) => void;
+  onClear: () => void;
+}
+
+function AuditFilters({
+  entityType, groupId, groups, total,
+  onEntityTypeChange, onGroupIdChange, onClear,
+}: AuditFilterProps) {
+  const hasFilters = entityType || groupId;
+
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Select value={entityType || "_all"} onValueChange={(v) => onEntityTypeChange(v === "_all" ? "" : v)}>
+            <SelectTrigger className="w-full sm:w-44 h-9 text-sm">
+              <SelectValue placeholder="Tipo de entidad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">Todas</SelectItem>
+              <SelectItem value="group">Grupos</SelectItem>
+              <SelectItem value="employee">Empleados</SelectItem>
+              <SelectItem value="rule">Reglas</SelectItem>
+              <SelectItem value="assignment">Asignaciones</SelectItem>
+              <SelectItem value="holiday">Festivos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={groupId || "_all"} onValueChange={(v) => onGroupIdChange(v === "_all" ? "" : v)}>
+            <SelectTrigger className="w-full sm:w-48 h-9 text-sm">
+              <SelectValue placeholder="Filtrar por grupo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_all">Todos los grupos</SelectItem>
+              {groups?.map((g) => (
+                <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={onClear}>
+              Limpiar filtros
+            </Button>
+          )}
+          <div className="ml-auto text-xs text-muted-foreground">
+            {total} registro{total !== 1 ? "s" : ""}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Log Card ──────────────────────────────────────────────────── */
+
+function AuditLogCard({
+  log, style, description, groupName,
+}: {
+  log: AuditLogItem;
+  style: { bg: string; dot: string; border: string };
+  description: string;
+  groupName: string | null;
+}) {
+  return (
+    <Card className={`border-l-4 ${style.border} hover:shadow-sm transition-shadow`}>
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            {/* Badges row */}
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <Badge variant="outline" className="text-xs gap-1 h-6">
+                {ENTITY_ICONS[log.entityType]}
+                {ENTITY_LABELS[log.entityType] ?? log.entityType}
+              </Badge>
+              <Badge className={`text-xs h-6 ${style.bg}`}>
+                <span
+                  className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block"
+                  style={{ backgroundColor: style.dot }}
+                />
+                {ACTION_LABELS[log.action] ?? log.action}
+              </Badge>
+              {groupName && (
+                <Badge variant="secondary" className="text-xs h-6 gap-1">
+                  <Building2 className="h-3 w-3" />
+                  {groupName}
+                </Badge>
+              )}
+            </div>
+            {/* Human-readable description */}
+            <p className="text-sm font-medium leading-snug">{description}</p>
+            {/* Changed by */}
+            {log.changedBy && log.changedBy !== "system" && (
+              <p className="text-xs text-muted-foreground mt-0.5">Por: {log.changedBy}</p>
+            )}
+            {/* Expandable raw changes */}
+            {log.changes && (
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  Ver detalles técnicos
+                </summary>
+                <pre className="mt-1.5 text-xs bg-muted/50 p-2.5 rounded-md overflow-x-auto max-w-full font-mono leading-relaxed">
+                  {formatRawChanges(log.changes)}
+                </pre>
+              </details>
+            )}
+          </div>
+          {/* Timestamp */}
+          <span className="text-xs text-muted-foreground whitespace-nowrap font-mono">
+            {formatTime(log.createdAt)}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -298,50 +516,15 @@ export function AuditModule() {
       {logs.length > 0 && <StatsBar logs={logs} />}
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={entityType} onValueChange={(v) => { setEntityType(v === "_all" ? "" : v); setPage(0); }}>
-              <SelectTrigger className="w-44 h-9 text-sm">
-                <SelectValue placeholder="Tipo de entidad" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_all">Todas</SelectItem>
-                <SelectItem value="group">Grupos</SelectItem>
-                <SelectItem value="employee">Empleados</SelectItem>
-                <SelectItem value="rule">Reglas</SelectItem>
-                <SelectItem value="assignment">Asignaciones</SelectItem>
-                <SelectItem value="holiday">Festivos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={groupId} onValueChange={(v) => { setGroupId(v === "_all" ? "" : v); setPage(0); }}>
-              <SelectTrigger className="w-48 h-9 text-sm">
-                <SelectValue placeholder="Filtrar por grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_all">Todos los grupos</SelectItem>
-                {groups?.map((g) => (
-                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(entityType || groupId) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 text-xs"
-                onClick={() => { setEntityType(""); setGroupId(""); setPage(0); }}
-              >
-                Limpiar filtros
-              </Button>
-            )}
-            <div className="ml-auto text-xs text-muted-foreground">
-              {total} registro{total !== 1 ? "s" : ""}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AuditFilters
+        entityType={entityType}
+        groupId={groupId}
+        groups={groups}
+        total={total}
+        onEntityTypeChange={(v) => { setEntityType(v); setPage(0); }}
+        onGroupIdChange={(v) => { setGroupId(v); setPage(0); }}
+        onClear={() => { setEntityType(""); setGroupId(""); setPage(0); }}
+      />
 
       {/* Log Timeline */}
       {isLoading ? (
@@ -373,71 +556,13 @@ export function AuditModule() {
                     : null;
 
                   return (
-                    <Card
+                    <AuditLogCard
                       key={log.id}
-                      className={`border-l-4 ${style.border} hover:shadow-sm transition-shadow`}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            {/* Badges row */}
-                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                              <Badge variant="outline" className="text-xs gap-1 h-6">
-                                {ENTITY_ICONS[log.entityType]}
-                                {ENTITY_LABELS[log.entityType] ?? log.entityType}
-                              </Badge>
-                              <Badge className={`text-xs h-6 ${style.bg}`}>
-                                <span
-                                  className="w-1.5 h-1.5 rounded-full mr-1.5 inline-block"
-                                  style={{ backgroundColor: style.dot }}
-                                />
-                                {ACTION_LABELS[log.action] ?? log.action}
-                              </Badge>
-                              {groupName && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs h-6 gap-1"
-                                >
-                                  <Building2 className="h-3 w-3" />
-                                  {groupName}
-                                </Badge>
-                              )}
-                            </div>
-                            {/* Human-readable description */}
-                            <p className="text-sm font-medium leading-snug">
-                              {description}
-                            </p>
-                            {/* Changed by */}
-                            {log.changedBy && log.changedBy !== "system" && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Por: {log.changedBy}
-                              </p>
-                            )}
-                            {/* Expandable raw changes */}
-                            {log.changes && (
-                              <details className="mt-2">
-                                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                                  Ver detalles técnicos
-                                </summary>
-                                <pre className="mt-1.5 text-xs bg-muted/50 p-2.5 rounded-md overflow-x-auto max-w-full font-mono leading-relaxed">
-                                  {(() => {
-                                    try {
-                                      return JSON.stringify(JSON.parse(log.changes), null, 2);
-                                    } catch {
-                                      return log.changes;
-                                    }
-                                  })()}
-                                </pre>
-                              </details>
-                            )}
-                          </div>
-                          {/* Timestamp */}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap font-mono">
-                            {formatTime(log.createdAt)}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      log={log}
+                      style={style}
+                      description={description}
+                      groupName={groupName}
+                    />
                   );
                 })}
               </div>

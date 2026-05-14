@@ -38,7 +38,7 @@ export function CalendarModule() {
   const [generateRange, setGenerateRange] = useState({ startDate: "", endDate: "" });
   const generateAssignments = useGenerateAssignments();
 
-  // Date range for calendar view (current month ± 1 month)
+  // Date range for calendar view — updates dynamically when navigating
   const [calendarDates, setCalendarDates] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -55,6 +55,19 @@ export function CalendarModule() {
     calendarDates.endDate
   );
 
+  // Update fetch range when calendar navigates to a different date range
+  const handleDatesSet = (info: { start: Date; end: Date }) => {
+    // Add padding of ±7 days to ensure surrounding events are visible
+    const paddedStart = new Date(info.start);
+    paddedStart.setDate(paddedStart.getDate() - 7);
+    const paddedEnd = new Date(info.end);
+    paddedEnd.setDate(paddedEnd.getDate() + 7);
+    setCalendarDates({
+      startDate: paddedStart.toISOString().split("T")[0],
+      endDate: paddedEnd.toISOString().split("T")[0],
+    });
+  };
+
   const { data: balanceReport } = useBalanceReport(selectedGroupId || undefined);
 
   // Transform assignments for FullCalendar
@@ -65,15 +78,15 @@ export function CalendarModule() {
       const emp = a.employee;
       return {
         id: a.id,
-        title: emp ? `${emp.name}${a.taskType ? ` - ${a.taskType}` : ""}` : "Sin asignar",
-        start: new Date(a.date).toISOString().split("T")[0],
+        title: emp ? `${emp.name}${a.taskName ? ` - ${a.taskName}` : ""}` : "Sin asignar",
+        start: typeof a.date === "string" ? a.date.split("T")[0] : new Date(a.date).toISOString().split("T")[0],
         backgroundColor: a.isLocked ? group?.color ?? "#6b7280" : `${group?.color ?? "#6b7280"}88`,
         borderColor: group?.color ?? "#6b7280",
         extendedProps: {
           employeeId: a.employeeId,
           groupId: a.groupId,
           isLocked: a.isLocked,
-          taskType: a.taskType,
+          taskType: a.taskName,
         },
       };
     });
@@ -170,17 +183,18 @@ export function CalendarModule() {
                 initialView="dayGridMonth"
                 events={calendarEvents}
                 headerToolbar={{
-                  left: "prev,next today",
+                  left: "prev,next",
                   center: "title",
-                  right: "dayGridMonth,dayGridWeek",
+                  right: "dayGridDay,dayGridWeek,dayGridMonth",
                 }}
                 height="auto"
                 locale="es"
                 buttonText={{
-                  today: "Hoy",
-                  month: "Mes",
+                  day: "Día",
                   week: "Semana",
+                  month: "Mes",
                 }}
+                datesSet={handleDatesSet}
                 dateClick={handleDateClick}
                 eventDisplay="block"
                 dayMaxEvents={3}

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import {
 import { UserPlus } from "lucide-react";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 import { BRAND_PRIMARY } from "./employee-columns";
+import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
 
 export interface EmployeeFormData {
   name: string;
@@ -27,6 +29,7 @@ export interface EmployeeFormData {
   area: string;
   groupId: string;
   joinDate: string;
+  isActive: boolean;
 }
 
 export type FormUpdater = (prev: EmployeeFormData) => EmployeeFormData;
@@ -59,6 +62,7 @@ export function EmployeeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      <AdminOnly module="employees" fallback={null}>
       <DialogTrigger asChild>
         <Button
           className="flex items-center gap-2 text-white"
@@ -68,6 +72,7 @@ export function EmployeeFormDialog({
           Nuevo Empleado
         </Button>
       </DialogTrigger>
+      </AdminOnly>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -75,6 +80,7 @@ export function EmployeeFormDialog({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Nombre */}
           <div className="space-y-2">
             <Label>Nombre</Label>
             <Input
@@ -85,6 +91,8 @@ export function EmployeeFormDialog({
               placeholder="Nombre completo"
             />
           </div>
+
+          {/* Cargo */}
           <div className="space-y-2">
             <Label>Cargo (opcional)</Label>
             <Input
@@ -95,6 +103,8 @@ export function EmployeeFormDialog({
               placeholder="Ej: Auxiliar, Administrador..."
             />
           </div>
+
+          {/* Área */}
           <div className="space-y-2">
             <Label>Área (opcional)</Label>
             <Input
@@ -105,6 +115,8 @@ export function EmployeeFormDialog({
               placeholder="Ej: Farmacia, Bodega, Oficina..."
             />
           </div>
+
+          {/* Grupo */}
           <div className="space-y-2">
             <Label>Grupo</Label>
             <Select
@@ -129,18 +141,37 @@ export function EmployeeFormDialog({
               </SelectContent>
             </Select>
           </div>
-          {!isEdit && (
-            <div className="space-y-2">
-              <Label>Fecha de Ingreso</Label>
-              <Input
-                type="date"
-                value={form.joinDate}
-                onChange={(e) =>
-                  onFormChange((f) => ({ ...f, joinDate: e.target.value }))
+
+          {/* Fecha de Ingreso — visible in both create and edit */}
+          <div className="space-y-2">
+            <Label>Fecha de Ingreso</Label>
+            <Input
+              type="date"
+              value={form.joinDate}
+              onChange={(e) =>
+                onFormChange((f) => ({ ...f, joinDate: e.target.value }))
+              }
+            />
+          </div>
+
+          {/* Estado activo — only in edit mode */}
+          {isEdit && (
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label className="text-sm font-medium">Empleado Activo</Label>
+                <p className="text-xs text-muted-foreground">
+                  Desactiva para retirar al empleado sin eliminar su historial
+                </p>
+              </div>
+              <Switch
+                checked={form.isActive}
+                onCheckedChange={(checked) =>
+                  onFormChange((f) => ({ ...f, isActive: checked }))
                 }
               />
             </div>
           )}
+
           <Button
             onClick={onSubmit}
             className="w-full text-white"
