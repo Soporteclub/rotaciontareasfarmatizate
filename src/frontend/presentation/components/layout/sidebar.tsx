@@ -14,12 +14,17 @@ import {
   Lock,
   Unlock,
   FileCode2,
+  Database,
+  RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { useUIStore, type AdminModule } from "@/frontend/presentation/hooks/use-ui-store";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { cn } from "@/frontend/lib/utils";
 import { useState } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
+import { useBackupStatus, useCreateBackup, useRestoreBackup } from "@/frontend/presentation/lib/query/backup-hooks";
 
 type NavItem = {
   id: "calendar" | "groups" | "employees" | "rules" | "audit";
@@ -193,6 +198,30 @@ const MODULE_LABELS: Record<AdminModule, string> = {
 
 const ALL_ADMIN_MODULES: AdminModule[] = ["groups", "employees", "rules", "calendar", "audit"];
 
+// ─── Relative time helper (Spanish) ───────────────────────────
+function formatRelativeTime(isoTimestamp: string): string {
+  const now = Date.now();
+  const then = new Date(isoTimestamp).getTime();
+  const diffMs = now - then;
+
+  if (diffMs < 0) return "ahora";
+
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "ahora";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `hace ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} hora${hours !== 1 ? "s" : ""}`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `hace ${days} día${days !== 1 ? "s" : ""}`;
+
+  const months = Math.floor(days / 30);
+  return `hace ${months} mes${months !== 1 ? "es" : ""}`;
+}
+
 // ─── Sidebar Footer ───────────────────────────────────────────
 function SidebarFooter({
   sidebarOpen,
@@ -212,6 +241,7 @@ function SidebarFooter({
       ) : (
         <LockedStatus sidebarOpen={sidebarOpen} />
       )}
+      <BackupSection sidebarOpen={sidebarOpen} />
       {sidebarOpen && (
         <div className="space-y-2">
           <a
@@ -303,6 +333,136 @@ function LockedStatus({ sidebarOpen }: { sidebarOpen: boolean }) {
   );
 }
 
+// ─── Backup Section ────────────────────────────────────────────
+function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
+  const { data: backupStatus, isLoading } = useBackupStatus();
+  const createBackup = useCreateBackup();
+  const restoreBackup = useRestoreBackup();
+  const [confirmRestore, setConfirmRestore] = useState(false);
+
+  const backupExists = backupStatus?.exists === true;
+  const isMutating = createBackup.isPending || restoreBackup.isPending;
+
+  // Collapsed sidebar: just a small database icon
+  if (!sidebarOpen) {
+    return (
+      <button
+        onClick={() => {
+          if (!isMutating) {
+            createBackup.mutate(undefined, {
+              onSuccess: () => toast.success("Backup guardado"),
+              onError: (err) => toast.error(err.message),
+            });
+          }
+        }}
+        disabled={isMutating}
+        className={cn(
+          "flex justify-center w-full py-0.5 transition-colors",
+          isLoading ? "text-muted-foreground/40" :
+          backupExists ? "text-emerald-500 hover:text-emerald-600" : "text-amber-500 hover:text-amber-600"
+        )}
+        title={backupExists ? "Backup existe — clic para guardar nuevo" : "Sin backup — clic para guardar"}
+      >
+        {isMutating ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Database className="h-3.5 w-3.5" />
+        )}
+      </button>
+    );
+  }
+
+  // Expanded sidebar: status + action buttons
+  return (
+    <div className="space-y-1.5">
+      {/* Status indicator */}
+      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        {isLoading ? (
+          <>
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Verificando backup…</span>
+          </>
+        ) : backupExists && backupStatus.timestamp ? (
+          <>
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+            <span>Backup: {formatRelativeTime(backupStatus.timestamp)}</span>
+          </>
+        ) : (
+          <>
+            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            <span>Sin backup</span>
+          </>
+        )}
+      </div>
+
+      {/* Action buttons or confirm prompt */}
+      {confirmRestore ? (
+        <div className="flex items-center gap-1 text-[10px]">
+          <span className="text-amber-600 font-medium">¿Seguro?</span>
+          <button
+            onClick={() => {
+              setConfirmRestore(false);
+              restoreBackup.mutate(undefined, {
+                onSuccess: () => toast.success("Base de datos restaurada"),
+                onError: (err) => toast.error(err.message),
+              });
+            }}
+            disabled={isMutating}
+            className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50"
+          >
+            {isMutating ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : "Sí"}
+          </button>
+          <button
+            onClick={() => setConfirmRestore(false)}
+            disabled={isMutating}
+            className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+          >
+            No
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              createBackup.mutate(undefined, {
+                onSuccess: () => toast.success("Backup guardado"),
+                onError: (err) => toast.error(err.message),
+              });
+            }}
+            disabled={isMutating}
+            className={cn(
+              "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors disabled:opacity-50",
+              "text-white hover:opacity-90"
+            )}
+            style={{ backgroundColor: BRAND.PRIMARY }}
+            title="Guardar backup"
+          >
+            {createBackup.isPending ? (
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+            ) : (
+              <Database className="h-2.5 w-2.5" />
+            )}
+            Guardar
+          </button>
+          <button
+            onClick={() => setConfirmRestore(true)}
+            disabled={isMutating || !backupExists}
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50"
+            title="Restaurar desde backup"
+          >
+            {restoreBackup.isPending ? (
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+            ) : (
+              <RotateCcw className="h-2.5 w-2.5" />
+            )}
+            Restaurar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Nav Button with per-module lock indicator ────────────────
 function NavButton({
   item,
@@ -383,3 +543,5 @@ function NavButton({
     </div>
   );
 }
+
+
