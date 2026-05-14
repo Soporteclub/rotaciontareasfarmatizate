@@ -2,7 +2,7 @@
 // Uses the Fairness Engine for fair distribution
 // Historical assignments are IMMUTABLE, only future can be regenerated
 
-import { assignmentRepository, employeeRepository, ruleRepository, auditLogRepository, holidayRepository } from "@/backend/infrastructure/repositories";
+import { assignmentRepository, employeeRepository, ruleRepository, auditLogRepository, holidayRepository, taskEligibilityRepository } from "@/backend/infrastructure/repositories";
 import { FairnessEngine } from "@/backend/domain/fairness";
 import type { FairnessEngineInput } from "@/backend/domain/fairness";
 import type { GenerateAssignmentsInput } from "@/backend/application/validators/schemas";
@@ -53,6 +53,15 @@ export const assignmentService = {
       throw new Error("No hay reglas activas para el grupo");
     }
 
+    // 2.5. Load task eligibility data for each employee (disabled tasks)
+    const employeeDisabledTasks = new Map<string, string[]>();
+    for (const emp of employees) {
+      const disabled = await taskEligibilityRepository.getDisabledTasks(emp.id);
+      if (disabled.length > 0) {
+        employeeDisabledTasks.set(emp.id, disabled);
+      }
+    }
+
     // 3. Get all historical assignments (locked ones)
     const allAssignments = await assignmentRepository.findByGroupAndDateRange(
       groupId,
@@ -75,6 +84,7 @@ export const assignmentService = {
         isActive: e.isActive,
         joinDate: e.joinDate,
         leaveDate: e.leaveDate,
+        disabledTasks: employeeDisabledTasks.get(e.id) ?? [],
       })),
       rules: rules.map((r) => ({
         id: r.id,
@@ -91,7 +101,7 @@ export const assignmentService = {
         employeeId: a.employeeId,
         groupId: a.groupId,
         date: a.date,
-        taskType: a.taskType,
+        taskType: a.taskName,
         isLocked: a.isLocked,
       })),
       groupId,
@@ -109,7 +119,7 @@ export const assignmentService = {
       groupId: a.groupId,
       date: a.date,
       ruleId: a.ruleId,
-      taskType: a.taskType,
+      taskName: a.taskType,
       isLocked: false, // new assignments are unlocked until they become past
     }));
 
@@ -179,17 +189,74 @@ export const assignmentService = {
   },
 
   /**
+   * Sync eligibility change with assignments
+   * When an employee's task is toggled OFF, remove all unlocked future assignments
+   * for that employee+task combination so they don't appear in future schedules.
+   * When toggled ON, no action needed (next regeneration will include them).
+   */
+  async syncEligibilityChange(employeeId: string, taskName: string, isEnabled: boolean) {
+    if (isEnabled) {
+      // Enabling a task - no need to remove assignments, next regeneration will include them
+      return { deletedCount: 0 };
+    }
+
+    // Disabling a task - remove all unlocked future assignments for this employee+task
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const result = await assignmentRepository.deleteUnlockedByEmployeeAndTask(
+      employeeId,
+      taskName,
+      today
+    );
+
+    // Audit log
+    await auditLogRepository.create({
+      entityType: "assignment",
+      entityId: "eligibility-sync",
+      action: "syncEligibility",
+      changes: {
+        employeeId,
+        taskName,
+        isEnabled,
+        deletedAssignments: result.count,
+      },
+    });
+
+    return { deletedCount: result.count };
+  },
+
+  /**
    * Get fairness balance report for a group
+   * Counts ALL assignments (locked + unlocked) for accurate balance display
+   * Includes date range of the data
    */
   async getBalanceReport(groupId: string) {
     const employees = await employeeRepository.findActiveByGroup(groupId);
-    const assignments = await assignmentRepository.findLockedByGroup(groupId);
+    const assignments = await assignmentRepository.findAllByGroup(groupId);
+
+    const totalAll = assignments.length;
+    const avgAll = employees.length > 0 ? totalAll / employees.length : 0;
+
+    // Calculate date range from assignments
+    let dateRange: { from: string | null; to: string | null } = { from: null, to: null };
+    if (assignments.length > 0) {
+      const dates = assignments.map((a) => new Date(a.date).getTime());
+      const minDate = new Date(Math.min(...dates));
+      const maxDate = new Date(Math.max(...dates));
+      const pad = (n: number) => String(n).padStart(2, "0");
+      dateRange = {
+        from: `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}`,
+        to: `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`,
+      };
+    }
 
     const report: Array<{
       employeeId: string;
       employeeName: string;
       totalAssignments: number;
       monthlyBalance: Record<string, number>;
+      fairnessScore: number;
     }> = [];
 
     for (const emp of employees) {
@@ -207,9 +274,10 @@ export const assignmentService = {
         employeeName: emp.name,
         totalAssignments: empAssignments.length,
         monthlyBalance,
+        fairnessScore: Math.round((avgAll - empAssignments.length) * 100) / 100,
       });
     }
 
-    return report;
+    return { report, dateRange, totalAssignments: totalAll, employeeCount: employees.length, averagePerEmployee: Math.round(avgAll * 100) / 100 };
   },
 };

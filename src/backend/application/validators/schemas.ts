@@ -40,6 +40,7 @@ export const updateEmployeeSchema = z.object({
   area: z.string().max(100).nullable().optional(),
   groupId: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
+  joinDate: z.string().optional(),
   leaveDate: z.string().nullable().optional(),
 });
 

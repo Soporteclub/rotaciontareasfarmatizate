@@ -1,47 +1,117 @@
+# Worklog — Farmatízate Project
+
 ---
-Task ID: 1-4
+Task ID: 1
 Agent: Main Agent
-Task: Implement 4 user-requested features: Employee fields, Rules frequency, Calendar views, Fairness equity
+Task: Add Swagger/OpenAPI documentation to the Farmatízate API
 
 Work Log:
-- Analyzed codebase: Employee already has position (cargo) and area fields, no email - Task 1 already done
-- Calendar already has day/week/month ViewModeToggle - Task 3 already done
-- Added frequencyType field (daily/weekly/monthly) to Prisma schema AssignmentRule model
-- Updated domain types with FrequencyType and FREQUENCY_TYPE_LABELS
-- Updated Zod validators with frequencyType enum
-- Updated rule service to handle frequencyType in create/update
-- Updated FairnessEngine: added frequencyType support (daily=all weekdays, weekly=specific day, monthly=first occurrence)
-- Improved FairnessEngine equity: added maxImbalance=1 constraint, increased balanceWeight from 3.0 to 5.0
-- Updated frontend types (RuleResponse) with frequencyType field
-- Updated rules-constants.ts with FREQUENCY_OPTIONS (Diaria/Semanal/Mensual)
-- Updated create-rule-dialog.tsx with frequencyType selector
-- Updated edit-rule-dialog.tsx with frequencyType selector
-- Updated rule-card.tsx to display frequency type label
-- Updated seed data with frequencyType: "weekly" for all rules
-- Reset database and re-seeded
-- Test: Piso 1 shows 12/12/11/12/12 (max diff=1), Piso 2 shows 12/12/12/12/11 (max diff=1)
+- Audited all 17 API route files and documented their methods, parameters, request bodies, and response patterns
+- Installed `next-swagger-doc` and `swagger-ui-react` packages (plus `@types/swagger-ui-react`)
+- Created comprehensive OpenAPI 3.0.3 specification at `/src/lib/openapi-spec.ts` covering:
+  - 9 tags: Grupos, Empleados, Reglas, Asignaciones, Festivos, Elegibilidad, Auditoría, Configuración, Mantenimiento
+  - All 22 HTTP method handlers across 17 route files
+  - Full request body schemas matching Zod validators
+  - Complete response schemas matching Prisma models
+  - Reusable components (parameters, schemas, responses)
+  - Error responses (400, 401, 404, 409, 500)
+- Created API route at `/api/docs` that serves the OpenAPI spec as JSON
+- Created Swagger UI page at `/docs` with dynamic import (SSR disabled) and loading state
+- Added "API Docs (Swagger)" link in the sidebar footer (both expanded and collapsed states)
+- Verified all endpoints work: `/api/docs` returns valid OpenAPI 3.0.3 JSON, `/docs` renders Swagger UI with CSS
+- Lint passes with no errors
 
 Stage Summary:
-- frequencyType field added (daily/weekly/monthly) replacing old numeric frequency concept
-- Fairness engine enforces max difference of 1 between employees
-- Distribution now equitable instead of 7/7/6/5/5 pattern
+- Full Swagger/OpenAPI 3.0.3 documentation is now available at `/docs`
+- API spec JSON available at `/api/docs`
+- Sidebar has a link to open API docs in new tab
+- All 17 routes fully documented with schemas, parameters, and responses
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix calendar - remove "Hoy" button, add Day view, fix data fetching on navigation
+
+Work Log:
+- Removed `today` ("Hoy") button from headerToolbar left section
+- Added `dayGridDay` view to the right toolbar: `dayGridDay,dayGridWeek,dayGridMonth`
+- Added `datesSet` callback (`handleDatesSet`) that updates `calendarDates` when user navigates
+- The `datesSet` callback adds ±7 day padding to ensure surrounding events are visible
+- Changed buttonText from `today/month/week` to `day/week/month` in Spanish
+- Root cause: `calendarDates` was static (set only on mount) so navigating to other dates/weeks/days showed no data
+- Now data is refetched dynamically for the visible date range when the user navigates
+
+Stage Summary:
+- "Hoy" button removed from calendar toolbar
+- Three views available: Día, Semana, Mes
+- Data now fetches correctly for any navigated date range via `datesSet` callback
+- Lint passes with no errors
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix "Sin asignaciones para este día" bug — timezone shift in date mapping
+
+Work Log:
+- **Root cause identified**: Assignment dates come from the API as ISO UTC strings like `"2026-05-13T00:00:00.000Z"`. When JavaScript parses this with `new Date()`, it creates a local-time Date object. In UTC-5 (Colombia), midnight UTC becomes 7PM on May 12 locally. So `toLocalDateStr()` produced `"2026-05-12"` instead of `"2026-05-13"`.
+- Added `toUtcDateStr()` function in `dashboard-hooks.ts` that extracts the date portion directly from the ISO string (`"2026-05-13T00:00:00.000Z"`.split("T")[0] → `"2026-05-13"`) to avoid timezone shift
+- Changed `useCalendarDays` to use `toUtcDateStr(a.date)` instead of `toLocalDateStr(new Date(a.date))` when mapping API assignments to calendar days
+- Fixed same issue in FullCalendar `calendar-module.tsx`: changed `start: new Date(a.date).toISOString().split("T")[0]` to `typeof a.date === "string" ? a.date.split("T")[0] : new Date(a.date).toISOString().split("T")[0]`
+- Fixed `goToday()` in dashboard: removed `setViewMode("day")` so it navigates to today without forcing view change
+- FullCalendar: "Hoy" button already removed in previous fix (no `today` in headerToolbar)
+- Lint passes with no errors
+
+Stage Summary:
+- **Critical timezone bug fixed**: Calendar now correctly maps assignments to their dates regardless of timezone
+- "Sin asignaciones para este día" no longer appears incorrectly for days with assignments
+- Dashboard "Hoy" button no longer forces view mode change to "day"
+- FullCalendar has no "Hoy" button (removed previously)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Replace group taskType Select with task toggle switches in create/edit dialog
+
+Work Log:
+- Analyzed current group form: had a confusing `taskType` Select dropdown (cleaning/kitchen/etc.) that didn't correspond to actual rules
+- Replaced `taskType` Select with toggle switches for each `TASK_LABEL` (Sacar Basura, Lavar Cafetera, Aseo General, etc.)
+- Each toggle shows the task icon, name, default days, and a Switch component
+- Active toggles get colored background matching the task's theme color
+- On **create**: after creating the group, auto-creates rules for enabled tasks using default day assignments
+- On **edit**: loads existing rules as enabled toggles; toggling off soft-deletes rules, toggling on creates new rules
+- Added task badge display on group cards showing which tasks each group has
+- Removed `useEffect` setState pattern — replaced with `useMemo` + conditional render-time state init to avoid lint error
+- Used `rulesLoaded` flag to prevent re-applying initial state on every render
+
+Stage Summary:
+- Group create/edit dialog now has intuitive task toggles instead of confusing Select
+- Tasks are automatically created/deleted as rules when toggles change
+- Group cards show task badges for quick visual identification
+- Lint passes with no errors
 
 ---
 Task ID: 5
 Agent: Main Agent
-Task: Fix 502 Bad Gateway error - restart dev server
+Task: Fix task eligibility sync — toggling OFF a task should remove future assignments immediately
 
 Work Log:
-- Diagnosed 502 Bad Gateway: Next.js dev server had crashed
-- Discovered background processes were being killed after ~30 seconds
-- Found that double-fork technique keeps the process alive
-- Successfully restarted dev server on port 3000
-- Verified all APIs working: /api/employees, /api/rules, /api/groups
-- Confirmed all 4 features from previous session are present and working
+- Investigated the full data flow: TaskEligibilityDialog → eligibility API → taskEligibilityService → TaskEligibility table → assignmentService → FairnessEngine
+- Found that the fairness engine already correctly filters out disabled tasks via `isTaskDisabled()` in `selectBestEmployee()`
+- Root cause: when toggling OFF a task for an employee, the `TaskEligibility` record was updated but existing future assignments were NOT removed. The user had to regenerate manually, and even then the old assignments remained visible in the UI until queries were invalidated
+- Added `deleteUnlockedByEmployeeAndTask()` method to assignment repository — deletes unlocked future assignments for a specific employee+task combination
+- Added `syncEligibilityChange()` method to assignment service — orchestrates assignment cleanup when eligibility changes, includes audit logging
+- Updated `taskEligibilityService.toggle()` to call `assignmentService.syncEligibilityChange()` after updating the eligibility record, returning `deletedAssignments` count
+- Updated eligibility API route to return `deletedAssignments` count in the response
+- Updated `TaskEligibilityResponse` type to include optional `deletedAssignments` field
+- Updated `useToggleEligibility` hook to invalidate assignment and dashboard queries after toggle (previously only invalidated eligibility queries)
+- Updated `TaskEligibilityDialog` with better UX: amber styling for disabled tasks, detailed toast messages showing count of removed assignments, prompt to regenerate for redistribution
+- Added "syncEligibility" to `AuditAction` union type
+- Lint passes with no errors
 
 Stage Summary:
-- Dev server restarted and stable
-- Employee fields (position/area) working - no email field
-- Rules with frequencyType (daily/weekly/monthly) + edit/delete working
-- Calendar with day/week/month views working
-- Fairness engine with maxImbalance=1 producing equitable distributions
+- Task eligibility is now fully synchronized with assignments
+- When a task is toggled OFF for an employee, all their future unlocked assignments for that task are immediately deleted
+- UI shows clear feedback: "Se eliminaron X asignaciones futuras. Regenera para redistribuir."
+- When toggled ON: "Esta actividad se incluirá en la próxima regeneración."
+- Assignment and dashboard queries are automatically invalidated after toggling
+- Full audit trail maintained for eligibility sync operations

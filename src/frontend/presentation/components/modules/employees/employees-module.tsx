@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useEmployees,
   useGroups,
@@ -9,7 +9,7 @@ import {
   useDeleteEmployee,
 } from "@/frontend/presentation/lib/query/hooks";
 import { toast } from "sonner";
-import type { EmployeeResponse } from "@/frontend/presentation/lib/query/hooks";
+import type { EmployeeResponse, GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 import { type StatusFilter, getGroupName } from "./employee-columns";
 import { EmployeeFilters } from "./employee-filters";
 import {
@@ -17,6 +17,48 @@ import {
   type EmployeeFormData,
 } from "./employee-form-dialog";
 import { EmployeeTable } from "./employee-table";
+import { TaskEligibilityDialog } from "./task-eligibility-dialog";
+
+// ─── Employee filtering & sorting ─────────────────────────────
+
+function employeeMatchesSearch(
+  emp: EmployeeResponse,
+  query: string,
+  groups: GroupResponse[] | undefined,
+): boolean {
+  const q = query.toLowerCase();
+  const matchesName = emp.name.toLowerCase().includes(q);
+  const matchesPosition = emp.position?.toLowerCase().includes(q) ?? false;
+  const matchesArea = emp.area?.toLowerCase().includes(q) ?? false;
+  const matchesGroup = getGroupName(groups, emp.groupId).toLowerCase().includes(q);
+  return matchesName || matchesPosition || matchesArea || matchesGroup;
+}
+
+function employeeMatchesStatus(emp: EmployeeResponse, statusFilter: StatusFilter): boolean {
+  if (statusFilter === "active" && !emp.isActive) return false;
+  if (statusFilter === "inactive" && emp.isActive) return false;
+  return true;
+}
+
+function filterEmployees(
+  employees: EmployeeResponse[] | undefined,
+  groups: GroupResponse[] | undefined,
+  searchQuery: string,
+  statusFilter: StatusFilter,
+): EmployeeResponse[] {
+  if (!employees) return [];
+
+  return employees
+    .filter((e) => {
+      if (searchQuery && !employeeMatchesSearch(e, searchQuery, groups)) return false;
+      if (!employeeMatchesStatus(e, statusFilter)) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+}
 
 const EMPTY_FORM: EmployeeFormData = {
   name: "",
@@ -24,6 +66,7 @@ const EMPTY_FORM: EmployeeFormData = {
   area: "",
   groupId: "",
   joinDate: new Date().toISOString().split("T")[0],
+  isActive: true,
 };
 
 export function EmployeesModule() {
@@ -43,6 +86,9 @@ export function EmployeesModule() {
   const [form, setForm] = useState<EmployeeFormData>(EMPTY_FORM);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [eligibilityDialogOpen, setEligibilityDialogOpen] = useState(false);
+  const [eligibilityEmployee, setEligibilityEmployee] =
+    useState<EmployeeResponse | null>(null);
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
@@ -56,6 +102,7 @@ export function EmployeesModule() {
       area: emp.area ?? "",
       groupId: emp.groupId,
       joinDate: emp.joinDate.split("T")[0],
+      isActive: emp.isActive,
     });
     setEditingEmployee(emp);
     setDialogOpen(true);
@@ -70,6 +117,9 @@ export function EmployeesModule() {
           position: form.position || null,
           area: form.area || null,
           groupId: form.groupId || undefined,
+          joinDate: form.joinDate || undefined,
+          isActive: form.isActive,
+          leaveDate: !form.isActive ? new Date().toISOString() : null,
         });
         toast.success("Empleado actualizado");
       } else {
@@ -119,29 +169,16 @@ export function EmployeesModule() {
     }
   };
 
+  const handleManageEligibility = (emp: EmployeeResponse) => {
+    setEligibilityEmployee(emp);
+    setEligibilityDialogOpen(true);
+  };
+
   // Filtrar empleados por búsqueda y estado
-  const filteredEmployees = employees
-    ? employees
-        .filter((e) => {
-          if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            const matchesName = e.name.toLowerCase().includes(q);
-            const matchesPosition = e.position?.toLowerCase().includes(q) ?? false;
-            const matchesArea = e.area?.toLowerCase().includes(q) ?? false;
-            const matchesGroup = getGroupName(groups, e.groupId)
-              .toLowerCase()
-              .includes(q);
-            if (!matchesName && !matchesPosition && !matchesArea && !matchesGroup) return false;
-          }
-          if (statusFilter === "active" && !e.isActive) return false;
-          if (statusFilter === "inactive" && e.isActive) return false;
-          return true;
-        })
-        .sort((a, b) => {
-          if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-          return a.name.localeCompare(b.name);
-        })
-    : [];
+  const filteredEmployees = useMemo(
+    () => filterEmployees(employees, groups, searchQuery, statusFilter),
+    [employees, groups, searchQuery, statusFilter],
+  );
 
   const activeCount = employees?.filter((e) => e.isActive).length ?? 0;
   const inactiveCount = employees?.filter((e) => !e.isActive).length ?? 0;
@@ -207,7 +244,16 @@ export function EmployeesModule() {
         onEdit={handleEdit}
         onToggleActive={handleToggleActive}
         onDelete={handleDelete}
+        onManageEligibility={handleManageEligibility}
         isDeletePending={deleteEmployee.isPending}
+      />
+
+      {/* Diálogo de actividades por empleado */}
+      <TaskEligibilityDialog
+        open={eligibilityDialogOpen}
+        onOpenChange={setEligibilityDialogOpen}
+        employee={eligibilityEmployee}
+        groups={groups}
       />
     </div>
   );

@@ -28,43 +28,41 @@ interface CalendarGridProps {
   availableTaskTypes: string[];
 }
 
-/** Día individual del calendario (vista mes) */
+/** Día individual del calendario (vista mes) — TEXTO GRANDE Y LEGIBLE */
 function CalendarCell({ day }: { day: CalendarDay }) {
   return (
     <div
-      className={`min-h-[90px] sm:min-h-[110px] p-1 transition-colors ${
+      className={`min-h-[80px] sm:min-h-[110px] md:min-h-[130px] p-1 sm:p-1.5 transition-colors ${
         day.isCurrentMonth ? "bg-card" : "bg-muted/30"
       } ${day.isToday ? "ring-2 ring-primary ring-inset" : ""}`}
     >
-      <div className={`text-xs font-medium mb-1 ${
+      <div className={`text-sm sm:text-base font-semibold mb-1 ${
         day.isToday ? "text-primary" : day.isCurrentMonth ? "text-foreground" : "text-muted-foreground"
       }`}>
         {day.dayOfMonth}
       </div>
       <div className="space-y-0.5">
         {day.assignments.slice(0, 3).map((a) => {
-          const eventColor = getEventColor(a.groupColor, a.taskType);
-          const eventBg = getEventBgColor(a.groupColor, a.taskType);
+          const eventColor = getEventColor(a.groupColor, a.taskName);
+          const eventBg = getEventBgColor(a.groupColor, a.taskName);
           return (
             <div
               key={a.id}
-              className="text-[10px] leading-tight px-1 py-0.5 rounded flex items-center gap-0.5"
+              className="text-xs sm:text-sm leading-snug px-1 sm:px-1.5 py-0.5 sm:py-1 rounded flex items-center gap-1"
               style={{
                 backgroundColor: eventBg,
                 borderLeft: `3px solid ${eventColor}`,
               }}
-              title={`${a.taskType} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
+              title={`${a.taskName} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
             >
-              <TaskIcon taskType={a.taskType} size="xs" showBg={false} />
-              <span className="font-medium truncate" style={{ color: eventColor }}>
+              <span className="font-semibold truncate" style={{ color: eventColor }}>
                 {a.employeeName}
               </span>
-              {a.isLocked && <Lock className="h-2 w-2 ml-auto shrink-0 opacity-50" />}
             </div>
           );
         })}
         {day.assignments.length > 3 && (
-          <div className="text-[10px] text-muted-foreground text-center">
+          <div className="text-xs sm:text-sm text-muted-foreground text-center font-medium">
             +{day.assignments.length - 3} más
           </div>
         )}
@@ -73,49 +71,49 @@ function CalendarCell({ day }: { day: CalendarDay }) {
   );
 }
 
-/** Columna de día en la vista semanal */
+/** Columna de día en la vista semanal — TEXTO GRANDE */
 function WeekDayColumn({ day }: { day: CalendarDay }) {
   return (
     <div
-      className={`flex flex-col p-2 transition-colors ${
+      className={`flex flex-col p-2 sm:p-3 transition-colors ${
         day.isWeekend ? "bg-muted/20" : "bg-card"
       } ${day.isToday ? "ring-2 ring-primary ring-inset" : ""}`}
     >
-      <div className="text-center mb-2">
-        <div className="text-[10px] text-muted-foreground uppercase">
+      <div className="text-center mb-3">
+        <div className="text-xs sm:text-sm text-muted-foreground uppercase font-medium">
           {DAY_NAMES_SHORT[day.date.getDay()]}
         </div>
-        <div className={`text-lg font-semibold ${
+        <div className={`text-xl sm:text-2xl font-bold ${
           day.isToday ? "text-primary" : "text-foreground"
         }`}>
           {day.dayOfMonth}
         </div>
       </div>
-      <div className="flex-1 space-y-1">
+      <div className="flex-1 space-y-1.5">
         {day.assignments.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground text-center py-4">
+          <div className="text-xs sm:text-sm text-muted-foreground text-center py-6">
             Sin asignaciones
           </div>
         ) : (
           day.assignments.map((a) => {
-            const eventColor = getEventColor(a.groupColor, a.taskType);
-            const eventBg = getEventBgColor(a.groupColor, a.taskType);
+            const eventColor = getEventColor(a.groupColor, a.taskName);
+            const eventBg = getEventBgColor(a.groupColor, a.taskName);
             return (
               <div
                 key={a.id}
-                className="text-xs leading-tight px-2 py-1.5 rounded flex items-center gap-1"
+                className="text-sm sm:text-base leading-snug px-2 sm:px-3 py-1.5 sm:py-2 rounded flex items-center gap-1.5"
                 style={{
                   backgroundColor: eventBg,
-                  borderLeft: `3px solid ${eventColor}`,
+                  borderLeft: `4px solid ${eventColor}`,
                 }}
               >
-                <TaskIcon taskType={a.taskType} size="xs" showBg={false} />
+                <TaskIcon taskType={a.taskName} size="sm" showBg={false} />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate" style={{ color: eventColor }}>
+                  <div className="font-semibold truncate" style={{ color: eventColor }}>
                     {a.employeeName}
                   </div>
-                  <div className="text-[10px] text-muted-foreground truncate">
-                    {a.taskType} · {a.groupName}
+                  <div className="text-xs text-muted-foreground truncate">
+                    {a.taskName} · {a.groupName}
                   </div>
                 </div>
                 {a.isLocked && <Lock className="h-3 w-3 ml-auto shrink-0 opacity-50" />}
@@ -128,31 +126,31 @@ function WeekDayColumn({ day }: { day: CalendarDay }) {
   );
 }
 
-/** Tarjeta de asignación en la vista de día */
+/** Tarjeta de asignación en la vista de día — TEXTO GRANDE */
 function DayAssignmentCard({ a }: { a: CalendarDay["assignments"][number] }) {
-  const eventColor = getEventColor(a.groupColor, a.taskType);
-  const eventBg = getEventBgColor(a.groupColor, a.taskType);
+  const eventColor = getEventColor(a.groupColor, a.taskName);
+  const eventBg = getEventBgColor(a.groupColor, a.taskName);
 
   return (
     <div
-      className="flex items-center gap-3 rounded-lg p-3 transition-colors"
+      className="flex items-center gap-4 rounded-lg p-4 transition-colors"
       style={{
         backgroundColor: eventBg,
-        borderLeft: `4px solid ${eventColor}`,
+        borderLeft: `5px solid ${eventColor}`,
       }}
     >
-      <TaskIcon taskType={a.taskType} size="sm" showBg={true} />
+      <TaskIcon taskType={a.taskName} size="md" showBg={true} />
       <div className="min-w-0 flex-1">
-        <div className="font-semibold text-sm" style={{ color: eventColor }}>
+        <div className="font-bold text-base" style={{ color: eventColor }}>
           {a.employeeName}
         </div>
-        <div className="text-xs text-muted-foreground">
-          {a.taskType} · {a.groupName}
+        <div className="text-sm text-muted-foreground">
+          {a.taskName} · {a.groupName}
         </div>
       </div>
       {a.isLocked && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Lock className="h-3 w-3" />
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4" />
           <span>Bloqueado</span>
         </div>
       )}
@@ -166,17 +164,17 @@ function CalendarLegend({ groups, availableTaskTypes }: {
   availableTaskTypes: string[];
 }) {
   return (
-    <div className="mt-3 flex items-center gap-4 flex-wrap text-xs">
+    <div className="mt-4 flex items-center gap-4 flex-wrap text-sm">
       {groups?.map((g) => (
-        <div key={g.id} className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: g.color }} />
+        <div key={g.id} className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: g.color }} />
           <span className="font-medium">{g.name}</span>
         </div>
       ))}
       <div className="border-l pl-4 flex items-center gap-3">
         {availableTaskTypes.map((t) => (
-          <div key={t} className="flex items-center gap-1">
-            <TaskIcon taskType={t} size="xs" showBg={false} />
+          <div key={t} className="flex items-center gap-1.5">
+            <TaskIcon taskType={t} size="sm" showBg={false} />
             <span className="text-muted-foreground">{t}</span>
           </div>
         ))}
@@ -203,7 +201,7 @@ function ViewModeToggle({ viewMode, setViewMode }: {
           key={m.key}
           variant="ghost"
           size="sm"
-          className={`rounded-none h-8 px-3 text-xs font-medium ${
+          className={`rounded-none h-9 px-4 text-sm font-medium ${
             viewMode === m.key
               ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
               : "hover:bg-muted"
@@ -237,29 +235,39 @@ export function CalendarGrid({
     return formatFullDate(d);
   })();
 
-
+  // Handler for "Hoy" — navigate to today AND switch to day view for clarity
+  const handleGoToday = () => {
+    goToday();
+  };
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-4 sm:p-6">
         {/* Navegación */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8">
-              <ChevronLeft className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={prevMonth} className="h-9 w-9">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="outline" size="sm" onClick={goToday}>
-              Hoy
-            </Button>
-            <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8">
-              <ChevronRight className="h-4 w-4" />
+            <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 min-w-[200px]">
+              <CalendarHeart className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "#1545cb" }} />
+              {headerTitle}
+            </h2>
+            <Button variant="outline" size="icon" onClick={nextMonth} className="h-9 w-9">
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <CalendarHeart className="h-5 w-5" style={{ color: "#1545cb" }} />
-            {headerTitle}
-          </h2>
-          <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGoToday}
+              className="text-sm font-semibold px-4 h-9"
+            >
+              Hoy
+            </Button>
+            <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
+          </div>
         </div>
 
         {/* ─── Vista Mes ──────────────────────────────────────── */}
@@ -269,9 +277,10 @@ export function CalendarGrid({
               {DAY_NAMES_SHORT.map((d, i) => (
                 <div
                   key={d}
-                  className={`text-center text-xs font-medium py-2 ${i === 0 || i === 6 ? "bg-muted text-muted-foreground" : "bg-card"}`}
+                  className={`text-center text-sm font-semibold py-2 ${i === 0 || i === 6 ? "bg-muted text-muted-foreground" : "bg-card"}`}
                 >
-                  {d}
+                  <span className="hidden sm:inline">{d}</span>
+                  <span className="sm:hidden">{d.charAt(0)}</span>
                 </div>
               ))}
             </div>
@@ -280,11 +289,16 @@ export function CalendarGrid({
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-px bg-border rounded-b-lg overflow-hidden">
-                {calendarDays.map((day, i) => (
-                  <CalendarCell key={i} day={day} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-7 gap-px bg-border rounded-b-lg overflow-hidden">
+                  {calendarDays.map((day, i) => (
+                    <CalendarCell key={i} day={day} />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground text-center mt-2 sm:hidden">
+                  Usa vista Día o Semana para mejor experiencia en móvil
+                </p>
+              </>
             )}
           </>
         )}
@@ -297,7 +311,7 @@ export function CalendarGrid({
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden min-h-[420px]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-px bg-border rounded-lg overflow-hidden min-h-[360px] sm:min-h-[480px]">
                 {calendarDays.map((day, i) => (
                   <WeekDayColumn key={i} day={day} />
                 ))}
@@ -314,13 +328,13 @@ export function CalendarGrid({
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {calendarDays.length > 0 && calendarDays[0].assignments.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CalendarHeart className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm">Sin asignaciones para este día</p>
+                  <div className="text-center py-16 text-muted-foreground">
+                    <CalendarHeart className="h-16 w-16 mx-auto mb-4 opacity-20" />
+                    <p className="text-lg font-medium">Sin asignaciones para este día</p>
                     {calendarDays[0].isWeekend && (
-                      <p className="text-xs mt-1">Fin de semana</p>
+                      <p className="text-sm mt-2">Fin de semana</p>
                     )}
                   </div>
                 ) : (

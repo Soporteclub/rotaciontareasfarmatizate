@@ -5,3 +5,5 @@ export { ruleService } from "./rule-service";
 export { assignmentService } from "./assignment-service";
 export { auditService } from "./audit-service";
 export { holidayService } from "./holiday-service";
+export { settingsService } from "./settings-service";
+export { taskEligibilityService } from "./task-eligibility-service";

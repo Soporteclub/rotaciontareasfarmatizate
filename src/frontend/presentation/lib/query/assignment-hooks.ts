@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./api-client";
-import type { AssignmentResponse, GenerateResult, BalanceReportItem } from "./types";
+import type { AssignmentResponse, GenerateResult, BalanceReportItem, BalanceReportResponse } from "./types";
 
 export function useAssignments(groupId?: string, startDate?: string, endDate?: string) {
   const params = new URLSearchParams();
@@ -25,6 +25,7 @@ export function useGenerateAssignments() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
     },
   });
 }
@@ -32,7 +33,7 @@ export function useGenerateAssignments() {
 export function useBalanceReport(groupId?: string) {
   return useQuery({
     queryKey: ["balance", groupId],
-    queryFn: () => apiFetch<BalanceReportItem[]>(`/api/assignments/balance?groupId=${groupId}`),
+    queryFn: () => apiFetch<BalanceReportResponse>(`/api/assignments/balance?groupId=${groupId}`),
     enabled: !!groupId,
   });
 }

@@ -70,13 +70,20 @@ export const assignmentRepository = {
         date,
       },
       include: { employee: true },
-      orderBy: { taskType: "asc" },
+      orderBy: { taskName: "asc" },
     });
   },
 
   async findLockedByGroup(groupId: string) {
     return db.assignment.findMany({
       where: { groupId, isLocked: true },
+      orderBy: { date: "asc" },
+    });
+  },
+
+  async findAllByGroup(groupId: string) {
+    return db.assignment.findMany({
+      where: { groupId },
       orderBy: { date: "asc" },
     });
   },
@@ -100,6 +107,25 @@ export const assignmentRepository = {
     return db.assignment.deleteMany({
       where: {
         groupId,
+        isLocked: false,
+        date: { gte: startDate },
+      },
+    });
+  },
+
+  /**
+   * Delete unlocked future assignments for a specific employee+task combination
+   * Used when an employee's task eligibility is toggled OFF
+   */
+  async deleteUnlockedByEmployeeAndTask(
+    employeeId: string,
+    taskName: string,
+    startDate: Date
+  ) {
+    return db.assignment.deleteMany({
+      where: {
+        employeeId,
+        taskName,
         isLocked: false,
         date: { gte: startDate },
       },
@@ -140,7 +166,7 @@ export const assignmentRepository = {
       groupId: string;
       date: Date;
       ruleId: string | null;
-      taskType: string;
+      taskName: string;
       isLocked: boolean;
     }>
   ) {

@@ -77,6 +77,7 @@ export const employeeService = {
     if (input.position !== undefined) data.position = input.position;
     if (input.area !== undefined) data.area = input.area;
     if (input.groupId !== undefined) data.group = { connect: { id: input.groupId } };
+    if (input.joinDate !== undefined) data.joinDate = new Date(input.joinDate);
     if (input.isActive === false) data.leaveDate = new Date();
     if (input.leaveDate !== undefined) data.leaveDate = input.leaveDate ? new Date(input.leaveDate) : null;
     if (input.isActive !== undefined) data.isActive = input.isActive;

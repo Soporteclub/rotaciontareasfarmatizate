@@ -49,7 +49,7 @@ export interface AssignmentResponse {
   employeeId: string;
   ruleId: string | null;
   date: string;
-  taskType: string;
+  taskName: string;
   isLocked: boolean;
   createdAt: string;
   updatedAt: string;
@@ -76,10 +76,32 @@ export interface BalanceReportItem {
   fairnessScore?: number;
 }
 
+export interface BalanceReportResponse {
+  report: BalanceReportItem[];
+  dateRange: { from: string | null; to: string | null };
+  totalAssignments: number;
+  employeeCount: number;
+  averagePerEmployee: number;
+}
+
 export interface GenerateResult {
   assignments: AssignmentResponse[];
   balanceReport: BalanceReportItem[];
   generatedAt: string;
+}
+
+export interface TaskEligibilityResponse {
+  id: string;
+  employeeId: string;
+  taskName: string;
+  isEnabled: boolean;
+  deletedAssignments?: number; // Count of future assignments removed when disabling
+}
+
+export interface SettingsResponse {
+  isConfigured: boolean;
+  keyHint: string | null;
+  createdAt: string | null;
 }
 
 export interface AutoInitState {

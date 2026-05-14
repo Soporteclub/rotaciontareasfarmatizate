@@ -1,4 +1,4 @@
-// Rule Service - Business logic for AssignmentRule management
+// Rule Service - Business logic for Rule management
 // Rules are configurable (NOT hardcoded days/times)
 
 import { ruleRepository, groupRepository, auditLogRepository } from "@/backend/infrastructure/repositories";
@@ -37,7 +37,7 @@ export const ruleService = {
 
     // Rules can be created before employees are added
 
-    const data: Prisma.AssignmentRuleCreateInput = {
+    const data: Prisma.RuleCreateInput = {
       dayOfWeek: input.dayOfWeek,
       frequencyType: input.frequencyType ?? "weekly",
       frequency: input.frequency ?? 1,
@@ -66,7 +66,7 @@ export const ruleService = {
       throw new Error("Regla no encontrada");
     }
 
-    const data: Prisma.AssignmentRuleUpdateInput = {};
+    const data: Prisma.RuleUpdateInput = {};
     if (input.dayOfWeek !== undefined) data.dayOfWeek = input.dayOfWeek;
     if (input.frequencyType !== undefined) data.frequencyType = input.frequencyType;
     if (input.frequency !== undefined) data.frequency = input.frequency;

@@ -1,5 +1,7 @@
-// Rotating Task Assignment System - Database Schema
-// Clean Architecture: Domain entities with full audit trail
+// ─────────────────────────────────────────────────────────────────
+// Farmatízate - Sistema de Rotación de Tareas
+// Schema v2 — Nombres claros para Prisma Studio
+// ─────────────────────────────────────────────────────────────────
 
 generator client {
   provider = "prisma-client-js"
@@ -10,106 +12,148 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// AssignmentGroup - Dynamic, independent groups for rotating tasks
-/// Each group has its own employees, fairness, calendar, and rules.
-/// Supports ANY task type (cleaning, kitchen, reception, opening, closing, inventory, etc.)
-model AssignmentGroup {
+// ─── CONFIGURACIÓN ──────────────────────────────────────────────
+
+/// Settings - Configuración global de la aplicación
+/// Almacena la clave admin, preferencias y flags del sistema
+model Settings {
+  id    String @id @default("app")
+  key   String @unique                    // Clave admin para acceder a configuraciones
+  value String @default("***REMOVED***") // Valor de la clave
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ─── GRUPOS ─────────────────────────────────────────────────────
+
+/// Grupo - Piso/equipo de trabajo (Piso 1, Piso 2, etc.)
+/// Cada grupo tiene sus propios empleados, reglas y asignaciones
+model Group {
   id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  taskType    String   @default("cleaning") // cleaning, kitchen, reception, opening, closing, inventory, etc.
-  color       String   @default("#10b981")  // calendar display color
+  name        String   @unique             // "Piso 1", "Piso 2"
+  description String?                      // Descripción del grupo
+  taskType    String   @default("cleaning") // cleaning, kitchen, etc.
+  color       String   @default("#10b981") // Color en el calendario
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   employees   Employee[]
-  rules       AssignmentRule[]
+  rules       Rule[]
   assignments Assignment[]
   auditLogs   AuditLog[]
+
+  @@map("groups")
 }
 
-/// Employee - Supports high rotation: enter, exit, group change, deactivate
-/// Soft delete via isActive. Never delete historical data.
+// ─── EMPLEADOS ──────────────────────────────────────────────────
+
+/// Empleado - Persona que rota tareas
+/// Soft delete via isActive. Nunca se borra histórico.
 model Employee {
   id        String    @id @default(cuid())
-  name      String
-  position  String?  // Cargo - e.g. "Auxiliar", "Administrador"
-  area      String?  // Área - e.g. "Farmacia", "Bodega", "Oficina"
-  groupId   String
+  name      String                        // Nombre completo
+  position  String?                       // Cargo: "Auxiliar", "Administrador"
+  area      String?                       // Área: "Farmacia", "Bodega"
+  groupId   String                        // Grupo al que pertenece
   isActive  Boolean   @default(true)
-  joinDate  DateTime  @default(now())
-  leaveDate DateTime?
+  joinDate  DateTime  @default(now())     // Fecha de ingreso
+  leaveDate DateTime?                     // Fecha de salida (null = activo)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  group       AssignmentGroup @relation(fields: [groupId], references: [id])
+  group       Group            @relation(fields: [groupId], references: [id])
   assignments Assignment[]
+  eligibility TaskEligibility[]
 
   @@index([groupId])
   @@index([isActive])
+  @@map("employees")
 }
 
-/// AssignmentRule - Configurable rules (NOT hardcoded days)
-/// Supports any day of week, frequency type, and custom labels
-/// Each rule defines a specific task (taskLabel) that applies on a specific day
-/// frequencyType: "daily" = every weekday, "weekly" = on dayOfWeek every week, "monthly" = on dayOfWeek once per month
-model AssignmentRule {
-  id            String   @id @default(cuid())
-  groupId       String
-  dayOfWeek      Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
-  frequencyType  String   @default("weekly") // "daily", "weekly", "monthly"
-  frequency      Int      @default(1) // legacy: every N weeks (kept for backward compat)
-  taskLabel      String   // REQUIRED: label for this rule's task (e.g. "Sacar Basura", "Lavar Cafetera")
-  validFrom      DateTime @default(now())
-  validTo        DateTime?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+// ─── REGLAS ─────────────────────────────────────────────────────
 
-  group AssignmentGroup @relation(fields: [groupId], references: [id])
+/// Regla - Define QUÉ tarea se hace QUÉ día con qué frecuencia
+/// Cada regla = una tarea específica en un día específico
+model Rule {
+  id            String   @id @default(cuid())
+  groupId       String                       // Grupo asociado
+  dayOfWeek     Int                          // 0=Dom, 1=Lun, ..., 6=Sáb
+  frequencyType String   @default("weekly")  // daily, weekly, monthly
+  frequency     Int      @default(1)          // Cada N semanas (legacy)
+  taskLabel     String                       // "Sacar Basura", "Lavar Cafetera"
+  validFrom     DateTime @default(now())      // Vigencia desde
+  validTo       DateTime?                     // Vigencia hasta (null = siempre)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  group Group @relation(fields: [groupId], references: [id])
 
   @@unique([groupId, dayOfWeek, taskLabel])
   @@index([groupId])
   @@index([dayOfWeek])
   @@index([isActive])
+  @@map("rules")
 }
 
-/// Assignment - The core entity: who does what, when
-/// Historical assignments are LOCKED (isLocked=true) and immutable.
-/// Only future assignments can be regenerated.
-/// Multiple tasks can be assigned on the same day for the same group
-/// (e.g. "Sacar Basura" AND "Lavar Cafetera" on Tuesday)
+// ─── ASIGNACIONES ───────────────────────────────────────────────
+
+/// Asignación - QUIÉN hace QUÉ tarea, CUÁNDO
+/// Históricas se bloquean (isLocked=true) y son inmutables
 model Assignment {
   id         String   @id @default(cuid())
-  groupId    String
-  employeeId String
-  ruleId     String?
-  date       DateTime // the date of the assignment (date only, time ignored)
-  taskType   String   // REQUIRED: the specific task (from rule.taskLabel, e.g. "Sacar Basura")
-  isLocked   Boolean  @default(false) // historical assignments are locked
+  groupId    String                       // Grupo
+  employeeId String                       // Empleado asignado
+  ruleId     String?                      // Regla que generó la asignación
+  date       DateTime                     // Fecha de la asignación
+  taskName   String                       // Nombre de la tarea: "Sacar Basura"
+  isLocked   Boolean  @default(false)     // true = histórico, no modificable
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  group    AssignmentGroup @relation(fields: [groupId], references: [id])
-  employee Employee        @relation(fields: [employeeId], references: [id])
+  group    Group    @relation(fields: [groupId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
 
-  @@unique([groupId, date, taskType])
+  @@unique([groupId, date, taskName])
   @@index([groupId, date])
   @@index([employeeId])
   @@index([isLocked])
-  @@index([taskType])
+  @@index([taskName])
+  @@map("assignments")
 }
 
-/// Holiday - Colombian public holidays (festivos)
-/// Used by the Fairness Engine to skip assignments on non-working days
-/// Supports both fixed and movable holidays (Ley Emiliani)
+// ─── ELEGIBILIDAD DE TAREAS POR EMPLEADO ───────────────────────
+
+/// TaskEligibility - Qué tareas puede/no puede hacer cada empleado
+/// Permite desactivar tareas específicas por empleado
+/// (ej: alguien que no toma café no lava la cafetera)
+model TaskEligibility {
+  id         String  @id @default(cuid())
+  employeeId String                       // Empleado
+  taskName   String                       // "Sacar Basura", "Lavar Cafetera"
+  isEnabled  Boolean @default(true)       // true = puede hacer la tarea
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, taskName])
+  @@index([employeeId])
+  @@map("task_eligibility")
+}
+
+// ─── FESTIVOS ───────────────────────────────────────────────────
+
+/// Festivo - Días no laborales (festivos colombianos)
+/// El motor de equidad salta asignaciones en días festivos
 model Holiday {
   id          String   @id @default(cuid())
-  date        DateTime // the exact date of the holiday
-  name        String   // e.g. "Año Nuevo", "Día del Trabajo"
+  date        DateTime                     // Fecha exacta del festivo
+  name        String                       // "Año Nuevo", "Día del Trabajo"
   type        String   @default("national") // national, regional, local
-  isRecurring Boolean  @default(true) // true = same date every year (fixed), false = specific year only
+  isRecurring Boolean  @default(true)       // true = misma fecha cada año
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -117,23 +161,27 @@ model Holiday {
   @@unique([date, name])
   @@index([date])
   @@index([isActive])
+  @@map("holidays")
 }
 
-/// AuditLog - Complete audit trail for all modifications
-/// Records WHO did WHAT, WHEN, and WHAT CHANGED
+// ─── AUDITORÍA ──────────────────────────────────────────────────
+
+/// Auditoría - Registro de todas las modificaciones
+/// QUIÉN hizo QUÉ, CUÁNDO, y QUÉ CAMBIÓ
 model AuditLog {
   id         String   @id @default(cuid())
-  entityType String   // "group", "employee", "rule", "assignment"
-  entityId   String
-  action     String   // "create", "update", "delete", "deactivate", "regenerate", "lock"
-  changedBy  String?  // user identifier who made the change
-  changes    String?  // JSON string of before/after changes
-  groupId    String?
+  entityType String                       // "grupo", "empleado", "regla", "asignación"
+  entityId   String                       // ID de la entidad afectada
+  action     String                       // "crear", "editar", "eliminar", "desactivar"
+  changedBy  String?                      // Quién hizo el cambio ("admin", "system")
+  changes    String?                      // JSON con antes/después
+  groupId    String?                      // Grupo relacionado
   createdAt  DateTime @default(now())
 
-  group AssignmentGroup? @relation(fields: [groupId], references: [id])
+  group Group? @relation(fields: [groupId], references: [id])
 
   @@index([entityType])
   @@index([entityId])
   @@index([createdAt])
+  @@map("audit_logs")
 }

@@ -8,6 +8,7 @@ export type {
   AssignmentResponse,
   AuditLogResponse,
   BalanceReportItem,
+  BalanceReportResponse,
   GenerateResult,
   AutoInitState,
 } from "./types";
@@ -49,3 +50,8 @@ export {
 export {
   useAutoInitialize,
 } from "./use-auto-initialize";
+
+export {
+  useEligibility,
+  useToggleEligibility,
+} from "./eligibility-hooks";

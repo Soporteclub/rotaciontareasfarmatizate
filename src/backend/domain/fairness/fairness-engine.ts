@@ -14,6 +14,7 @@ export interface FairnessEmployee {
   isActive: boolean;
   joinDate: Date;
   leaveDate: Date | null;
+  disabledTasks?: string[]; // Task labels this employee should NOT be assigned
 }
 
 export interface FairnessRule {
@@ -154,28 +155,18 @@ export class FairnessEngine {
         assignments, historicalAssignments, alreadyAssignedToday
       );
 
-      if (best) {
-        const monthKey = this.dateToMonthKey(date);
-        const currentBalance = balanceMap.get(best.employee.id) ?? {
-          total: 0, monthly: {}, lastDate: null, consecutive: 0,
-        };
-        currentBalance.total += 1;
-        currentBalance.monthly[monthKey] = (currentBalance.monthly[monthKey] ?? 0) + 1;
-        currentBalance.lastDate = date;
-        currentBalance.consecutive = this.calculateConsecutive(
-          best.employee.id, date, historicalAssignments, assignments
-        );
-        balanceMap.set(best.employee.id, currentBalance);
+      if (!best) continue;
 
-        assignments.push({
-          employeeId: best.employee.id,
-          groupId,
-          date,
-          ruleId: rule.id,
-          taskType: rule.taskLabel,
-          fairnessScore: best.score,
-        });
-      }
+      this.updateBalanceEntry(balanceMap, best.employee.id, date, historicalAssignments, assignments);
+
+      assignments.push({
+        employeeId: best.employee.id,
+        groupId,
+        date,
+        ruleId: rule.id,
+        taskType: rule.taskLabel,
+        fairnessScore: best.score,
+      });
     }
 
     return {
@@ -200,6 +191,7 @@ export class FairnessEngine {
   ): { employee: FairnessEmployee; score: number } | null {
     const available = employees
       .filter((e) => this.isEmployeeAvailableOnDate(e, date))
+      .filter((e) => !this.isTaskDisabled(e, taskType))
       .map((employee) => ({
         employee,
         score: this.calculateScore(
@@ -245,46 +237,99 @@ export class FairnessEngine {
     historicalAssignments: FairnessHistoricalAssignment[],
     alreadyAssignedToday: Set<string>
   ): number {
-    let score = 0;
-
     const balance = balanceMap.get(employee.id) ?? {
       total: 0, monthly: {}, lastDate: null, consecutive: 0,
     };
-
     const totalAssignments = balance.total + this.countPlannedAssignments(employee.id, plannedAssignments);
-    const avgAssignments = this.getAverageAssignments(balanceMap, plannedAssignments);
-    const deficit = Math.max(0, avgAssignments - totalAssignments);
-    score += deficit * this.config.balanceWeight;
 
-    const monthKey = this.dateToMonthKey(date);
-    const monthlyCount = (balance.monthly[monthKey] ?? 0) + this.countPlannedMonthly(employee.id, monthKey, plannedAssignments);
-    const avgMonthly = this.getAverageMonthly(balanceMap, monthKey, plannedAssignments);
-    const monthlyDeficit = Math.max(0, avgMonthly - monthlyCount);
-    score += monthlyDeficit * this.config.monthlyBalanceWeight;
-
-    const lastAssigned = this.getLastAssignmentDate(employee.id, date, historicalAssignments, plannedAssignments);
-    if (lastAssigned) {
-      const daysSinceLast = this.daysBetween(lastAssigned, date);
-      if (daysSinceLast < this.config.cooldownDays) {
-        const cooldownRatio = 1 - daysSinceLast / this.config.cooldownDays;
-        score -= cooldownRatio * this.config.recencyPenalty;
-      }
-    }
-
-    const consecutive = this.calculateConsecutive(employee.id, date, historicalAssignments, plannedAssignments);
-    if (consecutive > 0) {
-      score -= consecutive * this.config.consecutivePenalty;
-    }
-
-    if (totalAssignments === 0) {
-      score += this.config.joinDateWeight;
-    }
-
-    if (alreadyAssignedToday.has(employee.id)) {
-      score -= this.config.sameDayPenalty;
-    }
-
+    let score = 0;
+    score += this.balanceDeficitScore(totalAssignments, balanceMap, plannedAssignments);
+    score += this.monthlyDeficitScore(employee.id, date, balanceMap, balance, plannedAssignments);
+    score += this.cooldownScore(employee.id, date, balance, historicalAssignments, plannedAssignments);
+    score += this.consecutiveScore(employee.id, date, historicalAssignments, plannedAssignments);
+    score += this.newEmployeeBonus(totalAssignments);
+    score += this.sameDayPenalty(employee.id, alreadyAssignedToday);
     return score;
+  }
+
+  private balanceDeficitScore(
+    totalAssignments: number,
+    balanceMap: Map<string, BalanceEntry>,
+    planned: FairnessAssignment[],
+  ): number {
+    const avgAssignments = this.getAverageAssignments(balanceMap, planned);
+    const deficit = Math.max(0, avgAssignments - totalAssignments);
+    return deficit * this.config.balanceWeight;
+  }
+
+  private monthlyDeficitScore(
+    employeeId: string,
+    date: Date,
+    balanceMap: Map<string, BalanceEntry>,
+    balance: BalanceEntry,
+    planned: FairnessAssignment[],
+  ): number {
+    const monthKey = this.dateToMonthKey(date);
+    const monthlyCount = (balance.monthly[monthKey] ?? 0) + this.countPlannedMonthly(employeeId, monthKey, planned);
+    const avgMonthly = this.getAverageMonthly(balanceMap, monthKey, planned);
+    const monthlyDeficit = Math.max(0, avgMonthly - monthlyCount);
+    return monthlyDeficit * this.config.monthlyBalanceWeight;
+  }
+
+  private cooldownScore(
+    employeeId: string,
+    date: Date,
+    balance: BalanceEntry,
+    historical: FairnessHistoricalAssignment[],
+    planned: FairnessAssignment[],
+  ): number {
+    const lastAssigned = this.getLastAssignmentDate(employeeId, date, historical, planned);
+    if (!lastAssigned) return 0;
+
+    const daysSinceLast = this.daysBetween(lastAssigned, date);
+    if (daysSinceLast >= this.config.cooldownDays) return 0;
+
+    const cooldownRatio = 1 - daysSinceLast / this.config.cooldownDays;
+    return -(cooldownRatio * this.config.recencyPenalty);
+  }
+
+  private consecutiveScore(
+    employeeId: string,
+    date: Date,
+    historical: FairnessHistoricalAssignment[],
+    planned: FairnessAssignment[],
+  ): number {
+    const consecutive = this.calculateConsecutive(employeeId, date, historical, planned);
+    if (consecutive <= 0) return 0;
+    return -(consecutive * this.config.consecutivePenalty);
+  }
+
+  private newEmployeeBonus(totalAssignments: number): number {
+    return totalAssignments === 0 ? this.config.joinDateWeight : 0;
+  }
+
+  private sameDayPenalty(employeeId: string, alreadyAssignedToday: Set<string>): number {
+    return alreadyAssignedToday.has(employeeId) ? -this.config.sameDayPenalty : 0;
+  }
+
+  // ─── Balance Update ────────────────────────────────────────────
+
+  private updateBalanceEntry(
+    balanceMap: Map<string, BalanceEntry>,
+    employeeId: string,
+    date: Date,
+    historical: FairnessHistoricalAssignment[],
+    planned: FairnessAssignment[],
+  ): void {
+    const monthKey = this.dateToMonthKey(date);
+    const entry = balanceMap.get(employeeId) ?? {
+      total: 0, monthly: {}, lastDate: null, consecutive: 0,
+    };
+    entry.total += 1;
+    entry.monthly[monthKey] = (entry.monthly[monthKey] ?? 0) + 1;
+    entry.lastDate = date;
+    entry.consecutive = this.calculateConsecutive(employeeId, date, historical, planned);
+    balanceMap.set(employeeId, entry);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────
@@ -301,9 +346,22 @@ export class FairnessEngine {
 
   private isEmployeeAvailableOnDate(employee: FairnessEmployee, date: Date): boolean {
     if (!employee.isActive) return false;
-    if (employee.joinDate > date) return false;
-    if (employee.leaveDate && employee.leaveDate < date) return false;
+    // Normalize to date-only (strip time) for day-level comparison
+    // joinDate may have time component (e.g. T16:10:38Z) while assignment dates are midnight (T00:00:00Z)
+    // Without normalization, a new employee created at 11am is incorrectly "not yet joined" for that day
+    const joinDateOnly = new Date(employee.joinDate);
+    joinDateOnly.setUTCHours(0, 0, 0, 0);
+    if (joinDateOnly > date) return false;
+    if (employee.leaveDate) {
+      const leaveDateOnly = new Date(employee.leaveDate);
+      leaveDateOnly.setUTCHours(0, 0, 0, 0);
+      if (leaveDateOnly < date) return false;
+    }
     return true;
+  }
+
+  private isTaskDisabled(employee: FairnessEmployee, taskType: string): boolean {
+    return employee.disabledTasks?.includes(taskType) ?? false;
   }
 
   private isRuleActive(rule: FairnessRule, startDate: Date, endDate: Date): boolean {
@@ -333,27 +391,9 @@ export class FairnessEngine {
       const dayOfWeek = current.getDay() as DayOfWeek;
       const dateKey = this.dateToKey(current);
 
-      if (holidays && holidays.has(dateKey)) {
-        current.setDate(current.getDate() + 1);
-        continue;
-      }
-
-      for (const rule of rules) {
-        if (rule.frequencyType === "daily") {
-          // Daily: applies every weekday (Mon-Fri)
-          if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-            dates.push({ date: new Date(current), rule });
-          }
-        } else if (rule.frequencyType === "monthly") {
-          // Monthly: applies on the specified dayOfWeek, first occurrence only
-          const monthKey = `${this.dateToMonthKey(current)}:${rule.id}`;
-          if (rule.dayOfWeek === dayOfWeek && !monthlyTracker.has(monthKey)) {
-            monthlyTracker.set(monthKey, dateKey);
-            dates.push({ date: new Date(current), rule });
-          }
-        } else {
-          // Weekly: applies on the specified dayOfWeek every week
-          if (rule.dayOfWeek === dayOfWeek) {
+      if (!this.isHoliday(dateKey, holidays)) {
+        for (const rule of rules) {
+          if (this.shouldRuleApplyOnDate(rule, dayOfWeek, current, monthlyTracker)) {
             dates.push({ date: new Date(current), rule });
           }
         }
@@ -363,6 +403,33 @@ export class FairnessEngine {
     }
 
     return dates;
+  }
+
+  private isHoliday(dateKey: string, holidays?: Set<string>): boolean {
+    return holidays?.has(dateKey) ?? false;
+  }
+
+  private shouldRuleApplyOnDate(
+    rule: FairnessRule,
+    dayOfWeek: DayOfWeek,
+    current: Date,
+    monthlyTracker: Map<string, string>,
+  ): boolean {
+    if (rule.frequencyType === "daily") {
+      return dayOfWeek >= 1 && dayOfWeek <= 5;
+    }
+
+    if (rule.frequencyType === "monthly") {
+      const monthKey = `${this.dateToMonthKey(current)}:${rule.id}`;
+      if (rule.dayOfWeek === dayOfWeek && !monthlyTracker.has(monthKey)) {
+        monthlyTracker.set(monthKey, this.dateToKey(current));
+        return true;
+      }
+      return false;
+    }
+
+    // Weekly: applies on the specified dayOfWeek
+    return rule.dayOfWeek === dayOfWeek;
   }
 
   private buildExistingAssignmentsMap(
@@ -466,23 +533,15 @@ export class FairnessEngine {
     employeeId: string,
     beforeDate: Date,
     historical: FairnessHistoricalAssignment[],
-    planned: FairnessAssignment[]
+    planned: FairnessAssignment[],
   ): Date | null {
-    let lastDate: Date | null = null;
-
-    for (const a of historical) {
-      if (a.employeeId === employeeId && a.date < beforeDate) {
-        if (!lastDate || a.date > lastDate) lastDate = a.date;
-      }
-    }
-
-    for (const a of planned) {
-      if (a.employeeId === employeeId && a.date < beforeDate) {
-        if (!lastDate || a.date > lastDate) lastDate = a.date;
-      }
-    }
-
-    return lastDate;
+    const allDates = [
+      ...historical.filter((a) => a.employeeId === employeeId && a.date < beforeDate).map((a) => a.date),
+      ...planned.filter((a) => a.employeeId === employeeId && a.date < beforeDate).map((a) => a.date),
+    ];
+    return allDates.length > 0
+      ? allDates.reduce((latest, d) => (d > latest ? d : latest), allDates[0])
+      : null;
   }
 
   private calculateConsecutive(
@@ -517,49 +576,62 @@ export class FairnessEngine {
     employees: FairnessEmployee[],
     historicalAssignments: FairnessHistoricalAssignment[],
     groupId: string,
-    plannedAssignments: FairnessAssignment[] = []
+    plannedAssignments: FairnessAssignment[] = [],
   ): EmployeeBalanceReport[] {
     const groupHistorical = historicalAssignments.filter((a) => a.groupId === groupId);
+    const totalAssignmentsCount = groupHistorical.length + plannedAssignments.length;
+    const avgTotal = employees.length > 0 ? totalAssignmentsCount / employees.length : 0;
 
-    return employees.map((emp) => {
-      const histCount = groupHistorical.filter((a) => a.employeeId === emp.id).length;
-      const plannedCount = plannedAssignments.filter((a) => a.employeeId === emp.id).length;
-      const total = histCount + plannedCount;
+    return employees.map((emp) => this.buildEmployeeBalanceReport(
+      emp, groupHistorical, plannedAssignments, avgTotal
+    ));
+  }
 
-      const monthlyBalance: Record<string, number> = {};
-      for (const a of groupHistorical.filter((a) => a.employeeId === emp.id)) {
-        const mk = this.dateToMonthKey(a.date);
-        monthlyBalance[mk] = (monthlyBalance[mk] ?? 0) + 1;
-      }
-      for (const a of plannedAssignments.filter((a) => a.employeeId === emp.id)) {
-        const mk = this.dateToMonthKey(a.date);
-        monthlyBalance[mk] = (monthlyBalance[mk] ?? 0) + 1;
-      }
+  private buildEmployeeBalanceReport(
+    emp: FairnessEmployee,
+    groupHistorical: FairnessHistoricalAssignment[],
+    plannedAssignments: FairnessAssignment[],
+    avgTotal: number,
+  ): EmployeeBalanceReport {
+    const empHistorical = groupHistorical.filter((a) => a.employeeId === emp.id);
+    const empPlanned = plannedAssignments.filter((a) => a.employeeId === emp.id);
+    const total = empHistorical.length + empPlanned.length;
 
-      const allDates = [
-        ...groupHistorical.filter((a) => a.employeeId === emp.id).map((a) => a.date),
-        ...plannedAssignments.filter((a) => a.employeeId === emp.id).map((a) => a.date),
-      ];
+    const monthlyBalance = this.buildMonthlyBalance(empHistorical, empPlanned);
 
-      const lastDate = allDates.length > 0
-        ? allDates.reduce((latest, d) => (d > latest ? d : latest), allDates[0])
-        : null;
+    const allDates = [
+      ...empHistorical.map((a) => a.date),
+      ...empPlanned.map((a) => a.date),
+    ];
+    const lastDate = allDates.length > 0
+      ? allDates.reduce((latest, d) => (d > latest ? d : latest), allDates[0])
+      : null;
 
-      const avgTotal = employees.length > 0
-        ? (groupHistorical.length + plannedAssignments.length) / employees.length
-        : 0;
-      const fairnessScore = avgTotal - total;
+    return {
+      employeeId: emp.id,
+      employeeName: emp.name,
+      totalAssignments: total,
+      monthlyBalance,
+      fairnessScore: avgTotal - total,
+      lastAssignmentDate: lastDate,
+      consecutiveCount: 0,
+    };
+  }
 
-      return {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        totalAssignments: total,
-        monthlyBalance,
-        fairnessScore,
-        lastAssignmentDate: lastDate,
-        consecutiveCount: 0,
-      };
-    });
+  private buildMonthlyBalance(
+    historical: FairnessHistoricalAssignment[],
+    planned: FairnessAssignment[],
+  ): Record<string, number> {
+    const monthly: Record<string, number> = {};
+    for (const a of historical) {
+      const mk = this.dateToMonthKey(a.date);
+      monthly[mk] = (monthly[mk] ?? 0) + 1;
+    }
+    for (const a of planned) {
+      const mk = this.dateToMonthKey(a.date);
+      monthly[mk] = (monthly[mk] ?? 0) + 1;
+    }
+    return monthly;
   }
 
   // ─── Date Utilities ───────────────────────────────────────────

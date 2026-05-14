@@ -1,4 +1,4 @@
-// Rule Repository - Database access layer for AssignmentRule
+// Rule Repository - Database access layer for Rule
 // Rules are configurable (NOT hardcoded)
 
 import { db } from "@/backend/infrastructure/database";
@@ -11,7 +11,7 @@ export interface FindRulesOptions {
 
 export const ruleRepository = {
   async findAll(options: FindRulesOptions = {}) {
-    const where: Prisma.AssignmentRuleWhereInput = {};
+    const where: Prisma.RuleWhereInput = {};
     if (!options.includeInactive) {
       where.isActive = true;
     }
@@ -19,7 +19,7 @@ export const ruleRepository = {
       where.groupId = options.groupId;
     }
 
-    return db.assignmentRule.findMany({
+    return db.rule.findMany({
       where,
       include: { group: true },
       orderBy: [{ dayOfWeek: "asc" }, { frequency: "asc" }],
@@ -27,14 +27,14 @@ export const ruleRepository = {
   },
 
   async findById(id: string) {
-    return db.assignmentRule.findUnique({
+    return db.rule.findUnique({
       where: { id },
       include: { group: true },
     });
   },
 
   async findByGroup(groupId: string, includeInactive = false) {
-    return db.assignmentRule.findMany({
+    return db.rule.findMany({
       where: {
         groupId,
         ...(includeInactive ? {} : { isActive: true }),
@@ -43,29 +43,29 @@ export const ruleRepository = {
     });
   },
 
-  async create(data: Prisma.AssignmentRuleCreateInput) {
-    return db.assignmentRule.create({ data });
+  async create(data: Prisma.RuleCreateInput) {
+    return db.rule.create({ data });
   },
 
-  async update(id: string, data: Prisma.AssignmentRuleUpdateInput) {
-    return db.assignmentRule.update({ where: { id }, data });
+  async update(id: string, data: Prisma.RuleUpdateInput) {
+    return db.rule.update({ where: { id }, data });
   },
 
   async softDelete(id: string) {
-    return db.assignmentRule.update({
+    return db.rule.update({
       where: { id },
       data: { isActive: false },
     });
   },
 
   async hardDelete(id: string) {
-    return db.assignmentRule.delete({
+    return db.rule.delete({
       where: { id },
     });
   },
 
   async findActiveByGroup(groupId: string) {
-    return db.assignmentRule.findMany({
+    return db.rule.findMany({
       where: {
         groupId,
         isActive: true,

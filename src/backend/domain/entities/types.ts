@@ -53,7 +53,7 @@ export interface AssignmentEntity {
   employeeId: string;
   ruleId: string | null;
   date: Date;
-  taskType: string; // e.g. "Sacar Basura", "Lavar Cafetera"
+  taskName: string; // e.g. "Sacar Basura", "Lavar Cafetera"
   isLocked: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -70,10 +70,25 @@ export interface AuditLogEntity {
   createdAt: Date;
 }
 
+export interface SettingsEntity {
+  id: string;
+  key: string;
+  value: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface TaskEligibilityEntity {
+  id: string;
+  employeeId: string;
+  taskName: string;
+  isEnabled: boolean;
+}
+
 // Enums as union types for strict typing
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type EntityType = "group" | "employee" | "rule" | "assignment";
-export type AuditAction = "create" | "update" | "delete" | "deactivate" | "reactivate" | "regenerate" | "lock";
+export type AuditAction = "create" | "update" | "delete" | "deactivate" | "reactivate" | "regenerate" | "lock" | "syncEligibility";
 
 export const DAY_NAMES: Record<DayOfWeek, string> = {
   0: "Domingo",
