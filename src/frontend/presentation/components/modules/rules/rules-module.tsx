@@ -38,6 +38,7 @@ import { CreateRuleDialog } from "./create-rule-dialog";
 import { EditTaskGroupDialog } from "./edit-task-group-dialog";
 import { TaskGroupCard } from "./rule-card";
 import { getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
 
 // ─── Stats Card ─────────────────────────────────────────────
@@ -73,8 +74,8 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <Card className="border-dashed">
       <CardContent className="p-8 sm:p-12 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center mx-auto mb-5">
-          <ClipboardList className="h-8 w-8" style={{ color: "#f15a24" }} />
+        <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mx-auto mb-5">
+          <ClipboardList className="h-8 w-8" style={{ color: BRAND.PRIMARY }} />
         </div>
         <h3 className="text-xl font-bold mb-2">No hay reglas de rotación</h3>
         <p className="text-muted-foreground max-w-md mx-auto mb-6">
@@ -84,7 +85,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center text-xs font-bold" style={{ color: "#f15a24" }}>1</div>
+            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xs font-bold" style={{ color: BRAND.PRIMARY }}>1</div>
             <span>Define la tarea</span>
           </div>
           <ArrowRight className="h-4 w-4 text-muted-foreground/40 hidden sm:block" />
@@ -94,7 +95,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           </div>
           <ArrowRight className="h-4 w-4 text-muted-foreground/40 hidden sm:block" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xs font-bold" style={{ color: "#1545cb" }}>3</div>
+            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xs font-bold" style={{ color: BRAND.PRIMARY }}>3</div>
             <span>Selecciona el grupo</span>
           </div>
         </div>
@@ -102,7 +103,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         <Button
           onClick={onCreate}
           className="gap-2"
-          style={{ backgroundColor: "#f15a24" }}
+          style={{ backgroundColor: BRAND.PRIMARY }}
           size="lg"
         >
           <Plus className="h-5 w-5" />
@@ -295,7 +296,7 @@ export function RulesModule() {
           </Button>
           <Button
             className="gap-2"
-            style={{ backgroundColor: "#f15a24" }}
+            style={{ backgroundColor: BRAND.PRIMARY }}
             onClick={() => setDialogOpen(true)}
           >
             <Plus className="h-4 w-4" />
@@ -313,7 +314,7 @@ export function RulesModule() {
             icon={<Layers className="h-5 w-5" />}
             label="Tareas configuradas"
             value={uniqueTaskCount}
-            accent="#f15a24"
+            accent={BRAND.PRIMARY}
           />
           <StatsCard
             icon={<CalendarDays className="h-5 w-5" />}
@@ -325,7 +326,7 @@ export function RulesModule() {
             icon={<BarChart3 className="h-5 w-5" />}
             label="Grupos con reglas"
             value={`${groupsWithRules}/${groups?.length ?? 0}`}
-            accent="#1545cb"
+            accent={BRAND.PRIMARY}
           />
         </div>
       )}

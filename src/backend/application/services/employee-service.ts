@@ -1,7 +1,8 @@
 // Employee Service - Business logic for Employee management
 // Supports high rotation: enter, exit, group change, deactivate
+// Syncs with assignments: deactivating or moving employee removes future assignments
 
-import { employeeRepository, groupRepository, auditLogRepository } from "@/backend/infrastructure/repositories";
+import { employeeRepository, groupRepository, auditLogRepository, assignmentRepository } from "@/backend/infrastructure/repositories";
 import type { CreateEmployeeInput, UpdateEmployeeInput } from "@/backend/application/validators/schemas";
 import { Prisma } from "@prisma/client";
 
@@ -84,6 +85,28 @@ export const employeeService = {
 
     const employee = await employeeRepository.update(id, data);
 
+    // Sync with assignments: remove future unlocked assignments when deactivating or changing groups
+    const wasDeactivated = input.isActive === false;
+    const changedGroup = input.groupId && input.groupId !== existing.groupId;
+
+    if (wasDeactivated || changedGroup) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (wasDeactivated) {
+        // Remove ALL future unlocked assignments for this employee
+        await assignmentRepository.deleteUnlockedByEmployee(existing.id, today);
+      } else if (changedGroup) {
+        // Remove future unlocked assignments in the OLD group only
+        // The employee will get new assignments in the new group on next regeneration
+        await assignmentRepository.deleteUnlockedByEmployeeAndGroup(
+          existing.id,
+          existing.groupId,
+          today
+        );
+      }
+    }
+
     await auditLogRepository.create({
       entityType: "employee",
       entityId: id,
@@ -100,6 +123,11 @@ export const employeeService = {
     if (!existing) {
       throw new Error("Empleado no encontrado");
     }
+
+    // Remove all future unlocked assignments for this employee
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await assignmentRepository.deleteUnlockedByEmployee(id, today);
 
     const employee = await employeeRepository.softDelete(id);
 

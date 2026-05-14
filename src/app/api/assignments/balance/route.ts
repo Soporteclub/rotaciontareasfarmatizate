@@ -1,5 +1,5 @@
 // Balance Report API Route
-// GET /api/assignments/balance?groupId=xxx - Get fairness balance report
+// GET /api/assignments/balance?groupId=xxx&startDate=yyyy-mm-dd&endDate=yyyy-mm-dd - Get fairness balance report
 
 import { NextRequest, NextResponse } from "next/server";
 import { assignmentService } from "@/backend/application/services/assignment-service";
@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const groupId = searchParams.get("groupId");
+    const startDate = searchParams.get("startDate") ?? undefined;
+    const endDate = searchParams.get("endDate") ?? undefined;
 
     if (!groupId) {
       return NextResponse.json(
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const report = await assignmentService.getBalanceReport(groupId);
+    const report = await assignmentService.getBalanceReport(groupId, startDate, endDate);
     return NextResponse.json({ data: report });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al obtener reporte de balance";

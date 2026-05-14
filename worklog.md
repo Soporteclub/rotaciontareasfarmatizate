@@ -115,3 +115,27 @@ Stage Summary:
 - When toggled ON: "Esta actividad se incluirá en la próxima regeneración."
 - Assignment and dashboard queries are automatically invalidated after toggling
 - Full audit trail maintained for eligibility sync operations
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Complete all pending items from previous sessions
+
+Work Log:
+- **Employee edit**: Updated employee-form-dialog.tsx to show isActive toggle in both create and edit modes. Added leaveDate field that appears when deactivating. Enhanced dialog titles and button text.
+- **Calendar text too small**: Added custom CSS styling for FullCalendar - increased event text to 12px, day headers, proper padding, better contrast with text-shadow, mobile responsive breakpoints.
+- **Balance date range**: The balance sidebar card now shows the date range (from-to) from the API response. Fixed a bug where balanceReport was accessed as an array when it's actually a BalanceReportResponse object.
+- **Balance filterable by date**: Added startDate/endDate params to the balance API route, assignment service getBalanceReport(), and useBalanceReport hook. Added date range filter UI in the calendar sidebar with quick range buttons (Este mes, Mes pasado, Este año).
+- **Regenerate syncs with employee changes**: Added `deleteUnlockedByEmployee()` and `deleteUnlockedByEmployeeAndGroup()` methods to assignment repository. Updated employee-service to automatically remove future assignments when an employee is deactivated, moved to another group, or soft-deleted. Updated frontend hooks to invalidate assignment/dashboard queries on employee mutations.
+- **Lock Auditar with admin key**: Added AdminGuard wrapper to AuditModule component. Added syncEligibility to ACTION_LABELS and ACTION_STYLES.
+- **Rule editing like creating**: Enhanced edit-rule-dialog.tsx with multi-day checkbox selector, "Lun-Vie" and "Limpiar" shortcuts, change summary showing which rules will be updated vs created, and save logic that creates additional rules for extra days.
+- **Farmatizate branding**: Created shared brand constants file at /frontend/presentation/lib/brand.ts. Updated all modules to use BRAND.PRIMARY and BRAND.ACCENT from the shared file instead of hardcoded colors. Changed all orange (#f15a24) action buttons to brand blue (#1545cb). Updated sidebar, groups, rules, employees, calendar, audit, and dashboard modules.
+
+Stage Summary:
+- All 8 pending tasks completed
+- Full lint passes with no errors
+- Consistent Farmatizate brand colors (#1545cb / #00cd98) throughout the app
+- Employee changes (deactivate, move group, delete) now auto-sync with assignments
+- Calendar is much more legible with proper text sizes
+- Balance is filterable by date range
+- Rule editing supports multi-day selection with auto-creation of extra rules

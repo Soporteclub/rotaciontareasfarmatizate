@@ -67,6 +67,7 @@ const EMPTY_FORM: EmployeeFormData = {
   groupId: "",
   joinDate: new Date().toISOString().split("T")[0],
   isActive: true,
+  leaveDate: "",
 };
 
 export function EmployeesModule() {
@@ -103,6 +104,7 @@ export function EmployeesModule() {
       groupId: emp.groupId,
       joinDate: emp.joinDate.split("T")[0],
       isActive: emp.isActive,
+      leaveDate: emp.leaveDate ? emp.leaveDate.split("T")[0] : "",
     });
     setEditingEmployee(emp);
     setDialogOpen(true);
@@ -119,7 +121,7 @@ export function EmployeesModule() {
           groupId: form.groupId || undefined,
           joinDate: form.joinDate || undefined,
           isActive: form.isActive,
-          leaveDate: !form.isActive ? new Date().toISOString() : null,
+          leaveDate: !form.isActive ? (form.leaveDate || new Date().toISOString().split("T")[0]) : null,
         });
         toast.success("Empleado actualizado");
       } else {

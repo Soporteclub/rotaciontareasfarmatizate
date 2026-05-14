@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
-import { BRAND_PRIMARY } from "./employee-columns";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
 
 export interface EmployeeFormData {
@@ -30,6 +30,7 @@ export interface EmployeeFormData {
   groupId: string;
   joinDate: string;
   isActive: boolean;
+  leaveDate: string; // empty string when active, ISO date string when inactive
 }
 
 export type FormUpdater = (prev: EmployeeFormData) => EmployeeFormData;
@@ -66,7 +67,7 @@ export function EmployeeFormDialog({
       <DialogTrigger asChild>
         <Button
           className="flex items-center gap-2 text-white"
-          style={{ backgroundColor: BRAND_PRIMARY }}
+          style={{ backgroundColor: BRAND.PRIMARY }}
         >
           <UserPlus className="h-4 w-4" />
           Nuevo Empleado
@@ -76,7 +77,7 @@ export function EmployeeFormDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Editar Empleado" : "Nuevo Empleado"}
+            {isEdit ? "Editar Empleado" : "Crear Nuevo Empleado"}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
@@ -142,7 +143,7 @@ export function EmployeeFormDialog({
             </Select>
           </div>
 
-          {/* Fecha de Ingreso — visible in both create and edit */}
+          {/* Fecha de Ingreso */}
           <div className="space-y-2">
             <Label>Fecha de Ingreso</Label>
             <Input
@@ -154,31 +155,51 @@ export function EmployeeFormDialog({
             />
           </div>
 
-          {/* Estado activo — only in edit mode */}
-          {isEdit && (
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <Label className="text-sm font-medium">Empleado Activo</Label>
-                <p className="text-xs text-muted-foreground">
-                  Desactiva para retirar al empleado sin eliminar su historial
-                </p>
-              </div>
-              <Switch
-                checked={form.isActive}
-                onCheckedChange={(checked) =>
-                  onFormChange((f) => ({ ...f, isActive: checked }))
+          {/* Estado activo — shown in both create and edit modes */}
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <div>
+              <Label className="text-sm font-medium">Empleado Activo</Label>
+              <p className="text-xs text-muted-foreground">
+                Desactiva para retirar al empleado sin eliminar su historial
+              </p>
+            </div>
+            <Switch
+              checked={form.isActive}
+              onCheckedChange={(checked) =>
+                onFormChange((f) => ({
+                  ...f,
+                  isActive: checked,
+                  // When reactivating, clear leaveDate; when deactivating, default to today
+                  leaveDate: checked ? "" : new Date().toISOString().split("T")[0],
+                }))
+              }
+            />
+          </div>
+
+          {/* Fecha de Salida — only visible when inactive */}
+          {!form.isActive && (
+            <div className="space-y-2">
+              <Label>Fecha de Salida</Label>
+              <Input
+                type="date"
+                value={form.leaveDate}
+                onChange={(e) =>
+                  onFormChange((f) => ({ ...f, leaveDate: e.target.value }))
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Fecha en la que el empleado dejó de estar activo
+              </p>
             </div>
           )}
 
           <Button
             onClick={onSubmit}
             className="w-full text-white"
-            style={{ backgroundColor: BRAND_PRIMARY }}
+            style={{ backgroundColor: BRAND.PRIMARY }}
             disabled={isPending}
           >
-            {isEdit ? "Actualizar" : "Crear Empleado"}
+            {isEdit ? "Guardar Cambios" : "Crear Empleado"}
           </Button>
         </div>
       </DialogContent>

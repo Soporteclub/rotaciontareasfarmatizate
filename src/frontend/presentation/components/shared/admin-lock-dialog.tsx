@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ShieldCheck, Lock, KeyRound, Eye, EyeOff, Loader2 } from "lucide-react";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useAdminStore } from "@/frontend/presentation/hooks/use-admin-store";
 
 interface AdminLockDialogProps {
@@ -49,8 +50,8 @@ export function AdminLockDialog({ open, onOpenChange, onSuccess }: AdminLockDial
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-[#1545cb]/10">
-              <ShieldCheck className="h-5 w-5" style={{ color: "#1545cb" }} />
+            <div className="p-1.5 rounded-md" style={{ backgroundColor: `${BRAND.PRIMARY}15` }}>
+              <ShieldCheck className="h-5 w-5" style={{ color: BRAND.PRIMARY }} />
             </div>
             Acceso de Administrador
           </DialogTitle>
@@ -105,7 +106,8 @@ export function AdminLockDialog({ open, onOpenChange, onSuccess }: AdminLockDial
             <Button
               type="submit"
               disabled={!key.trim() || loading}
-              className="bg-[#1545cb] hover:bg-[#1545cb]/90"
+              className="text-white"
+              style={{ backgroundColor: BRAND.PRIMARY }}
             >
               {loading ? (
                 <>

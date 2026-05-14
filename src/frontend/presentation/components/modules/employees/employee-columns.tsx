@@ -1,8 +1,9 @@
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 
-// Colores de marca Farmatizate
-export const BRAND_PRIMARY = "#1545cb";
-export const BRAND_ACCENT = "#00cd98";
+// Re-export brand colors for backward compatibility
+export const BRAND_PRIMARY = BRAND.PRIMARY;
+export const BRAND_ACCENT = BRAND.ACCENT;
 
 // Tipo de filtro de estado
 export type StatusFilter = "all" | "active" | "inactive";

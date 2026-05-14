@@ -26,6 +26,7 @@ import { TASK_LABELS } from "@/backend/domain/entities/types";
 import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
 import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useCreateRule } from "@/frontend/presentation/lib/query/hooks";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 import {
@@ -227,7 +228,7 @@ export function CreateRuleDialog({
           <DialogTitle className="flex items-center gap-2">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: "#f15a2415", color: "#f15a24" }}
+              style={{ backgroundColor: BRAND.PRIMARY_LIGHT, color: BRAND.PRIMARY }}
             >
               <Sparkles className="h-4 w-4" />
             </div>
@@ -610,7 +611,7 @@ export function CreateRuleDialog({
           <Button
             onClick={handleSubmit}
             className="w-full gap-2"
-            style={{ backgroundColor: "#f15a24" }}
+            style={{ backgroundColor: BRAND.PRIMARY }}
             disabled={createRule.isPending}
             size="lg"
           >

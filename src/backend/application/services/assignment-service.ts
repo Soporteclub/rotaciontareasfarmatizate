@@ -230,10 +230,19 @@ export const assignmentService = {
    * Get fairness balance report for a group
    * Counts ALL assignments (locked + unlocked) for accurate balance display
    * Includes date range of the data
+   * Optionally filters by startDate/endDate
    */
-  async getBalanceReport(groupId: string) {
+  async getBalanceReport(groupId: string, startDate?: string, endDate?: string) {
     const employees = await employeeRepository.findActiveByGroup(groupId);
-    const assignments = await assignmentRepository.findAllByGroup(groupId);
+
+    // When date range is provided, fetch only assignments within that range
+    const assignments = (startDate && endDate)
+      ? await assignmentRepository.findByGroupAndDateRange(
+          groupId,
+          new Date(startDate),
+          new Date(endDate)
+        )
+      : await assignmentRepository.findAllByGroup(groupId);
 
     const totalAll = assignments.length;
     const avgAll = employees.length > 0 ? totalAll / employees.length : 0;

@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select";
 import { Search, Filter } from "lucide-react";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
-import { BRAND_ACCENT, type StatusFilter } from "./employee-columns";
+import { BRAND } from "@/frontend/presentation/lib/brand";
+import { type StatusFilter } from "./employee-columns";
 
 interface EmployeeFiltersProps {
   search: string;
@@ -93,7 +94,7 @@ export function EmployeeFilters({
         <Badge
           variant="outline"
           className="font-medium"
-          style={{ borderColor: BRAND_ACCENT, color: BRAND_ACCENT }}
+          style={{ borderColor: BRAND.ACCENT, color: BRAND.ACCENT }}
         >
           {activeCount} activo{activeCount !== 1 ? "s" : ""}
         </Badge>

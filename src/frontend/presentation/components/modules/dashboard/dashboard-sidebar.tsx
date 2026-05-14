@@ -5,6 +5,7 @@ import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/share
 import {
   BarChart3, Lock, Unlock, Sparkles, Building2, Scale, Calendar, Users, TrendingUp,
 } from "lucide-react";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import type {
   GroupResponse, EmployeeResponse, RuleResponse,
   BalanceReportItem, BalanceReportResponse, AssignmentResponse,
@@ -34,8 +35,8 @@ function FairnessCard() {
   return (
     <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2" style={{ color: "#1545cb" }}>
-          <Scale className="h-4 w-4" style={{ color: "#1545cb" }} />
+        <CardTitle className="text-sm flex items-center gap-2" style={{ color: BRAND.PRIMARY }}>
+          <Scale className="h-4 w-4" style={{ color: BRAND.PRIMARY }} />
           Motor de Equidad
         </CardTitle>
       </CardHeader>

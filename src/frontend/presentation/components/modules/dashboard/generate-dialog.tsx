@@ -9,6 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Lock, Sparkles } from "lucide-react";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface GenerateDialogProps {
@@ -95,7 +96,7 @@ export function GenerateDialog({
           <Button
             onClick={handleGenerate}
             className="w-full"
-            style={{ backgroundColor: "#f15a24" }}
+            style={{ backgroundColor: BRAND.PRIMARY }}
             disabled={isPending || !generateGroupId}
           >
             {isPending ? "Generando..." : "Generar Asignaciones"}

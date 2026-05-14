@@ -48,6 +48,7 @@ import {
   TaskIcon,
   getTaskColor,
 } from "@/frontend/presentation/components/shared/task-icon";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import {
   FREQUENCY_OPTIONS,
   ALL_DAYS,
@@ -750,7 +751,7 @@ export function EditTaskGroupDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            style={{ backgroundColor: "#f15a24" }}
+            style={{ backgroundColor: BRAND.PRIMARY }}
             disabled={isSaving || !hasChanges}
             className="flex-1 gap-2 h-10"
           >

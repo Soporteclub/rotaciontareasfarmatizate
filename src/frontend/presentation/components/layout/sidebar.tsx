@@ -16,6 +16,7 @@ import {
   FileCode2,
 } from "lucide-react";
 import { useUIStore, type AdminModule } from "@/frontend/presentation/hooks/use-ui-store";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { cn } from "@/frontend/lib/utils";
 import { useState } from "react";
 import Image from "next/image";
@@ -82,7 +83,7 @@ export function Sidebar() {
         )}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-border bg-[#1545cb]">
+        <div className="flex items-center gap-3 px-3 py-4 border-b border-border" style={{ backgroundColor: BRAND.PRIMARY }}>
           {sidebarOpen ? (
             <>
               <Image
@@ -332,8 +333,9 @@ function NavButton({
         className={cn(
           "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
           activeView === item.id
-            ? "bg-[#1545cb] text-white font-medium"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            ? "text-white font-medium"
+            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          activeView === item.id && { backgroundColor: BRAND.PRIMARY }
         )}
       >
         {item.icon}

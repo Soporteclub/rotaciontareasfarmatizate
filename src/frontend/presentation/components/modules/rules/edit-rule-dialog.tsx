@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,16 +29,20 @@ import {
   Clock,
   Power,
   PowerOff,
-  ChevronRight,
   Tag,
   CalendarClock,
   Users,
+  Plus,
+  RefreshCw,
+  Minus,
+  Info,
 } from "lucide-react";
 import { TASK_LABELS, DAY_NAMES } from "@/backend/domain/entities/types";
 import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
 import {
   useUpdateRule,
+  useCreateRule,
   useGroups,
 } from "@/frontend/presentation/lib/query/hooks";
 import type { RuleResponse } from "@/frontend/presentation/lib/query/hooks";
@@ -46,12 +50,15 @@ import {
   TaskIcon,
   getTaskColor,
 } from "@/frontend/presentation/components/shared/task-icon";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import {
   FREQUENCY_OPTIONS,
   ALL_DAYS,
+  WEEKDAYS,
   DAY_ABBR,
   getFrequencyTypeLabel,
   getTaskConfig,
+  getDaySummary,
 } from "./rules-constants";
 import { WeeklyStrip } from "./weekly-strip";
 
@@ -125,6 +132,115 @@ function FormSection({
   );
 }
 
+// ─── Day Selector Component ───────────────────────────────────
+function DaySelector({
+  selectedDays,
+  color,
+  originalDay,
+  onToggleDay,
+  onSelectWeekdays,
+  onClearDays,
+}: {
+  selectedDays: DayOfWeek[];
+  color: string;
+  originalDay: DayOfWeek;
+  onToggleDay: (day: DayOfWeek) => void;
+  onSelectWeekdays: () => void;
+  onClearDays: () => void;
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-[11px] px-2.5 gap-1"
+          onClick={onSelectWeekdays}
+        >
+          <RefreshCw className="h-3 w-3" />
+          Lun-Vie
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 text-[11px] px-2.5 gap-1"
+          onClick={onClearDays}
+        >
+          <Minus className="h-3 w-3" />
+          Limpiar
+        </Button>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {ALL_DAYS.map((d) => {
+          const isChecked = selectedDays.includes(d);
+          const isOriginal = d === originalDay;
+          const isWeekend = d === 0 || d === 6;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => onToggleDay(d)}
+              className={`relative flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 cursor-pointer transition-all select-none ${
+                isChecked
+                  ? "shadow-sm"
+                  : isWeekend
+                  ? "border-transparent bg-muted/15 hover:bg-muted/30"
+                  : "border-transparent bg-muted/25 hover:bg-muted/40"
+              }`}
+              style={
+                isChecked
+                  ? { borderColor: color, backgroundColor: `${color}10` }
+                  : undefined
+              }
+            >
+              {isOriginal && isChecked && (
+                <div
+                  className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center z-10"
+                  style={{ backgroundColor: color }}
+                >
+                  <span className="text-[7px] text-white font-bold">✓</span>
+                </div>
+              )}
+              <span
+                className={`text-[10px] font-semibold ${
+                  isChecked
+                    ? ""
+                    : isWeekend
+                    ? "text-muted-foreground/30"
+                    : "text-muted-foreground/50"
+                }`}
+                style={isChecked ? { color } : undefined}
+              >
+                {DAY_ABBR[d]}
+              </span>
+              <div
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold ${
+                  isChecked ? "text-white" : "text-muted-foreground/20"
+                }`}
+                style={
+                  isChecked
+                    ? { backgroundColor: color }
+                    : { backgroundColor: "var(--muted)" }
+                }
+              >
+                {isChecked ? "✓" : "·"}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {selectedDays.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Seleccionados:{" "}
+          <strong style={{ color }}>
+            {getDaySummary(new Set(selectedDays))}
+          </strong>
+        </p>
+      )}
+    </>
+  );
+}
+
 // ─── Edit Form ────────────────────────────────────────────────
 interface EditRuleFormProps {
   rule: RuleResponse;
@@ -133,12 +249,14 @@ interface EditRuleFormProps {
 
 function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
   const updateRule = useUpdateRule();
+  const createRule = useCreateRule();
   const { data: groups } = useGroups();
+  const isSaving = updateRule.isPending || createRule.isPending;
+
+  const originalDay = rule.dayOfWeek as DayOfWeek;
 
   const [taskLabel, setTaskLabel] = useState(rule.taskLabel);
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(
-    rule.dayOfWeek as DayOfWeek
-  );
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([originalDay]);
   const [frequencyType, setFrequencyType] = useState<FrequencyType>(
     (rule.frequencyType as FrequencyType) || "weekly"
   );
@@ -156,15 +274,45 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
     taskLabel as (typeof TASK_LABELS)[number]
   );
 
+  // Day helpers
+  const toggleDay = useCallback((day: DayOfWeek) => {
+    setSelectedDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day].sort()
+    );
+  }, []);
+
+  const selectWeekdays = useCallback(() => {
+    setSelectedDays([...WEEKDAYS]);
+  }, []);
+
+  const clearDays = useCallback(() => {
+    setSelectedDays([]);
+  }, []);
+
+  // Compute extra days (days that need new rules created)
+  const extraDays = useMemo(
+    () => selectedDays.filter((d) => d !== originalDay),
+    [selectedDays, originalDay]
+  );
+
+  const removedOriginalDay = useMemo(
+    () => !selectedDays.includes(originalDay),
+    [selectedDays, originalDay]
+  );
+
   // Check if form has changes
   const hasChanges = useMemo(() => {
-    return (
-      taskLabel !== rule.taskLabel ||
-      dayOfWeek !== rule.dayOfWeek ||
-      frequencyType !== ((rule.frequencyType as FrequencyType) || "weekly") ||
-      isActive !== rule.isActive
-    );
-  }, [taskLabel, dayOfWeek, frequencyType, isActive, rule]);
+    const labelChanged = taskLabel.trim() !== rule.taskLabel;
+    const daysChanged =
+      selectedDays.length !== 1 || selectedDays[0] !== originalDay;
+    const freqChanged =
+      frequencyType !== ((rule.frequencyType as FrequencyType) || "weekly");
+    const activeChanged = isActive !== rule.isActive;
+
+    return labelChanged || daysChanged || freqChanged || activeChanged;
+  }, [taskLabel, selectedDays, frequencyType, isActive, rule, originalDay]);
 
   const handleSubmit = async () => {
     try {
@@ -174,15 +322,89 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
         return;
       }
 
-      await updateRule.mutateAsync({
-        id: rule.id,
-        taskLabel: trimmedLabel,
-        dayOfWeek,
-        frequencyType,
-        isActive,
-      });
+      if (frequencyType !== "daily" && selectedDays.length === 0) {
+        toast.error("Selecciona al menos un día");
+        return;
+      }
 
-      toast.success("Regla actualizada correctamente");
+      const promises: Promise<unknown>[] = [];
+
+      if (removedOriginalDay) {
+        // Original day was deselected — still update the rule to the first selected day
+        // (or if no days selected and frequency is daily, just update)
+        if (frequencyType !== "daily" && selectedDays.length > 0) {
+          // Move the original rule to the first selected day
+          promises.push(
+            updateRule.mutateAsync({
+              id: rule.id,
+              taskLabel: trimmedLabel,
+              dayOfWeek: selectedDays[0],
+              frequencyType,
+              isActive,
+            })
+          );
+          // Create rules for remaining days
+          const remainingDays = selectedDays.slice(1);
+          for (const day of remainingDays) {
+            promises.push(
+              createRule.mutateAsync({
+                groupId: rule.groupId,
+                dayOfWeek: day,
+                frequencyType,
+                taskLabel: trimmedLabel,
+              })
+            );
+          }
+        } else if (frequencyType === "daily") {
+          promises.push(
+            updateRule.mutateAsync({
+              id: rule.id,
+              taskLabel: trimmedLabel,
+              dayOfWeek: 1,
+              frequencyType,
+              isActive,
+            })
+          );
+        }
+      } else {
+        // Original day is still selected — update the existing rule
+        promises.push(
+          updateRule.mutateAsync({
+            id: rule.id,
+            taskLabel: trimmedLabel,
+            dayOfWeek: originalDay,
+            frequencyType,
+            isActive,
+          })
+        );
+
+        // Create additional rules for extra days
+        for (const day of extraDays) {
+          promises.push(
+            createRule.mutateAsync({
+              groupId: rule.groupId,
+              dayOfWeek: day,
+              frequencyType,
+              taskLabel: trimmedLabel,
+            })
+          );
+        }
+      }
+
+      await Promise.all(promises);
+
+      // Build summary message
+      const parts: string[] = [];
+      const updatedCount = promises.length - extraDays.length - (removedOriginalDay ? 0 : 0);
+      const createdCount = removedOriginalDay
+        ? Math.max(0, selectedDays.length - 1)
+        : extraDays.length;
+
+      if (updatedCount > 0) parts.push("regla actualizada");
+      if (createdCount > 0)
+        parts.push(`${createdCount} regla${createdCount !== 1 ? "s" : ""} creada${createdCount !== 1 ? "s" : ""}`);
+
+      toast.success(parts.length > 0 ? parts.join(", ") : "Regla actualizada correctamente");
       onOpenChange(false);
     } catch (err) {
       toast.error(
@@ -194,7 +416,7 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
   const isDaily = frequencyType === "daily";
   const displayDays = isDaily
     ? ([1, 2, 3, 4, 5] as DayOfWeek[])
-    : [dayOfWeek];
+    : selectedDays;
 
   return (
     <div>
@@ -230,7 +452,9 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {isDaily
                       ? "Lunes a Viernes"
-                      : DAY_NAMES[dayOfWeek]}{" "}
+                      : selectedDays.length > 0
+                      ? getDaySummary(new Set(selectedDays))
+                      : "Sin días seleccionados"}{" "}
                     ·{" "}
                     <span
                       className="font-medium"
@@ -423,73 +647,102 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
           </div>
         </FormSection>
 
-        {/* ─── Day of week (only if not daily) ───────────────── */}
+        {/* ─── Days of week (multi-select, only if not daily) ── */}
         {frequencyType !== "daily" && (
           <>
             <Separator />
             <FormSection
               icon={<CalendarClock className="h-4 w-4" />}
-              title="Día de la semana"
+              title="Días de la semana"
             >
-              <div className="grid grid-cols-7 gap-1.5">
-                {ALL_DAYS.map((d) => {
-                  const isSelected = dayOfWeek === d;
-                  const isWeekend = d === 0 || d === 6;
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setDayOfWeek(d)}
-                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 cursor-pointer transition-all select-none ${
-                        isSelected
-                          ? "shadow-sm"
-                          : isWeekend
-                          ? "border-transparent bg-muted/15 hover:bg-muted/30"
-                          : "border-transparent bg-muted/25 hover:bg-muted/40"
-                      }`}
-                      style={
-                        isSelected
-                          ? {
-                              borderColor: color,
-                              backgroundColor: `${color}10`,
-                            }
-                          : undefined
-                      }
-                    >
-                      <span
-                        className={`text-[10px] font-semibold ${
-                          isSelected
-                            ? ""
-                            : isWeekend
-                            ? "text-muted-foreground/30"
-                            : "text-muted-foreground/50"
-                        }`}
-                        style={isSelected ? { color } : undefined}
-                      >
-                        {DAY_ABBR[d]}
-                      </span>
-                      <div
-                        className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold ${
-                          isSelected ? "text-white" : "text-muted-foreground/20"
-                        }`}
-                        style={
-                          isSelected
-                            ? { backgroundColor: color }
-                            : { backgroundColor: "var(--muted)" }
-                        }
-                      >
-                        {isSelected ? "✓" : "·"}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                <ChevronRight className="h-3 w-3" style={{ color }} />
-                Seleccionado:{" "}
-                <strong style={{ color }}>{DAY_NAMES[dayOfWeek]}</strong>
-              </p>
+              <DaySelector
+                selectedDays={selectedDays}
+                color={color}
+                originalDay={originalDay}
+                onToggleDay={toggleDay}
+                onSelectWeekdays={selectWeekdays}
+                onClearDays={clearDays}
+              />
             </FormSection>
+
+            {/* ─── Multi-day info / summary ───────────────────── */}
+            {selectedDays.length > 1 && (
+              <div
+                className="p-4 rounded-xl border space-y-2"
+                style={{
+                  backgroundColor: `${color}06`,
+                  borderColor: `${color}25`,
+                }}
+              >
+                <p className="text-sm font-semibold flex items-center gap-2">
+                  <Info className="h-3.5 w-3.5" style={{ color }} />
+                  Resumen de cambios
+                </p>
+                <div className="space-y-1.5 text-xs">
+                  {/* Original rule update */}
+                  {!removedOriginalDay && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] gap-0.5">
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        1
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        regla actualizada ({DAY_ABBR[originalDay]})
+                      </span>
+                    </div>
+                  )}
+                  {removedOriginalDay && selectedDays.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] gap-0.5">
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        1
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        regla movida a {DAY_ABBR[selectedDays[0]]}
+                      </span>
+                    </div>
+                  )}
+                  {/* New rules to create */}
+                  {(removedOriginalDay ? selectedDays.length - 1 : extraDays.length) > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] gap-0.5">
+                        <Plus className="h-2.5 w-2.5" />
+                        {removedOriginalDay ? selectedDays.length - 1 : extraDays.length}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        regla{extraDays.length !== 1 ? "s" : ""} nueva{extraDays.length !== 1 ? "s" : ""} (
+                        {(removedOriginalDay ? selectedDays.slice(1) : extraDays)
+                          .map((d) => DAY_ABBR[d])
+                          .join(", ")}
+                        )
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Se crearán reglas adicionales para los días extra con el mismo grupo y configuración.
+                </p>
+              </div>
+            )}
+
+            {/* Info when original day is deselected */}
+            {removedOriginalDay && selectedDays.length <= 1 && (
+              <div
+                className="p-3 rounded-xl border flex items-start gap-2"
+                style={{
+                  backgroundColor: "rgba(234, 179, 8, 0.06)",
+                  borderColor: "rgba(234, 179, 8, 0.25)",
+                }}
+              >
+                <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  Desleccionaste el día original ({DAY_ABBR[originalDay]}).
+                  {selectedDays.length > 0
+                    ? ` La regla se moverá a ${DAY_ABBR[selectedDays[0]]}.`
+                    : " Selecciona al menos un día."}
+                </p>
+              </div>
+            )}
           </>
         )}
 
@@ -532,11 +785,11 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
         </Button>
         <Button
           onClick={handleSubmit}
-          style={{ backgroundColor: "#f15a24" }}
-          disabled={updateRule.isPending || !hasChanges}
+          style={{ backgroundColor: BRAND.PRIMARY }}
+          disabled={isSaving || !hasChanges}
           className="flex-1 gap-2 h-10"
         >
-          {updateRule.isPending ? (
+          {isSaving ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Guardando...
@@ -550,7 +803,7 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
         </Button>
       </div>
 
-      {!hasChanges && !updateRule.isPending && (
+      {!hasChanges && !isSaving && (
         <div className="px-6 pb-4 -mt-2">
           <p className="text-xs text-center text-muted-foreground">
             No hay cambios pendientes
