@@ -132,6 +132,42 @@ export const assignmentRepository = {
     });
   },
 
+  /**
+   * Delete ALL unlocked future assignments for a specific employee
+   * Used when an employee is deactivated or moved to another group
+   */
+  async deleteUnlockedByEmployee(
+    employeeId: string,
+    startDate: Date
+  ) {
+    return db.assignment.deleteMany({
+      where: {
+        employeeId,
+        isLocked: false,
+        date: { gte: startDate },
+      },
+    });
+  },
+
+  /**
+   * Delete unlocked future assignments for a specific employee in a specific group
+   * Used when an employee is moved to another group (remove old group assignments)
+   */
+  async deleteUnlockedByEmployeeAndGroup(
+    employeeId: string,
+    groupId: string,
+    startDate: Date
+  ) {
+    return db.assignment.deleteMany({
+      where: {
+        employeeId,
+        groupId,
+        isLocked: false,
+        date: { gte: startDate },
+      },
+    });
+  },
+
   async lockPastAssignments(groupId: string, beforeDate: Date) {
     return db.assignment.updateMany({
       where: {

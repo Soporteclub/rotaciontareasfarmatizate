@@ -44,9 +44,8 @@ import type {
   EmployeeResponse,
   GroupResponse,
 } from "@/frontend/presentation/lib/query/hooks";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import {
-  BRAND_PRIMARY,
-  BRAND_ACCENT,
   getGroupName,
   getGroupColor,
   formatDate,
@@ -124,7 +123,7 @@ export function EmployeeTable({
           <TableHeader>
             <TableRow
               className="border-b-2"
-              style={{ backgroundColor: `${BRAND_PRIMARY}0A` }}
+              style={{ backgroundColor: `${BRAND.PRIMARY}0A` }}
             >
               <TableHead className="w-[260px]">Nombre</TableHead>
               <TableHead className="hidden sm:table-cell">Cargo / Área</TableHead>
@@ -212,7 +211,7 @@ function EmployeeRow({
   return (
     <TableRow
       className={!emp.isActive ? "opacity-55" : undefined}
-      style={{ backgroundColor: isEven ? undefined : `${BRAND_PRIMARY}04` }}
+      style={{ backgroundColor: isEven ? undefined : `${BRAND.PRIMARY}04` }}
     >
       {/* Nombre con avatar */}
       <TableCell>
@@ -280,7 +279,7 @@ function EmployeeRow({
         {emp.isActive ? (
           <Badge
             className="text-xs font-medium border-0"
-            style={{ backgroundColor: `${BRAND_ACCENT}18`, color: BRAND_ACCENT }}
+            style={{ backgroundColor: `${BRAND.ACCENT}18`, color: BRAND.ACCENT }}
           >
             <ShieldCheck className="h-3 w-3 mr-1" />
             Activo

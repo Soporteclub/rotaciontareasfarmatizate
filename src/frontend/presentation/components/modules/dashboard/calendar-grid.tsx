@@ -11,6 +11,7 @@ import {
   formatFullDate, formatWeekRange, getWeekDays as getWeekDaysUtil,
 } from "./calendar-utils";
 import { getEventColor, getEventBgColor } from "./color-utils";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface CalendarGridProps {
@@ -250,7 +251,7 @@ export function CalendarGrid({
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 min-w-[200px]">
-              <CalendarHeart className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "#1545cb" }} />
+              <CalendarHeart className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: BRAND.PRIMARY }} />
               {headerTitle}
             </h2>
             <Button variant="outline" size="icon" onClick={nextMonth} className="h-9 w-9">

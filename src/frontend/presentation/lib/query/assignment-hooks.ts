@@ -30,10 +30,15 @@ export function useGenerateAssignments() {
   });
 }
 
-export function useBalanceReport(groupId?: string) {
+export function useBalanceReport(groupId?: string, startDate?: string, endDate?: string) {
+  const params = new URLSearchParams();
+  if (groupId) params.set("groupId", groupId);
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+
   return useQuery({
-    queryKey: ["balance", groupId],
-    queryFn: () => apiFetch<BalanceReportResponse>(`/api/assignments/balance?groupId=${groupId}`),
+    queryKey: ["balance", groupId, startDate, endDate],
+    queryFn: () => apiFetch<BalanceReportResponse>(`/api/assignments/balance?${params.toString()}`),
     enabled: !!groupId,
   });
 }

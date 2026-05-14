@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Users, FolderPlus, LogOut } from "lucide-react";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { TASK_TYPES, TASK_LABELS } from "@/backend/domain/entities/types";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
@@ -62,7 +63,7 @@ export function GroupsModule() {
     name: "",
     description: "",
     taskType: "cleaning" as string,
-    color: "#1545cb",
+    color: BRAND.PRIMARY,
   });
 
   // Task toggles: which task labels are enabled for this group
@@ -97,7 +98,7 @@ export function GroupsModule() {
   }
 
   const resetForm = () => {
-    setForm({ name: "", description: "", taskType: "cleaning", color: "#1545cb" });
+    setForm({ name: "", description: "", taskType: "cleaning", color: BRAND.PRIMARY });
     setEnabledTasks({});
     setRulesLoaded(false);
     setEditingId(null);
@@ -239,7 +240,7 @@ export function GroupsModule() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Grupos</h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(21, 69, 203, 0.1)", color: "#1545cb" }}>Farmatízate</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${BRAND.PRIMARY}15`, color: BRAND.PRIMARY }}>Farmatízate</span>
           </div>
           <p className="text-muted-foreground">Gestiona los grupos de tareas rotativas</p>
         </div>
@@ -247,7 +248,7 @@ export function GroupsModule() {
           <AdminOnly module="groups" fallback={null}>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button className="flex items-center gap-2" style={{ backgroundColor: "#f15a24" }}>
+            <Button className="flex items-center gap-2" style={{ backgroundColor: BRAND.PRIMARY }}>
               <FolderPlus className="h-4 w-4" />
               Nuevo Grupo
             </Button>

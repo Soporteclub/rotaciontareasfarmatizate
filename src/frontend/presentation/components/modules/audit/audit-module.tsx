@@ -15,6 +15,8 @@ import {
   ScrollText, Filter, User, Building2, ClipboardCheck, CalendarDays,
   ChevronLeft, ChevronRight, ArrowUpDown, Activity,
 } from "lucide-react";
+import { AdminGuard } from "@/frontend/presentation/components/shared/admin-guard";
+import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useState, useMemo } from "react";
 import { MONTH_NAMES } from "@/frontend/presentation/components/modules/dashboard/calendar-utils";
 
@@ -28,6 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
   reactivate: "Reactivado",
   regenerate: "Regenerado",
   lock: "Bloqueado",
+  syncEligibility: "Sincronización",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -54,6 +57,7 @@ const ACTION_STYLES: Record<string, { bg: string; dot: string; border: string }>
   reactivate:  { bg: "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400", dot: "#14b8a6", border: "border-l-teal-500" },
   regenerate:  { bg: "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400", dot: "#8b5cf6", border: "border-l-violet-500" },
   lock:        { bg: "bg-slate-50 text-slate-700 dark:bg-slate-950/30 dark:text-slate-400", dot: "#64748b", border: "border-l-slate-500" },
+  syncEligibility:   { bg: "bg-cyan-50 text-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-400", dot: "#06b6d4", border: "border-l-cyan-500" },
 };
 
 /* ─── Human-readable description generator ──────────────────────── */
@@ -316,7 +320,7 @@ function StatsBar({ logs }: { logs: AuditLogItem[] }) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <Card className="border-l-4 border-l-[#1545cb]">
+      <Card className="border-l-4" style={{ borderLeftColor: BRAND.PRIMARY }}>
         <CardContent className="p-3">
           <div className="text-xs text-muted-foreground">Total eventos</div>
           <div className="text-xl font-bold">{stats.total}</div>
@@ -498,11 +502,12 @@ export function AuditModule() {
   const grouped = useMemo(() => groupByDate(logs), [logs]);
 
   return (
+    <AdminGuard module="audit">
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-[#1545cb]/10">
-          <ScrollText className="h-5 w-5" style={{ color: "#1545cb" }} />
+        <div className="p-2 rounded-lg" style={{ backgroundColor: `${BRAND.PRIMARY}15` }}>
+          <ScrollText className="h-5 w-5" style={{ color: BRAND.PRIMARY }} />
         </div>
         <div>
           <h1 className="text-2xl font-bold">Auditoría</h1>
@@ -609,5 +614,6 @@ export function AuditModule() {
         </Card>
       )}
     </div>
+    </AdminGuard>
   );
 }
