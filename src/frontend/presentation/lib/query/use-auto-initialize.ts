@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiFetch } from "./api-client";
+import { apiFetch, rawFetch } from "./api-client";
+import { triggerAutoBackup } from "./backup-hooks";
 import type { GroupResponse, AssignmentResponse, GenerateResult, AutoInitState } from "./types";
 
 // ─── Pure helpers (no hooks, no setState) ──────────────────────
@@ -75,8 +76,32 @@ export function useAutoInitialize() {
         queryFn: () => apiFetch<GroupResponse[]>("/api/groups?includeInactive=false"),
       });
 
-      // Step 2: If no groups, seed the database
+      // Step 2: If no groups, try to restore from backup first, then seed
       if (groups.length === 0) {
+        setState({ isInitializing: true, step: "seeding", message: "Restaurando backup..." });
+
+        try {
+          // Try to restore from backup first
+          const restoreResult = await rawFetch<{ message: string; restored?: Record<string, number> }>("/api/restore", { method: "POST" });
+
+          if (restoreResult.restored && restoreResult.restored.groups > 0) {
+            // Restore succeeded! Invalidate queries and we're done
+            await queryClient.invalidateQueries({ queryKey: ["groups"] });
+            await queryClient.invalidateQueries({ queryKey: ["assignments"] });
+            await queryClient.invalidateQueries({ queryKey: ["employees"] });
+            await queryClient.invalidateQueries({ queryKey: ["rules"] });
+            await queryClient.invalidateQueries({ queryKey: ["holidays"] });
+
+            setState({ isInitializing: false, step: "done", message: "" });
+            triggerAutoBackup();
+            return;
+          }
+        } catch {
+          // No backup available, fall through to seed
+          console.warn("Auto-init: No backup found, proceeding with seed");
+        }
+
+        // Fall back to seed
         setState({ isInitializing: true, step: "seeding", message: "Inicializando datos base..." });
         await apiFetch<{ message: string }>("/api/seed", { method: "POST" });
         await queryClient.invalidateQueries({ queryKey: ["groups"] });
@@ -97,6 +122,7 @@ export function useAutoInitialize() {
         await queryClient.invalidateQueries({ queryKey: ["assignments"] });
         await queryClient.invalidateQueries({ queryKey: ["groups"] });
         setState({ isInitializing: false, step: "done", message: "" });
+        triggerAutoBackup();
         return;
       }
 
@@ -122,6 +148,7 @@ export function useAutoInitialize() {
       }
 
       setState({ isInitializing: false, step: "done", message: "" });
+      triggerAutoBackup();
     } catch (error) {
       console.error("Auto-initialize error:", error);
       setState({
