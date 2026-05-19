@@ -21,6 +21,7 @@ import {
 import {
   Plus,
   ClipboardList,
+  Sparkles,
   RefreshCw,
   Loader2,
   CalendarDays,
@@ -168,9 +169,9 @@ export function RulesModule() {
     setRegenerating(true);
     try {
       const result = await generateAssignments.mutateAsync(params);
-      toast.success(`Regeneradas ${result.assignments.length} asignaciones`);
+      toast.success(`Generadas ${result.assignments.length} asignaciones`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al regenerar");
+      toast.error(err instanceof Error ? err.message : "Error al generar");
     } finally {
       setRegenerating(false);
     }
@@ -277,13 +278,13 @@ export function RulesModule() {
             {regenerating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" />
             )}
             <span className="hidden sm:inline">
-              {regenerating ? "Regenerando..." : "Regenerar Asignaciones"}
+              {regenerating ? "Generando..." : "Generar Asignaciones"}
             </span>
             <span className="sm:hidden">
-              {regenerating ? "..." : "Regenerar"}
+              {regenerating ? "..." : "Generar"}
             </span>
           </Button>
           <Button

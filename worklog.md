@@ -460,3 +460,34 @@ Stage Summary:
 - Locked (historical) assignments show as read-only detail view
 - AssignmentEditDialog uses key-based re-mount pattern for clean state management
 - All toast notifications use sonner (project's standard UI library)
+
+---
+Task ID: 14
+Agent: Main Agent
+Task: Revert RegenerateDialog to match preferred screenshot style (checkboxes, steps, "Generar Asignaciones")
+
+Work Log:
+- User uploaded screenshot showing preferred dialog style with checkboxes for groups, step instructions, "Generar Asignaciones" title
+- Analyzed current RegenerateDialog (Select dropdown, "Regenerar Asignaciones", quick range buttons, no steps)
+- Rewrote regenerate-dialog.tsx to match screenshot:
+  - Title: "Generar Asignaciones" with Sparkles icon (was "Regenerar Asignaciones")
+  - Group selection: Checkboxes with "Todos"/"Ninguno" toggle buttons (was Select dropdown with "_all" option)
+  - Each group shows colored dot + name + "X emp." count
+  - Date pickers: Same Popover+Calendar pattern but with "dd/MM/yyyy" format and "Desde"/"Hasta" labels
+  - Explanatory text about date range and rules
+  - Step instructions: Paso 1 (Borraste asignaciones) and Paso 2 (Generar nuevas) with numbered circles
+  - Lock info note preserved at bottom
+  - Blue "Generar Asignaciones" button with Sparkles icon
+- Updated rules-module.tsx:
+  - Button icon: RefreshCw → Sparkles
+  - Button text: "Regenerar Asignaciones" → "Generar Asignaciones"
+  - Toast messages: "Regeneradas" → "Generadas", error message updated
+  - Added Sparkles import
+- Lint passes with zero errors
+
+Stage Summary:
+- RegenerateDialog now matches the user's preferred screenshot style
+- Checkboxes for group selection with toggle buttons
+- Step instructions guide the user through the process
+- Title and all text changed from "Regenerar" to "Generar" terminology
+- Dev server running, no errors
