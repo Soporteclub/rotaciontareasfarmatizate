@@ -273,3 +273,90 @@ Stage Summary:
 - Auto-initialize prefers restore over seed (if backup exists, it restores instead of seeding)
 - Sidebar shows backup status with "Guardar" and "Restaurar" buttons
 - Sandbox data loss problem solved: backup.json persists in /public and auto-restores on next initialization
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix FairnessEngine disabled task assignment bug — disabled tasks still being assigned
+
+Work Log:
+- Traced full data flow: API → Service → Engine to find where disabled tasks were ignored
+- Found critical operator precedence bug on line 208: `!eligibleCount[monthKey][rule.taskLabel] === undefined` always evaluates to false (should be `=== undefined`)
+- Found fallback path `selectRandomEmployee()` did NOT check disabled tasks
+- Found `assignTaskToEmployee()` had no validation for disabled tasks
+- Rewrote FairnessEngine to enforce disabled tasks at EVERY selection point:
+  - `buildEligibleEmployeeList()` — filters out employees with disabled tasks
+  - `selectEmployee()` — double-checks disabled tasks before selection
+  - `selectRandomEmployee()` — now also checks disabled tasks as safety net
+  - `assignTaskToEmployee()` — throws error if attempting to assign a disabled task
+- Fixed monthly fairness distribution with per-month tracking of task counts per employee
+- Added console logging for debugging
+- Updated assignment-service with pre-generation validation logging
+- Fixed AuditAction type to include "deleteRange" and "cleanAndRegenerate"
+- Fixed FairnessConfig export (non-existent type was being exported)
+- Lint passes with zero errors
+
+Stage Summary:
+- FairnessEngine now enforces disabled tasks at every code path — no bypass possible
+- Monthly fairness distribution fixed with proper hardCap and targetPerPerson
+- AuditAction types updated for delete/clean-regenerate operations
+- All TypeScript errors in src/ resolved
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Simplify admin access — one key unlocks ALL, regular users only see Calendar
+
+Work Log:
+- Rewrote `use-ui-store.ts`: replaced per-module admin system (adminModules, unlockModule, lockModule, etc.) with single global `isAdmin` flag
+  - `unlockAdmin()` — unlocks everything at once
+  - `lockAdmin()` — locks everything and resets to calendar view
+  - `requestAdminUnlock()` — opens the key modal
+  - `adminPendingUnlock` — boolean state for modal visibility
+- Rewrote `sidebar.tsx`: admin-only nav items (Grupos, Empleados, Reglas, Auditoría) are completely hidden when `isAdmin === false`
+  - Non-admin users only see "Calendario" in sidebar
+  - Footer shows lock status with unlock button (candado icon)
+  - When admin: shows all sections + "Admin activo" badge + lock button
+- Rewrote `page.tsx`: admin modules (Groups, Employees, Rules, Audit) only rendered when `isAdmin === true`
+- Rewrote `admin-key-modal.tsx`: single key unlocks ALL sections, modal says "Desbloquear Administrador" with description "Ingresa la clave para acceder a Grupos, Empleados, Reglas y Auditoría"
+- Rewrote `admin-guard.tsx`: simplified to check global `isAdmin` flag (no module prop needed)
+  - `AdminGuard` — shows locked screen if not admin
+  - `AdminOnly` — renders children only when admin (no module prop)
+  - Removed `ModuleAdminBadge` component
+- Updated ALL components using old per-module API:
+  - `employee-form-dialog.tsx` — `AdminOnly module="employees"` → `AdminOnly`
+  - `groups-module.tsx` — `AdminOnly module="groups"` → `AdminOnly`, replaced `LockAllButton` with `LockAdminButton`
+  - `dashboard-filters.tsx` — `AdminOnly module="calendar"` → `AdminOnly`
+  - `rule-card.tsx` — `AdminOnly module="rules"` → `AdminOnly`
+  - `rules-module.tsx` — `AdminOnly module="rules"` → `AdminOnly`
+  - `task-eligibility-dialog.tsx` — `adminModules.employees === true` → `isAdmin`, `requestAdminUnlock("employees")` → `requestAdminUnlock()`
+  - `employee-table.tsx` — `adminModules.employees === true` → `isAdmin`, `requestAdminUnlock("employees")` → `requestAdminUnlock()`
+  - `audit-module.tsx` — `AdminGuard module="audit"` → `AdminGuard`
+- Lint passes with zero errors
+
+Stage Summary:
+- Regular users only see the Calendar/Dashboard view
+- One admin key unlocks ALL sections (Grupos, Empleados, Reglas, Auditoría) at once
+- Sidebar hides admin sections entirely when not admin
+- AdminGuard/AdminOnly components simplified — no more per-module prop
+- Clean separation: non-admin = read-only calendar, admin = full access
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Change logo from logo-club.png to LogoFarmt.jpeg
+
+Work Log:
+- Copied `/upload/LogoFarmt.jpeg` (600×600 JPEG) to `/public/LogoFarmt.jpeg`
+- Updated sidebar.tsx: both expanded (32×32 rounded) and collapsed (24×24 rounded) logo images
+- Updated layout.tsx: favicon changed to `/LogoFarmt.jpeg`
+- Updated page.tsx footer: logo reference updated
+- Removed old `/public/logo-club.png`
+- Verified logo served correctly (HTTP 200)
+- Lint passes with zero errors
+
+Stage Summary:
+- Logo changed from `logo-club.png` to `LogoFarmt.jpeg` across all references
+- Sidebar shows new logo with rounded corners
+- Favicon updated to new logo
+- Old logo file removed
