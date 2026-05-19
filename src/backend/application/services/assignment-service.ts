@@ -123,15 +123,27 @@ export const assignmentService = {
       isLocked: false, // new assignments are unlocked until they become past
     }));
 
-    // Only create assignments from today onwards (past dates should be locked)
+    // Separate future and past assignments
     const futureAssignments = newAssignmentData.filter((a) => new Date(a.date) >= today);
     const pastAssignments = newAssignmentData.filter((a) => new Date(a.date) < today);
 
-    // Past assignments that don't exist yet should also be created but locked
-    const lockedPastAssignments = pastAssignments.map((a) => ({
-      ...a,
-      isLocked: true,
-    }));
+    // For past assignments: only include those that don't already exist as locked records
+    // Build a set of existing locked assignments (groupId + date + taskName) to filter duplicates
+    const existingLockedSet = new Set(
+      allAssignments
+        .filter((a) => a.isLocked)
+        .map((a) => `${new Date(a.date).getTime()}:${a.taskName}`)
+    );
+
+    const lockedPastAssignments = pastAssignments
+      .filter((a) => {
+        const key = `${new Date(a.date).getTime()}:${a.taskName}`;
+        return !existingLockedSet.has(key); // Only include if NOT already locked in DB
+      })
+      .map((a) => ({
+        ...a,
+        isLocked: true,
+      }));
 
     const created = await assignmentRepository.transactionalRegenerate(
       groupId,
