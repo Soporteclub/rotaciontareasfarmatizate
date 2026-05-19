@@ -268,10 +268,10 @@ export const assignmentService = {
    * After clearing, they should go to Rules → Generar to create new assignments
    */
   async deleteByGroupAndDateRange(groupId: string, startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    // Use UTC date parsing to avoid timezone shifts
+    // "2026-07-31" -> start of day UTC to end of day UTC
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end = new Date(`${endDate}T23:59:59.999Z`);
 
     const result = await assignmentRepository.deleteByGroupAndDateRange(groupId, start, end);
 
