@@ -360,3 +360,32 @@ Stage Summary:
 - Sidebar shows new logo with rounded corners
 - Favicon updated to new logo
 - Old logo file removed
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Fix unique constraint error on assignment creation (groupId, date, taskName)
+
+Work Log:
+- Investigated the "Unique constraint failed on the fields: (`groupId`,`date`,`taskName`)" error
+- Root cause: `transactionalRegenerate()` tried to create assignments that already existed in the database as locked records
+- The flow: Step 1 locks past unlocked assignments → Step 2 deletes unlocked future assignments → Step 3 tries to create ALL passed assignments (including locked past ones that already exist)
+- The `generate()` method passed `lockedPastAssignments` to `transactionalRegenerate`, but those assignments already existed in the DB (just locked in step 1), causing the unique constraint violation
+- Fixed `transactionalRegenerate()` in both repository files:
+  - Added step 3: queries all existing assignments for the group after lock/delete
+  - Builds a Set of existing keys (`date.getTime():taskName`) to check for duplicates
+  - Step 4: only creates assignments that don't already exist in the DB
+- Fixed `generate()` in assignment-service.ts:
+  - Added pre-filtering of `lockedPastAssignments` using `existingLockedSet`
+  - Only includes past assignments that don't already exist as locked records in the DB
+  - This avoids sending duplicate assignments to `transactionalRegenerate` in the first place
+- Both fixes work together as a double-safety mechanism
+- Tested with both groups (Piso 1, Piso 2) with broad date ranges — no more unique constraint errors
+- Lint passes with zero errors
+
+Stage Summary:
+- Unique constraint error on `@@unique([groupId, date, taskName])` fully resolved
+- `transactionalRegenerate()` now queries existing assignments and skips duplicates before creating
+- `generate()` now filters out locked past assignments that already exist in DB
+- Double-safety mechanism: both service layer and repository layer prevent duplicate creation
+- Assignment generation works correctly for all groups and date ranges

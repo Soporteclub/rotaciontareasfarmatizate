@@ -127,9 +127,9 @@ export const assignmentRepository = {
 
   /**
    * Transactional assignment regeneration:
-   * 1. Delete all unlocked future assignments for the group
-   * 2. Create new assignments
-   * 3. Lock any past assignments that are still unlocked
+   * 1. Lock any past assignments that are still unlocked
+   * 2. Delete all unlocked future assignments for the group
+   * 3. Create only NEW assignments (skip those that already exist)
    * All in a single transaction
    */
   async transactionalRegenerate(
@@ -164,9 +164,23 @@ export const assignmentRepository = {
         },
       });
 
-      // 3. Create new assignments
+      // 3. Get all existing assignments for the group to avoid unique constraint violations
+      const existingAssignments = await tx.assignment.findMany({
+        where: { groupId },
+        select: { date: true, taskName: true },
+      });
+      const existingKeys = new Set(
+        existingAssignments.map((a) => `${a.date.getTime()}:${a.taskName}`)
+      );
+
+      // 4. Create only assignments that don't already exist
       const created = [];
       for (const a of newAssignments) {
+        const key = `${new Date(a.date).getTime()}:${a.taskType}`;
+        if (existingKeys.has(key)) {
+          // Skip - assignment already exists (locked historical)
+          continue;
+        }
         const assignment = await tx.assignment.create({ data: a });
         created.push(assignment);
       }
