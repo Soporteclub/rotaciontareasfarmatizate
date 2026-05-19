@@ -30,6 +30,21 @@ export function useGenerateAssignments() {
   });
 }
 
+export function useUpdateAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string; employeeId: string }) =>
+      apiFetch<AssignmentResponse>(`/api/assignments/${data.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ employeeId: data.employeeId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+    },
+  });
+}
+
 export function useDeleteAssignments() {
   const queryClient = useQueryClient();
   return useMutation({

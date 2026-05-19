@@ -27,10 +27,11 @@ interface CalendarGridProps {
   goToday: () => void;
   groups: GroupResponse[] | undefined;
   availableTaskTypes: string[];
+  onAssignmentClick?: (assignmentId: string) => void;
 }
 
 /** Día individual del calendario (vista mes) — TEXTO GRANDE Y LEGIBLE */
-function CalendarCell({ day }: { day: CalendarDay }) {
+function CalendarCell({ day, onAssignmentClick }: { day: CalendarDay; onAssignmentClick?: (assignmentId: string) => void }) {
   return (
     <div
       className={`min-h-[80px] sm:min-h-[110px] md:min-h-[130px] p-1 sm:p-1.5 transition-colors ${
@@ -49,12 +50,13 @@ function CalendarCell({ day }: { day: CalendarDay }) {
           return (
             <div
               key={a.id}
-              className="text-xs sm:text-sm leading-snug px-1 sm:px-1.5 py-0.5 sm:py-1 rounded flex items-center gap-1"
+              className={`text-xs sm:text-sm leading-snug px-1 sm:px-1.5 py-0.5 sm:py-1 rounded flex items-center gap-1 ${onAssignmentClick ? "cursor-pointer hover:opacity-80" : ""}`}
               style={{
                 backgroundColor: eventBg,
                 borderLeft: `3px solid ${eventColor}`,
               }}
               title={`${a.taskName} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
+              onClick={() => onAssignmentClick?.(a.id)}
             >
               <span className="font-semibold truncate" style={{ color: eventColor }}>
                 {a.employeeName}
@@ -73,7 +75,7 @@ function CalendarCell({ day }: { day: CalendarDay }) {
 }
 
 /** Columna de día en la vista semanal — TEXTO GRANDE */
-function WeekDayColumn({ day }: { day: CalendarDay }) {
+function WeekDayColumn({ day, onAssignmentClick }: { day: CalendarDay; onAssignmentClick?: (assignmentId: string) => void }) {
   return (
     <div
       className={`flex flex-col p-2 sm:p-3 transition-colors ${
@@ -102,11 +104,12 @@ function WeekDayColumn({ day }: { day: CalendarDay }) {
             return (
               <div
                 key={a.id}
-                className="text-sm sm:text-base leading-snug px-2 sm:px-3 py-1.5 sm:py-2 rounded flex items-center gap-1.5"
+                className={`text-sm sm:text-base leading-snug px-2 sm:px-3 py-1.5 sm:py-2 rounded flex items-center gap-1.5 ${onAssignmentClick ? "cursor-pointer hover:opacity-80" : ""}`}
                 style={{
                   backgroundColor: eventBg,
                   borderLeft: `4px solid ${eventColor}`,
                 }}
+                onClick={() => onAssignmentClick?.(a.id)}
               >
                 <TaskIcon taskType={a.taskName} size="sm" showBg={false} />
                 <div className="min-w-0 flex-1">
@@ -128,17 +131,18 @@ function WeekDayColumn({ day }: { day: CalendarDay }) {
 }
 
 /** Tarjeta de asignación en la vista de día — TEXTO GRANDE */
-function DayAssignmentCard({ a }: { a: CalendarDay["assignments"][number] }) {
+function DayAssignmentCard({ a, onAssignmentClick }: { a: CalendarDay["assignments"][number]; onAssignmentClick?: (assignmentId: string) => void }) {
   const eventColor = getEventColor(a.groupColor, a.taskName);
   const eventBg = getEventBgColor(a.groupColor, a.taskName);
 
   return (
     <div
-      className="flex items-center gap-4 rounded-lg p-4 transition-colors"
+      className={`flex items-center gap-4 rounded-lg p-4 transition-colors ${onAssignmentClick ? "cursor-pointer hover:opacity-80" : ""}`}
       style={{
         backgroundColor: eventBg,
         borderLeft: `5px solid ${eventColor}`,
       }}
+      onClick={() => onAssignmentClick?.(a.id)}
     >
       <TaskIcon taskType={a.taskName} size="md" showBg={true} />
       <div className="min-w-0 flex-1">
@@ -220,7 +224,7 @@ function ViewModeToggle({ viewMode, setViewMode }: {
 export function CalendarGrid({
   calendarDays, isLoading, viewYear, viewMonth, viewDay,
   viewMode, setViewMode, prevMonth, nextMonth, goToday,
-  groups, availableTaskTypes,
+  groups, availableTaskTypes, onAssignmentClick,
 }: CalendarGridProps) {
   // Título según la vista
   const headerTitle = (() => {
@@ -293,7 +297,7 @@ export function CalendarGrid({
               <>
                 <div className="grid grid-cols-7 gap-px bg-border rounded-b-lg overflow-hidden">
                   {calendarDays.map((day, i) => (
-                    <CalendarCell key={i} day={day} />
+                    <CalendarCell key={i} day={day} onAssignmentClick={onAssignmentClick} />
                   ))}
                 </div>
                 <p className="text-sm text-muted-foreground text-center mt-2 sm:hidden">
@@ -314,7 +318,7 @@ export function CalendarGrid({
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-px bg-border rounded-lg overflow-hidden min-h-[360px] sm:min-h-[480px]">
                 {calendarDays.map((day, i) => (
-                  <WeekDayColumn key={i} day={day} />
+                  <WeekDayColumn key={i} day={day} onAssignmentClick={onAssignmentClick} />
                 ))}
               </div>
             )}
@@ -340,7 +344,7 @@ export function CalendarGrid({
                   </div>
                 ) : (
                   calendarDays.length > 0 && calendarDays[0].assignments.map((a) => (
-                    <DayAssignmentCard key={a.id} a={a} />
+                    <DayAssignmentCard key={a.id} a={a} onAssignmentClick={onAssignmentClick} />
                   ))
                 )}
               </div>

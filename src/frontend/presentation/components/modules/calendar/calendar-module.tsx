@@ -25,6 +25,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
 import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
+import { AssignmentEditDialog } from "@/frontend/presentation/components/shared/assignment-edit-dialog";
+import type { AssignmentResponse } from "@/frontend/presentation/lib/query/hooks";
 
 
 /** Format a date string "2026-05-13" to "13 May 2026" */
@@ -41,6 +43,18 @@ export function CalendarModule() {
   const deleteAssignments = useDeleteAssignments();
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // ─── Assignment edit dialog ────────────────────────────────────
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<AssignmentResponse | null>(null);
+
+  const handleEventClick = (info: { event: { id: string } }) => {
+    const found = assignments?.find((a) => a.id === info.event.id);
+    if (found) {
+      setEditingAssignment(found);
+      setEditDialogOpen(true);
+    }
+  };
 
   // Balance date range filter — defaults to current month
   const [balanceDateRange, setBalanceDateRange] = useState(() => {
@@ -290,7 +304,7 @@ export function CalendarModule() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Calendario</h1>
-          <p className="text-muted-foreground">Visualiza y elimina asignaciones</p>
+          <p className="text-muted-foreground">Visualiza, edita y elimina asignaciones</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
@@ -344,6 +358,7 @@ export function CalendarModule() {
                   month: "Mes",
                 }}
                 datesSet={handleDatesSet}
+                eventClick={handleEventClick}
                 eventDisplay="block"
                 dayMaxEvents={3}
                 editable={false}
@@ -554,6 +569,14 @@ export function CalendarModule() {
         confirmLabel="Eliminar todo"
         variant="destructive"
         onConfirm={confirmDeleteGroup}
+      />
+
+      {/* Assignment edit dialog */}
+      <AssignmentEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        assignment={editingAssignment}
+        groups={groups}
       />
     </div>
   );

@@ -23,6 +23,7 @@ export interface CalendarDay {
     id: string;
     taskName: string;
     employeeName: string;
+    employeeId: string;
     groupName: string;
     groupId: string;
     isLocked: boolean;

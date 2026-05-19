@@ -142,6 +142,7 @@ export function useCalendarDays(
       dateMap.get(dateKey)!.push({
         id: a.id, taskName: a.taskName ?? "",
         employeeName: a.employee?.name ?? "",
+        employeeId: a.employeeId,
         groupName: group?.name ?? "", groupId: a.groupId,
         isLocked: a.isLocked, groupColor: group?.color ?? "#6b7280",
       });
