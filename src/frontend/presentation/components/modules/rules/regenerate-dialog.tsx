@@ -46,7 +46,12 @@ export function RegenerateDialog({
   const [startPickerOpen, setStartPickerOpen] = useState(false);
   const [endPickerOpen, setEndPickerOpen] = useState(false);
 
-  const formatDateStr = (d: Date) => d.toISOString().split("T")[0];
+  const formatDateStr = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const activeGroups = useMemo(
     () => groups?.filter((g) => g.isActive) ?? [],

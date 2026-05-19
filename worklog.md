@@ -529,3 +529,30 @@ Stage Summary:
 - Dashboard and Calendar modules both use the new dialog
 - Backend supports groupId + startDate + endDate deletion
 - Consistent with the "Generar Asignaciones" dialog style from Task 14
+
+---
+Task ID: 16
+Agent: Main Agent
+Task: Fix DeleteDialog - assignments still showing after deletion
+
+Work Log:
+- Investigated: the delete API works correctly (tested via curl, 76+72 assignments deleted successfully)
+- Root cause: DeleteDialog only allowed deleting ONE group at a time (dropdown selector). When user deleted Piso 1, Piso 2's assignments (72 in May-July) still appeared
+- Also found timezone bug: `formatDateStr` used `d.toISOString().split("T")[0]` which can shift dates across timezone boundaries
+- Rewrote DeleteDialog to use checkboxes (matching GenerateDialog style):
+  - "Todos"/"Ninguno" toggle buttons
+  - Checkbox per group with colored dot + name + employee count
+  - When multiple groups selected, iterates and deletes for each
+  - Red-highlighted checked state (vs blue in GenerateDialog) to signal destructive action
+- Fixed timezone bug in `formatDateStr`:
+  - Changed from `d.toISOString().split("T")[0]` to `d.getFullYear()/getMonth()/getDate()` (local-time aware)
+  - Applied fix to both DeleteDialog and RegenerateDialog
+- Fixed timezone bug in service `deleteByGroupAndDateRange`:
+  - Changed from `new Date(str) + setHours()` to `new Date(str + "T00:00:00.000Z")` (explicit UTC)
+- Lint passes with zero errors
+
+Stage Summary:
+- DeleteDialog now uses checkboxes for multi-group selection, matching GenerateDialog style
+- Users can now select "Todos" to delete assignments for ALL groups at once
+- Fixed timezone bugs in both frontend formatDateStr and backend date parsing
+- Full delete+regenerate flow tested and working

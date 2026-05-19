@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -38,22 +36,65 @@ export function DeleteDialog({
   const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 3, 0);
 
-  const [groupId, setGroupId] = useState<string>("");
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(() => {
+    const allIds = groups?.map((g) => g.id) ?? [];
+    return new Set(allIds);
+  });
   const [startDate, setStartDate] = useState<Date>(defaultStart);
   const [endDate, setEndDate] = useState<Date>(defaultEnd);
   const [startPickerOpen, setStartPickerOpen] = useState(false);
   const [endPickerOpen, setEndPickerOpen] = useState(false);
 
-  const formatDateStr = (d: Date) => d.toISOString().split("T")[0];
+  const formatDateStr = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const activeGroups = useMemo(
+    () => groups?.filter((g) => g.isActive) ?? [],
+    [groups]
+  );
+
+  const allSelected = activeGroups.length > 0 && selectedGroupIds.size === activeGroups.length;
+  const noneSelected = selectedGroupIds.size === 0;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedGroupIds(new Set());
+    } else {
+      setSelectedGroupIds(new Set(activeGroups.map((g) => g.id)));
+    }
+  };
+
+  const toggleNone = () => {
+    setSelectedGroupIds(new Set());
+  };
+
+  const toggleGroup = (id: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const handleDelete = async () => {
-    if (!groupId) return;
+    if (noneSelected) return;
 
-    await onDelete({
-      groupId,
-      startDate: formatDateStr(startDate),
-      endDate: formatDateStr(endDate),
-    });
+    const groupsToProcess = activeGroups.filter((g) => selectedGroupIds.has(g.id));
+    for (const group of groupsToProcess) {
+      await onDelete({
+        groupId: group.id,
+        startDate: formatDateStr(startDate),
+        endDate: formatDateStr(endDate),
+      });
+    }
 
     onOpenChange(false);
   };
@@ -61,7 +102,11 @@ export function DeleteDialog({
   const formatDisplay = (d: Date) =>
     format(d, "dd/MM/yyyy", { locale: es });
 
-  const selectedGroup = groups?.find((g) => g.id === groupId);
+  const getEmployeeCount = (group: GroupResponse) => {
+    if (group._count?.employees !== undefined) return group._count.employees;
+    if (group.employees) return group.employees.filter((e) => e.isActive).length;
+    return 0;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -72,34 +117,70 @@ export function DeleteDialog({
             Borrar Asignaciones
           </DialogTitle>
           <DialogDescription>
-            Elimina las asignaciones del grupo en el rango de fechas seleccionado.
+            Elimina las asignaciones de los grupos en el rango de fechas seleccionado.
             Luego ve a <strong>Reglas</strong> para generar nuevas asignaciones
             respetando las tareas activas de cada empleado.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
-          {/* ─── Grupo ─────────────────────────────────────────── */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Grupo</Label>
-            <Select value={groupId} onValueChange={setGroupId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar grupo" />
-              </SelectTrigger>
-              <SelectContent>
-                {groups?.filter((g) => g.isActive).map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: g.color }}
-                      />
-                      {g.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* ─── Grupos a procesar ─────────────────────────────── */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Grupos a procesar</Label>
+
+            {/* Todos / Ninguno toggles */}
+            <div className="flex gap-2">
+              <Button
+                variant={allSelected ? "default" : "outline"}
+                size="sm"
+                className="text-xs h-7"
+                onClick={toggleAll}
+                style={allSelected ? { backgroundColor: "#1545cb" } : undefined}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={noneSelected ? "default" : "outline"}
+                size="sm"
+                className="text-xs h-7"
+                onClick={toggleNone}
+                style={noneSelected ? { backgroundColor: "#1545cb" } : undefined}
+              >
+                Ninguno
+              </Button>
+            </div>
+
+            {/* Group checkboxes */}
+            <div className="space-y-2">
+              {activeGroups.map((group) => {
+                const checked = selectedGroupIds.has(group.id);
+                const empCount = getEmployeeCount(group);
+                return (
+                  <label
+                    key={group.id}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all",
+                      checked
+                        ? "border-red-300 bg-red-50 dark:bg-red-950/20"
+                        : "border-border bg-card hover:bg-muted/50"
+                    )}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleGroup(group.id)}
+                    />
+                    <div
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: group.color }}
+                    />
+                    <span className="text-sm font-medium flex-1">{group.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {empCount} emp.
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           {/* ─── Rango de fechas ───────────────────────────────── */}
@@ -171,6 +252,11 @@ export function DeleteDialog({
                 </Popover>
               </div>
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              Se eliminarán todas las asignaciones dentro de este rango
+              (incluye bloqueadas).
+            </p>
           </div>
 
           {/* ─── Pasos informativos ─────────────────────────────── */}
@@ -204,7 +290,7 @@ export function DeleteDialog({
             className="w-full gap-2"
             variant="outline"
             style={{ borderColor: "#ef4444", color: "#ef4444" }}
-            disabled={isPending || !groupId}
+            disabled={isPending || noneSelected}
           >
             {isPending ? (
               <>
