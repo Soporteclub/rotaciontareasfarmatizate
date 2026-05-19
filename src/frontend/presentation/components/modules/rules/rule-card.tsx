@@ -155,7 +155,7 @@ export function TaskGroupCard({
                   })}
                 </div>
               )}
-              <AdminOnly module="rules" fallback={null}>
+              <AdminOnly fallback={null}>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -247,7 +247,6 @@ export function TaskGroupCard({
 
                   {/* Per-rule delete actions */}
                   <AdminOnly
-                    module="rules"
                     fallback={null}
                   >
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

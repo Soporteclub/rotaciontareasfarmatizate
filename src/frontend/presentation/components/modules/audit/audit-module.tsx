@@ -502,7 +502,7 @@ export function AuditModule() {
   const grouped = useMemo(() => groupByDate(logs), [logs]);
 
   return (
-    <AdminGuard module="audit">
+    <AdminGuard>
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">

@@ -273,7 +273,7 @@ export function RulesModule() {
             Define qué tareas se rotan, qué días aplican y cada cuánto
           </p>
         </div>
-        <AdminOnly module="rules" fallback={null}>
+        <AdminOnly fallback={null}>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -441,7 +441,7 @@ export function RulesModule() {
                       </div>
 
                       {/* Edit group + delete per rule */}
-                      <AdminOnly module="rules" fallback={null}>
+                      <AdminOnly fallback={null}>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                           <Button
                             size="sm"

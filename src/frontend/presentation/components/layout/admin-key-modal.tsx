@@ -14,17 +14,13 @@ import { Shield, Key, Lock, Unlock, Eye, EyeOff } from "lucide-react";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 
 export function AdminKeyModal() {
-  const adminPendingModule = useUIStore((s) => s.adminPendingModule);
-  const unlockModule = useUIStore((s) => s.unlockModule);
+  const adminPendingUnlock = useUIStore((s) => s.adminPendingUnlock);
+  const unlockAdmin = useUIStore((s) => s.unlockAdmin);
   const clearAdminRequest = useUIStore((s) => s.clearAdminRequest);
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showKey, setShowKey] = useState(false);
-
-  const moduleLabel = adminPendingModule
-    ? { groups: "Grupos", employees: "Empleados", rules: "Reglas", calendar: "Calendario" }[adminPendingModule] ?? adminPendingModule
-    : "Admin";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +36,7 @@ export function AdminKeyModal() {
       const data = await res.json();
 
       if (data.data?.valid) {
-        if (adminPendingModule) {
-          unlockModule(adminPendingModule);
-        }
+        unlockAdmin();
         setKey("");
         setError("");
       } else {
@@ -65,7 +59,7 @@ export function AdminKeyModal() {
 
   return (
     <Dialog
-      open={adminPendingModule !== null}
+      open={adminPendingUnlock}
       onOpenChange={handleOpenChange}
     >
       <DialogContent className="sm:max-w-md">
@@ -76,10 +70,10 @@ export function AdminKeyModal() {
             </div>
             <div>
               <DialogTitle className="text-lg">
-                Desbloquear {moduleLabel}
+                Desbloquear Administrador
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground">
-                Ingresa la clave para configurar y modificar {moduleLabel.toLowerCase()}
+                Ingresa la clave para acceder a Grupos, Empleados, Reglas y Auditoría
               </DialogDescription>
             </div>
           </div>
@@ -137,14 +131,14 @@ export function AdminKeyModal() {
               ) : (
                 <>
                   <Unlock className="h-4 w-4 mr-1.5" />
-                  Desbloquear
+                  Desbloquear todo
                 </>
               )}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            Cada módulo se desbloquea de forma independiente. Solo lectura sin clave.
+            Una clave desbloquea todas las secciones de administración.
           </p>
         </form>
       </DialogContent>

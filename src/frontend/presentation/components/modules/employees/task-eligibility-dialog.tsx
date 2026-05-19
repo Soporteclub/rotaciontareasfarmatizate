@@ -32,7 +32,7 @@ export function TaskEligibilityDialog({
   employee,
   groups,
 }: TaskEligibilityDialogProps) {
-  const isAdmin = useUIStore((s) => s.adminModules.employees === true);
+  const isAdmin = useUIStore((s) => s.isAdmin);
   const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
   const { data: eligibility, isLoading: loadingEligibility } = useEligibility(
     employee?.id ?? null
@@ -71,7 +71,7 @@ export function TaskEligibilityDialog({
   const handleToggle = (taskName: string, currentValue: boolean) => {
     if (!employee) return;
     if (!isAdmin) {
-      requestAdminUnlock("employees");
+      requestAdminUnlock();
       return;
     }
     const newValue = !currentValue;
@@ -215,7 +215,7 @@ export function TaskEligibilityDialog({
                         />
                       ) : (
                         <button
-                          onClick={() => requestAdminUnlock("employees")}
+                          onClick={() => requestAdminUnlock()}
                           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                           title="Requiere clave admin para modificar"
                         >

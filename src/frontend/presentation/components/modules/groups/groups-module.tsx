@@ -245,7 +245,7 @@ export function GroupsModule() {
           <p className="text-muted-foreground">Gestiona los grupos de tareas rotativas</p>
         </div>
         <div className="flex items-center gap-2">
-          <AdminOnly module="groups" fallback={null}>
+          <AdminOnly fallback={null}>
           <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2" style={{ backgroundColor: BRAND.PRIMARY }}>
@@ -340,7 +340,7 @@ export function GroupsModule() {
           </DialogContent>
         </Dialog>
         </AdminOnly>
-        <LockAllButton />
+        <LockAdminButton />
         </div>
       </div>
 
@@ -397,7 +397,7 @@ export function GroupsModule() {
                     <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {empCount}</span>
                     <span>{ruleCount} reglas</span>
                   </div>
-                  <AdminOnly module="groups" fallback={null}>
+                  <AdminOnly fallback={null}>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleEdit(group)}>
                       <Pencil className="h-3.5 w-3.5" />
@@ -427,13 +427,12 @@ export function GroupsModule() {
   );
 }
 
-// ─── Lock All Button (only in Groups module) ──────────────────
-function LockAllButton() {
-  const adminModules = useUIStore((s) => s.adminModules);
-  const lockAllModules = useUIStore((s) => s.lockAllModules);
-  const unlockedCount = Object.values(adminModules).filter(Boolean).length;
+// ─── Lock Admin Button (global admin lock) ──────────────────
+function LockAdminButton() {
+  const isAdmin = useUIStore((s) => s.isAdmin);
+  const lockAdmin = useUIStore((s) => s.lockAdmin);
 
-  if (unlockedCount === 0) return null;
+  if (!isAdmin) return null;
 
   return (
     <Button
@@ -441,12 +440,12 @@ function LockAllButton() {
       size="sm"
       className="gap-1.5 text-xs"
       onClick={() => {
-        lockAllModules();
-        toast.success("Todos los módulos bloqueados");
+        lockAdmin();
+        toast.success("Administrador bloqueado");
       }}
     >
       <LogOut className="h-3.5 w-3.5" />
-      <span className="hidden sm:inline">Bloquear todo</span>
+      <span className="hidden sm:inline">Bloquear admin</span>
     </Button>
   );
 }
