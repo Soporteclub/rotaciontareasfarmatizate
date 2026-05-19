@@ -2,7 +2,7 @@
 // GET /api/docs - Get the OpenAPI 3.0.3 specification
 
 import { NextResponse } from "next/server";
-import { openApiSpec } from "@/lib/openapi-spec";
+import { openApiSpec } from "@/backend/infrastructure/openapi-spec";
 
 export async function GET() {
   return NextResponse.json(openApiSpec, {
