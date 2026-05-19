@@ -6,12 +6,13 @@ export const openApiSpec = {
   info: {
     title: "Farmatízate — API de Rotación de Tareas",
     description:
-      "Sistema de asignación rotativa de tareas para Club Del Droguiista. " +
+      "Sistema de asignación rotativa de tareas para Club Del Droguista. " +
       "Gestiona grupos (pisos), empleados, reglas de rotación, asignaciones equitativas, " +
-      "festivos colombianos y auditoría. El motor de equidad garantiza distribución justa.",
-    version: "2.0.0",
+      "festivos colombianos, elegibilidad de tareas, respaldo/restauración y auditoría. " +
+      "El motor de equidad garantiza distribución justa.",
+    version: "2.1.0",
     contact: {
-      name: "Farmatízate - Club Del Droguiista",
+      name: "Farmatízate - Club Del Droguista",
     },
     license: {
       name: "Propietario",
@@ -30,9 +31,13 @@ export const openApiSpec = {
     { name: "Asignaciones", description: "Asignaciones generadas por el motor de equidad" },
     { name: "Festivos", description: "Días festivos colombianos (no se asignan tareas)" },
     { name: "Elegibilidad", description: "Tareas que cada empleado puede o no realizar" },
+    { name: "Task Eligibility", description: "Elegibilidad de tareas por empleado y grupo (matriz)" },
+    { name: "Backup", description: "Respaldo y restauración de la base de datos" },
+    { name: "Admin", description: "Verificación de clave administrativa" },
     { name: "Auditoría", description: "Registro de cambios en el sistema" },
     { name: "Configuración", description: "Clave admin y ajustes del sistema" },
-    { name: "Mantenimiento", description: "Seed y reset de la base de datos" },
+    { name: "Mantenimiento", description: "Seed, reset y health check" },
+    { name: "Documentación", description: "Especificación OpenAPI de la API" },
   ],
   paths: {
     // ────────────────────────────────────────────────────────────────
@@ -326,6 +331,106 @@ export const openApiSpec = {
         },
       },
     },
+    "/employees/{id}/task-eligibility": {
+      get: {
+        tags: ["Task Eligibility"],
+        summary: "Obtener elegibilidad de tareas de un empleado",
+        description:
+          "Obtiene la lista completa de tareas con su estado de elegibilidad para un empleado específico.",
+        operationId: "getEmployeeTaskEligibility",
+        parameters: [{ $ref: "#/components/parameters/EmployeeId" }],
+        responses: {
+          "200": {
+            description: "Elegibilidad de tareas del empleado",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/EmployeeTaskEligibilityItem" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+      put: {
+        tags: ["Task Eligibility"],
+        summary: "Actualizar elegibilidad de tareas de un empleado (reemplazo completo)",
+        description:
+          "Reemplaza la configuración completa de elegibilidad de tareas para un empleado. " +
+          "Envía el arreglo completo de { taskLabel, isActive }.",
+        operationId: "updateEmployeeTaskEligibility",
+        parameters: [{ $ref: "#/components/parameters/EmployeeId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateEmployeeTaskEligibilityInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Elegibilidad de tareas actualizada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/EmployeeTaskEligibilityItem" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+      patch: {
+        tags: ["Task Eligibility"],
+        summary: "Alternar elegibilidad de una tarea para un empleado",
+        description:
+          "Activa o desactiva una única tarea específica para un empleado.",
+        operationId: "toggleEmployeeTaskEligibility",
+        parameters: [{ $ref: "#/components/parameters/EmployeeId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ToggleEmployeeTaskEligibilityInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Elegibilidad de tarea actualizada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { $ref: "#/components/schemas/EmployeeTaskEligibilityItem" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
 
     // ────────────────────────────────────────────────────────────────
     // REGLAS
@@ -542,6 +647,42 @@ export const openApiSpec = {
         },
       },
     },
+    "/assignments/{id}": {
+      patch: {
+        tags: ["Asignaciones"],
+        summary: "Actualizar empleado de una asignación",
+        description:
+          "Cambia el empleado asignado a una tarea. Solo se puede modificar si la asignación NO está bloqueada (isLocked=false). " +
+          "Las asignaciones históricas (bloqueadas) son inmutables.",
+        operationId: "updateAssignment",
+        parameters: [{ $ref: "#/components/parameters/AssignmentId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/UpdateAssignmentInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Asignación actualizada",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: { data: { $ref: "#/components/schemas/Assignment" } },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "403": { $ref: "#/components/responses/Forbidden" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
     "/assignments/generate": {
       post: {
         tags: ["Asignaciones"],
@@ -590,6 +731,47 @@ export const openApiSpec = {
         },
       },
     },
+    "/assignments/delete": {
+      post: {
+        tags: ["Asignaciones"],
+        summary: "Eliminar asignaciones por grupo y rango de fechas",
+        description:
+          "Elimina asignaciones de un grupo. Sin fechas: elimina TODAS las asignaciones del grupo. " +
+          "Con fechas: elimina asignaciones dentro del rango (incluye bloqueadas).",
+        operationId: "deleteAssignments",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/DeleteAssignmentsInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Asignaciones eliminadas",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "object",
+                      properties: {
+                        deletedCount: { type: "integer", description: "Cantidad de asignaciones eliminadas" },
+                        message: { type: "string", example: "Se eliminaron 5 asignaciones" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
     "/assignments/balance": {
       get: {
         tags: ["Asignaciones"],
@@ -605,6 +787,20 @@ export const openApiSpec = {
             description: "ID del grupo (requerido)",
             required: true,
             schema: { type: "string" },
+          },
+          {
+            name: "startDate",
+            in: "query",
+            description: "Fecha inicio del rango (ISO 8601)",
+            required: false,
+            schema: { type: "string", format: "date" },
+          },
+          {
+            name: "endDate",
+            in: "query",
+            description: "Fecha fin del rango (ISO 8601)",
+            required: false,
+            schema: { type: "string", format: "date" },
           },
         ],
         responses: {
@@ -762,7 +958,7 @@ export const openApiSpec = {
     },
 
     // ────────────────────────────────────────────────────────────────
-    // ELEGIBILIDAD
+    // ELEGIBILIDAD (legacy endpoint)
     // ────────────────────────────────────────────────────────────────
     "/eligibility": {
       get: {
@@ -805,7 +1001,8 @@ export const openApiSpec = {
         tags: ["Elegibilidad"],
         summary: "Alternar elegibilidad de tarea",
         description:
-          "Activa o desactiva una tarea específica para un empleado.",
+          "Activa o desactiva una tarea específica para un empleado. " +
+          "Si se desactiva, las asignaciones futuras de esa tarea se eliminan automáticamente.",
         operationId: "toggleEligibility",
         requestBody: {
           required: true,
@@ -823,7 +1020,7 @@ export const openApiSpec = {
                 schema: {
                   type: "object",
                   properties: {
-                    data: { $ref: "#/components/schemas/TaskEligibility" },
+                    data: { $ref: "#/components/schemas/ToggleEligibilityResponse" },
                   },
                 },
               },
@@ -831,6 +1028,203 @@ export const openApiSpec = {
           },
           "400": { $ref: "#/components/responses/BadRequest" },
           "404": { $ref: "#/components/responses/NotFound" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // TASK ELIGIBILITY (group matrix)
+    // ────────────────────────────────────────────────────────────────
+    "/task-eligibility": {
+      get: {
+        tags: ["Task Eligibility"],
+        summary: "Obtener matriz de elegibilidad de tareas por grupo",
+        description:
+          "Obtiene la matriz de empleados × tareas con su estado de elegibilidad para un grupo completo.",
+        operationId: "getTaskEligibilityMatrix",
+        parameters: [
+          {
+            name: "groupId",
+            in: "query",
+            description: "ID del grupo (requerido)",
+            required: true,
+            schema: { type: "string" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Matriz de elegibilidad del grupo",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/EmployeeTaskEligibilityItem" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // BACKUP
+    // ────────────────────────────────────────────────────────────────
+    "/backup/status": {
+      get: {
+        tags: ["Backup"],
+        summary: "Verificar estado del backup",
+        description:
+          "Verifica si existe un archivo de backup y devuelve sus metadatos (timestamp, versión, conteos).",
+        operationId: "getBackupStatus",
+        responses: {
+          "200": {
+            description: "Estado del backup",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/BackupStatusResponse" },
+              },
+            },
+          },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
+    "/backup": {
+      get: {
+        tags: ["Backup"],
+        summary: "Exportar y guardar backup",
+        description:
+          "Exporta todos los datos de la base de datos a un archivo JSON y lo guarda en el servidor.",
+        operationId: "exportBackup",
+        responses: {
+          "200": {
+            description: "Backup creado exitosamente",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/BackupResponse" },
+              },
+            },
+          },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+      post: {
+        tags: ["Backup"],
+        summary: "Crear backup manual",
+        description:
+          "Crea un backup manual de todos los datos de la base de datos.",
+        operationId: "createBackup",
+        responses: {
+          "200": {
+            description: "Backup manual creado exitosamente",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/BackupResponse" },
+              },
+            },
+          },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
+    "/restore": {
+      post: {
+        tags: ["Backup"],
+        summary: "Restaurar base de datos desde backup",
+        description:
+          "Restaura la base de datos completa desde el archivo de backup más reciente. " +
+          "⚠️ Elimina todos los datos actuales y los reemplaza con los del backup.",
+        operationId: "restoreBackup",
+        responses: {
+          "200": {
+            description: "Base de datos restaurada exitosamente",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/RestoreResponse" },
+              },
+            },
+          },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "404": { $ref: "#/components/responses/NotFound" },
+          "500": { $ref: "#/components/responses/InternalServerError" },
+        },
+      },
+    },
+
+    // ────────────────────────────────────────────────────────────────
+    // ADMIN
+    // ────────────────────────────────────────────────────────────────
+    "/admin/verify": {
+      post: {
+        tags: ["Admin"],
+        summary: "Verificar clave admin",
+        description:
+          "Verifica si una clave admin es válida. Usado para desbloquear funciones administrativas.",
+        operationId: "verifyAdminKey",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AdminVerifyInput" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Resultado de verificación",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AdminVerifyResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Clave requerida",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "object",
+                      properties: {
+                        valid: { type: "boolean", example: false },
+                        error: { type: "string", example: "Clave requerida" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": {
+            description: "Clave incorrecta",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: {
+                      type: "object",
+                      properties: {
+                        valid: { type: "boolean", example: false },
+                        error: { type: "string", example: "Clave incorrecta" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
           "500": { $ref: "#/components/responses/InternalServerError" },
         },
       },
@@ -1091,6 +1485,31 @@ export const openApiSpec = {
     },
 
     // ────────────────────────────────────────────────────────────────
+    // DOCUMENTACIÓN
+    // ────────────────────────────────────────────────────────────────
+    "/docs": {
+      get: {
+        tags: ["Documentación"],
+        summary: "Obtener especificación OpenAPI",
+        description: "Devuelve la especificación OpenAPI 3.0.3 completa de la API en formato JSON.",
+        operationId: "getOpenApiSpec",
+        responses: {
+          "200": {
+            description: "Especificación OpenAPI 3.0.3",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  description: "Especificación OpenAPI 3.0.3 completa",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    // ────────────────────────────────────────────────────────────────
     // RAÍZ
     // ────────────────────────────────────────────────────────────────
     "/": {
@@ -1148,6 +1567,13 @@ export const openApiSpec = {
         name: "id",
         in: "path",
         description: "ID del festivo (CUID)",
+        required: true,
+        schema: { type: "string" },
+      },
+      AssignmentId: {
+        name: "id",
+        in: "path",
+        description: "ID de la asignación (CUID)",
         required: true,
         schema: { type: "string" },
       },
@@ -1280,6 +1706,155 @@ export const openApiSpec = {
         },
       },
 
+      // ── Task Eligibility Schemas ───────────────────────────────
+      EmployeeTaskEligibilityItem: {
+        type: "object",
+        description: "Estado de elegibilidad de una tarea para un empleado",
+        properties: {
+          id: { type: "string", description: "CUID del registro de elegibilidad" },
+          employeeId: { type: "string" },
+          taskName: { type: "string", example: "Sacar Basura" },
+          taskLabel: { type: "string", example: "Sacar Basura", description: "Alias de taskName" },
+          isActive: { type: "boolean", example: true, description: "true = el empleado puede realizar la tarea" },
+          isEnabled: { type: "boolean", example: true, description: "true = la tarea está habilitada para el empleado" },
+        },
+      },
+      UpdateEmployeeTaskEligibilityInput: {
+        type: "object",
+        required: ["settings"],
+        properties: {
+          settings: {
+            type: "array",
+            description: "Arreglo completo de configuraciones de elegibilidad",
+            items: {
+              type: "object",
+              required: ["taskLabel", "isActive"],
+              properties: {
+                taskLabel: { type: "string", description: "Nombre de la tarea", example: "Sacar Basura" },
+                isActive: { type: "boolean", description: "true = habilitada, false = deshabilitada" },
+              },
+            },
+          },
+        },
+      },
+      ToggleEmployeeTaskEligibilityInput: {
+        type: "object",
+        required: ["taskLabel", "isActive"],
+        properties: {
+          taskLabel: { type: "string", description: "Nombre de la tarea a alternar", example: "Lavar Cafetera" },
+          isActive: { type: "boolean", description: "true = habilitar, false = deshabilitar" },
+        },
+      },
+
+      // ── Assignment Schemas ─────────────────────────────────────
+      UpdateAssignmentInput: {
+        type: "object",
+        required: ["employeeId"],
+        properties: {
+          employeeId: { type: "string", description: "ID del nuevo empleado a asignar (CUID)" },
+        },
+      },
+      DeleteAssignmentsInput: {
+        type: "object",
+        required: ["groupId"],
+        properties: {
+          groupId: { type: "string", description: "ID del grupo cuyas asignaciones se eliminarán" },
+          startDate: { type: "string", format: "date", description: "Fecha inicio del rango (ISO 8601). Opcional: sin fechas elimina todas." },
+          endDate: { type: "string", format: "date", description: "Fecha fin del rango (ISO 8601). Opcional: sin fechas elimina todas." },
+        },
+      },
+
+      // ── Backup Schemas ─────────────────────────────────────────
+      BackupCounts: {
+        type: "object",
+        description: "Conteo de registros por entidad en el backup",
+        properties: {
+          settings: { type: "integer", example: 1 },
+          groups: { type: "integer", example: 2 },
+          employees: { type: "integer", example: 16 },
+          rules: { type: "integer", example: 14 },
+          taskEligibility: { type: "integer", example: 32 },
+          holidays: { type: "integer", example: 84 },
+          assignments: { type: "integer", example: 120 },
+          auditLogs: { type: "integer", example: 50 },
+        },
+      },
+      BackupStatusResponse: {
+        type: "object",
+        description: "Estado del archivo de backup",
+        properties: {
+          exists: { type: "boolean", description: "Si existe un archivo de backup" },
+          timestamp: { type: "string", format: "date-time", nullable: true, description: "Fecha/hora del backup" },
+          version: { type: "integer", nullable: true, description: "Versión del formato de backup" },
+          counts: {
+            nullable: true,
+            allOf: [{ $ref: "#/components/schemas/BackupCounts" }],
+          },
+        },
+      },
+      BackupResponse: {
+        type: "object",
+        description: "Respuesta después de crear un backup",
+        properties: {
+          message: { type: "string", example: "Backup creado exitosamente" },
+          timestamp: { type: "string", format: "date-time", description: "Fecha/hora en que se creó el backup" },
+          counts: { $ref: "#/components/schemas/BackupCounts" },
+        },
+      },
+      RestoreResponse: {
+        type: "object",
+        description: "Respuesta después de restaurar desde backup",
+        properties: {
+          message: { type: "string", example: "Base de datos restaurada exitosamente" },
+          timestamp: { type: "string", format: "date-time", description: "Fecha/hora del backup restaurado" },
+          version: { type: "integer", description: "Versión del formato de backup restaurado" },
+          restored: { $ref: "#/components/schemas/BackupCounts" },
+        },
+      },
+
+      // ── Admin Schemas ──────────────────────────────────────────
+      AdminVerifyInput: {
+        type: "object",
+        required: ["key"],
+        properties: {
+          key: { type: "string", description: "Clave admin a verificar" },
+        },
+      },
+      AdminVerifyResponse: {
+        type: "object",
+        properties: {
+          data: {
+            type: "object",
+            properties: {
+              valid: { type: "boolean", description: "true si la clave es correcta" },
+              error: { type: "string", nullable: true, description: "Mensaje de error si la clave es incorrecta" },
+            },
+          },
+        },
+      },
+
+      // ── Eligibility Schemas ────────────────────────────────────
+      ToggleEligibilityInput: {
+        type: "object",
+        required: ["employeeId", "taskName", "isEnabled"],
+        properties: {
+          employeeId: { type: "string", description: "ID del empleado" },
+          taskName: { type: "string", description: "Nombre de la tarea", example: "Sacar Basura" },
+          isEnabled: { type: "boolean", description: "true = puede realizar la tarea" },
+        },
+      },
+      ToggleEligibilityResponse: {
+        type: "object",
+        description: "Respuesta al alternar elegibilidad, incluye asignaciones eliminadas si se desactivó",
+        properties: {
+          id: { type: "string", description: "CUID" },
+          employeeId: { type: "string" },
+          taskName: { type: "string", example: "Sacar Basura" },
+          isEnabled: { type: "boolean" },
+          deletedAssignments: { type: "integer", description: "Asignaciones futuras eliminadas al desactivar", example: 0 },
+        },
+      },
+
       // ── Input Schemas ──────────────────────────────────────────
       CreateGroupInput: {
         type: "object",
@@ -1388,15 +1963,6 @@ export const openApiSpec = {
           isActive: { type: "boolean" },
         },
       },
-      ToggleEligibilityInput: {
-        type: "object",
-        required: ["employeeId", "taskName", "isEnabled"],
-        properties: {
-          employeeId: { type: "string", description: "ID del empleado" },
-          taskName: { type: "string", description: "Nombre de la tarea", example: "Sacar Basura" },
-          isEnabled: { type: "boolean", description: "true = puede realizar la tarea" },
-        },
-      },
     },
     responses: {
       BadRequest: {
@@ -1432,6 +1998,19 @@ export const openApiSpec = {
               type: "object",
               properties: {
                 error: { type: "string", example: "Clave incorrecta" },
+              },
+            },
+          },
+        },
+      },
+      Forbidden: {
+        description: "Operación no permitida (ej: editar asignación bloqueada)",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: { type: "string", example: "No se puede editar una asignación bloqueada (histórica)" },
               },
             },
           },
