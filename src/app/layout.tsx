@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: "Farmatízate - Rotación de Tareas",
   description: "Sistema de asignación rotativa de tareas para Farmatízate by Club del Droguista",
   icons: {
-    icon: "/logo-club.png",
+    icon: "/LogoFarmt.jpeg",
   },
 };
 

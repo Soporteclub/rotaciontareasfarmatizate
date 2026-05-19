@@ -92,11 +92,11 @@ export function Sidebar() {
           {sidebarOpen ? (
             <>
               <Image
-                src="/logo-club.png"
+                src="/LogoFarmt.jpeg"
                 alt="Farmatízate"
-                width={59}
+                width={32}
                 height={32}
-                className="shrink-0"
+                className="shrink-0 rounded-md"
               />
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-sm truncate text-white">Farmatízate</span>
@@ -105,11 +105,11 @@ export function Sidebar() {
             </>
           ) : (
             <Image
-              src="/logo-club.png"
+              src="/LogoFarmt.jpeg"
               alt="Farmatízate"
               width={24}
-              height={13}
-              className="shrink-0 mx-auto"
+              height={24}
+              className="shrink-0 mx-auto rounded"
             />
           )}
         </div>
