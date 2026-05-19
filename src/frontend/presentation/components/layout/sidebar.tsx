@@ -18,7 +18,7 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
-import { useUIStore, type AdminModule } from "@/frontend/presentation/hooks/use-ui-store";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { cn } from "@/frontend/lib/utils";
 import { useState } from "react";
@@ -32,49 +32,45 @@ type NavItem = {
   icon: React.ReactNode;
   section?: "main" | "config";
   description?: string;
-  adminModule?: AdminModule;
+  adminOnly?: boolean;
 };
 
 const mainItems: NavItem[] = [
-  { 
-    id: "calendar", 
-    label: "Calendario", 
+  {
+    id: "calendar",
+    label: "Calendario",
     icon: <CalendarHeart className="h-4 w-4" />,
     description: "Vista de asignaciones",
-    adminModule: "calendar",
   },
 ];
 
 const configItems: NavItem[] = [
-  { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas", adminModule: "groups" },
-  { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal", adminModule: "employees" },
-  { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación", adminModule: "rules" },
+  { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas", adminOnly: true },
+  { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal", adminOnly: true },
+  { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación", adminOnly: true },
 ];
 
 const auditItems: NavItem[] = [
-  { id: "audit", label: "Auditoría", icon: <ScrollText className="h-4 w-4" />, description: "Historial", adminModule: "audit" },
+  { id: "audit", label: "Auditoría", icon: <ScrollText className="h-4 w-4" />, description: "Historial", adminOnly: true },
 ];
 
 export function Sidebar() {
-  const { activeView, setActiveView, sidebarOpen, setSidebarOpen, adminModules, requestAdminUnlock, lockAllModules } = useUIStore();
+  const { activeView, setActiveView, sidebarOpen, setSidebarOpen, isAdmin, requestAdminUnlock, lockAdmin } = useUIStore();
   const [configOpen, setConfigOpen] = useState(true);
-
-  // Count how many modules are unlocked
-  const unlockedCount = Object.values(adminModules).filter(Boolean).length;
 
   return (
     <>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Mobile toggle */}
       <button
-        className="fixed top-3 left-3 z-50 md:hidden bg-card border border-border rounded-lg p-2 shadow-sm"
+        className="fixed top-3 left-3 z-50 md:hidden bg-card border border-border rounded-lg p-2 shadow-lg hover:bg-accent transition-colors"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -83,40 +79,47 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:static inset-y-0 left-0 z-50 w-56 bg-card border-r border-border flex flex-col transition-all duration-200 ease-in-out",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-14"
+          "fixed md:static inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
+          sidebarOpen ? "w-60 translate-x-0" : "-translate-x-full md:translate-x-0 md:w-16"
         )}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-3 py-4 border-b border-border" style={{ backgroundColor: BRAND.PRIMARY }}>
+        {/* ─── Logo header ─────────────────────────────────────── */}
+        <div className={cn(
+          "flex items-center border-b border-sidebar-border shrink-0",
+          sidebarOpen ? "gap-3 px-4 py-4" : "justify-center px-2 py-4"
+        )}>
           {sidebarOpen ? (
             <>
-              <Image
-                src="/LogoFarmt.jpeg"
-                alt="Farmatízate"
-                width={32}
-                height={32}
-                className="shrink-0 rounded-md"
-              />
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary shrink-0 shadow-sm">
+                <Image
+                  src="/LogoFarmt.jpeg"
+                  alt="Farmatízate"
+                  width={22}
+                  height={22}
+                  className="shrink-0 rounded"
+                />
+              </div>
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-sm truncate text-white">Farmatízate</span>
-                <span className="text-[10px] text-white/70">Rotación de Tareas</span>
+                <span className="font-bold text-sm truncate text-sidebar-foreground tracking-tight">Farmatízate</span>
+                <span className="text-[11px] text-muted-foreground font-medium leading-tight">Club del Droguiista</span>
               </div>
             </>
           ) : (
-            <Image
-              src="/LogoFarmt.jpeg"
-              alt="Farmatízate"
-              width={24}
-              height={24}
-              className="shrink-0 mx-auto rounded"
-            />
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary shadow-sm">
+              <Image
+                src="/LogoFarmt.jpeg"
+                alt="Farmatízate"
+                width={20}
+                height={20}
+                className="shrink-0 rounded"
+              />
+            </div>
           )}
         </div>
 
-        {/* Navigation */}
+        {/* ─── Navigation ─────────────────────────────────────── */}
         <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-          {/* Main items */}
+          {/* Main items (always visible) */}
           {mainItems.map((item) => (
             <NavButton
               key={item.id}
@@ -125,78 +128,191 @@ export function Sidebar() {
               sidebarOpen={sidebarOpen}
               setActiveView={setActiveView}
               setSidebarOpen={setSidebarOpen}
-              adminModules={adminModules}
-              requestAdminUnlock={requestAdminUnlock}
             />
           ))}
 
-          {/* Config section */}
-          {sidebarOpen && (
-            <button
-              onClick={() => setConfigOpen(!configOpen)}
-              className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
-            >
-              <span className="flex items-center gap-1.5">
-                <Settings2 className="h-3 w-3" />
-                Configuración
-              </span>
-              <ChevronDown className={cn("h-3 w-3 transition-transform", configOpen && "rotate-180")} />
-            </button>
+          {/* Admin sections — only visible when unlocked */}
+          {isAdmin && (
+            <>
+              {/* Config section header */}
+              {sidebarOpen && (
+                <button
+                  onClick={() => setConfigOpen(!configOpen)}
+                  className="w-full flex items-center justify-between px-3 pt-4 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Settings2 className="h-3 w-3" />
+                    Configuración
+                  </span>
+                  <ChevronDown className={cn("h-3 w-3 transition-transform duration-200", configOpen && "rotate-180")} />
+                </button>
+              )}
+
+              {!sidebarOpen && <div className="my-2 border-t border-sidebar-border" />}
+
+              {configOpen && configItems.map((item) => (
+                <NavButton
+                  key={item.id}
+                  item={item}
+                  activeView={activeView}
+                  sidebarOpen={sidebarOpen}
+                  setActiveView={setActiveView}
+                  setSidebarOpen={setSidebarOpen}
+                />
+              ))}
+
+              {/* Audit section */}
+              <div className="my-2 border-t border-sidebar-border" />
+              {auditItems.map((item) => (
+                <NavButton
+                  key={item.id}
+                  item={item}
+                  activeView={activeView}
+                  sidebarOpen={sidebarOpen}
+                  setActiveView={setActiveView}
+                  setSidebarOpen={setSidebarOpen}
+                />
+              ))}
+            </>
           )}
-
-          {!sidebarOpen && <div className="pt-3 border-t border-border" />}
-
-          {configOpen && configItems.map((item) => (
-            <NavButton
-              key={item.id}
-              item={item}
-              activeView={activeView}
-              sidebarOpen={sidebarOpen}
-              setActiveView={setActiveView}
-              setSidebarOpen={setSidebarOpen}
-              adminModules={adminModules}
-              requestAdminUnlock={requestAdminUnlock}
-            />
-          ))}
-
-          {/* Audit section */}
-          <div className="pt-3 border-t border-border mt-3">
-            {auditItems.map((item) => (
-              <NavButton
-                key={item.id}
-                item={item}
-                activeView={activeView}
-                sidebarOpen={sidebarOpen}
-                setActiveView={setActiveView}
-                setSidebarOpen={setSidebarOpen}
-                adminModules={adminModules}
-                requestAdminUnlock={requestAdminUnlock}
-              />
-            ))}
-          </div>
         </nav>
 
-        {/* Footer - Module lock indicators */}
+        {/* ─── Footer ─────────────────────────────────────────── */}
         <SidebarFooter
           sidebarOpen={sidebarOpen}
-          unlockedCount={unlockedCount}
-          adminModules={adminModules}
+          isAdmin={isAdmin}
+          requestAdminUnlock={requestAdminUnlock}
+          lockAdmin={lockAdmin}
         />
       </aside>
     </>
   );
 }
 
-// ─── Module label lookup ──────────────────────────────────────
-const MODULE_LABELS: Record<AdminModule, string> = {
-  groups: "Grupos",
-  employees: "Empl.",
-  rules: "Reglas",
-  calendar: "Cal.",
-  audit: "Audit.",
-};
+// ─── Sidebar Footer ───────────────────────────────────────────
+function SidebarFooter({
+  sidebarOpen,
+  isAdmin,
+  requestAdminUnlock,
+  lockAdmin,
+}: {
+  sidebarOpen: boolean;
+  isAdmin: boolean;
+  requestAdminUnlock: () => void;
+  lockAdmin: () => void;
+}) {
+  return (
+    <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
+      {isAdmin ? (
+        <UnlockedStatus sidebarOpen={sidebarOpen} lockAdmin={lockAdmin} />
+      ) : (
+        <LockedStatus sidebarOpen={sidebarOpen} requestAdminUnlock={requestAdminUnlock} />
+      )}
+      <BackupSection sidebarOpen={sidebarOpen} />
+      {sidebarOpen && (
+        <div className="space-y-1 pt-1">
+          <a
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          >
+            <FileCode2 className="h-3 w-3" />
+            API Docs
+          </a>
+          <p className="text-[10px] text-muted-foreground/50 font-medium">v2.0</p>
+        </div>
+      )}
+      {!sidebarOpen && (
+        <a
+          href="/docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex justify-center text-muted-foreground hover:text-primary transition-colors py-1"
+          title="API Docs"
+        >
+          <FileCode2 className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </div>
+  );
+}
 
-const ALL_ADMIN_MODULES: AdminModule[] = ["groups", "employees", "rules", "calendar", "audit"];
+function UnlockedStatus({
+  sidebarOpen,
+  lockAdmin,
+}: {
+  sidebarOpen: boolean;
+  lockAdmin: () => void;
+}) {
+  if (!sidebarOpen) {
+    return (
+      <button onClick={lockAdmin} className="flex justify-center w-full py-0.5" title="Admin activo — clic para bloquear">
+        <Shield className="h-4 w-4 text-brand-success" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <Shield className="h-3 w-3 text-brand-success" />
+        <span className="font-medium">Admin activo</span>
+        <button
+          onClick={lockAdmin}
+          className="ml-auto p-0.5 rounded hover:bg-muted transition-colors"
+          title="Bloquear todo"
+        >
+          <Lock className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {(["Grupos", "Empl.", "Reglas", "Audit."] as const).map((label) => (
+          <span
+            key={label}
+            className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-brand-success/15 text-brand-success"
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LockedStatus({
+  sidebarOpen,
+  requestAdminUnlock,
+}: {
+  sidebarOpen: boolean;
+  requestAdminUnlock: () => void;
+}) {
+  if (!sidebarOpen) {
+    return (
+      <button
+        onClick={requestAdminUnlock}
+        className="flex justify-center w-full py-0.5"
+        title="Clic para desbloquear admin"
+      >
+        <Lock className="h-4 w-4 text-muted-foreground/50" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <Lock className="h-3 w-3" />
+      <span className="font-medium">Solo calendario</span>
+      <button
+        onClick={requestAdminUnlock}
+        className="ml-auto p-0.5 rounded hover:bg-muted transition-colors cursor-pointer"
+        title="Desbloquear admin"
+      >
+        <Unlock className="h-3 w-3 text-amber-500" />
+      </button>
+    </div>
+  );
+}
 
 // ─── Relative time helper (Spanish) ───────────────────────────
 function formatRelativeTime(isoTimestamp: string): string {
@@ -222,117 +338,6 @@ function formatRelativeTime(isoTimestamp: string): string {
   return `hace ${months} mes${months !== 1 ? "es" : ""}`;
 }
 
-// ─── Sidebar Footer ───────────────────────────────────────────
-function SidebarFooter({
-  sidebarOpen,
-  unlockedCount,
-  adminModules,
-}: {
-  sidebarOpen: boolean;
-  unlockedCount: number;
-  adminModules: Partial<Record<AdminModule, boolean>>;
-}) {
-  const hasUnlocked = unlockedCount > 0;
-
-  return (
-    <div className="px-3 py-2 border-t border-border space-y-2">
-      {hasUnlocked ? (
-        <UnlockedStatus sidebarOpen={sidebarOpen} unlockedCount={unlockedCount} adminModules={adminModules} />
-      ) : (
-        <LockedStatus sidebarOpen={sidebarOpen} />
-      )}
-      <BackupSection sidebarOpen={sidebarOpen} />
-      {sidebarOpen && (
-        <div className="space-y-2">
-          <a
-            href="/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-emerald-600 transition-colors"
-          >
-            <FileCode2 className="h-3 w-3" />
-            API Docs (Swagger)
-          </a>
-          <p className="text-[10px] text-muted-foreground/60">Farmatízate v2.0</p>
-        </div>
-      )}
-      {!sidebarOpen && (
-        <a
-          href="/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center text-muted-foreground hover:text-emerald-600 transition-colors"
-          title="API Docs (Swagger)"
-        >
-          <FileCode2 className="h-4 w-4" />
-        </a>
-      )}
-    </div>
-  );
-}
-
-function UnlockedStatus({
-  sidebarOpen,
-  unlockedCount,
-  adminModules,
-}: {
-  sidebarOpen: boolean;
-  unlockedCount: number;
-  adminModules: Partial<Record<AdminModule, boolean>>;
-}) {
-  if (!sidebarOpen) {
-    return (
-      <div className="flex justify-center">
-        <Shield className="h-4 w-4 text-emerald-600" title={`${unlockedCount} módulos desbloqueados`} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-        <Shield className="h-3 w-3 text-emerald-600" />
-        <span>{unlockedCount} módulo{unlockedCount !== 1 ? "s" : ""} desbloqueado{unlockedCount !== 1 ? "s" : ""}</span>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {ALL_ADMIN_MODULES.map((mod) => {
-          const isUnlocked = adminModules[mod] === true;
-          return (
-            <span
-              key={mod}
-              className={cn(
-                "text-[9px] px-1.5 py-0.5 rounded-full",
-                isUnlocked
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-muted text-muted-foreground/50"
-              )}
-            >
-              {isUnlocked ? "🔓 " : "🔒 "}{MODULE_LABELS[mod]}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function LockedStatus({ sidebarOpen }: { sidebarOpen: boolean }) {
-  if (!sidebarOpen) {
-    return (
-      <div className="flex justify-center">
-        <Lock className="h-4 w-4 text-muted-foreground" title="Todo bloqueado" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-      <Lock className="h-3 w-3" />
-      <span>Todo bloqueado</span>
-    </div>
-  );
-}
-
 // ─── Backup Section ────────────────────────────────────────────
 function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
   const { data: backupStatus, isLoading } = useBackupStatus();
@@ -343,7 +348,6 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
   const backupExists = backupStatus?.exists === true;
   const isMutating = createBackup.isPending || restoreBackup.isPending;
 
-  // Collapsed sidebar: just a small database icon
   if (!sidebarOpen) {
     return (
       <button
@@ -359,7 +363,7 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
         className={cn(
           "flex justify-center w-full py-0.5 transition-colors",
           isLoading ? "text-muted-foreground/40" :
-          backupExists ? "text-emerald-500 hover:text-emerald-600" : "text-amber-500 hover:text-amber-600"
+          backupExists ? "text-brand-success hover:text-brand-success/80" : "text-amber-500 hover:text-amber-600"
         )}
         title={backupExists ? "Backup existe — clic para guardar nuevo" : "Sin backup — clic para guardar"}
       >
@@ -372,30 +376,27 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
     );
   }
 
-  // Expanded sidebar: status + action buttons
   return (
     <div className="space-y-1.5">
-      {/* Status indicator */}
-      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         {isLoading ? (
           <>
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Verificando backup…</span>
+            <span>Verificando…</span>
           </>
         ) : backupExists && backupStatus.timestamp ? (
           <>
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-success shrink-0" />
             <span>Backup: {formatRelativeTime(backupStatus.timestamp)}</span>
           </>
         ) : (
           <>
-            <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
             <span>Sin backup</span>
           </>
         )}
       </div>
 
-      {/* Action buttons or confirm prompt */}
       {confirmRestore ? (
         <div className="flex items-center gap-1 text-[10px]">
           <span className="text-amber-600 font-medium">¿Seguro?</span>
@@ -430,11 +431,7 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
               });
             }}
             disabled={isMutating}
-            className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors disabled:opacity-50",
-              "text-white hover:opacity-90"
-            )}
-            style={{ backgroundColor: BRAND.PRIMARY }}
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             title="Guardar backup"
           >
             {createBackup.isPending ? (
@@ -447,7 +444,7 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
           <button
             onClick={() => setConfirmRestore(true)}
             disabled={isMutating || !backupExists}
-            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-50"
             title="Restaurar desde backup"
           >
             {restoreBackup.isPending ? (
@@ -463,85 +460,54 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
   );
 }
 
-// ─── Nav Button with per-module lock indicator ────────────────
+// ─── Nav Button ────────────────────────────────────────────────
 function NavButton({
   item,
   activeView,
   sidebarOpen,
   setActiveView,
   setSidebarOpen,
-  adminModules,
-  requestAdminUnlock,
 }: {
   item: NavItem;
   activeView: string;
   sidebarOpen: boolean;
   setActiveView: (view: NavItem["id"]) => void;
   setSidebarOpen: (open: boolean) => void;
-  adminModules: Partial<Record<AdminModule, boolean>>;
-  requestAdminUnlock: (module: AdminModule) => void;
 }) {
-  const isAdmin = item.adminModule ? adminModules[item.adminModule] === true : true;
+  const isActive = activeView === item.id;
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => {
-          setActiveView(item.id);
-          if (window.innerWidth < 768) setSidebarOpen(false);
-        }}
-        className={cn(
-          "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
-          activeView === item.id
-            ? "text-white font-medium"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-          activeView === item.id && { backgroundColor: BRAND.PRIMARY }
-        )}
-      >
+    <button
+      onClick={() => {
+        setActiveView(item.id);
+        if (window.innerWidth < 768) setSidebarOpen(false);
+      }}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group",
+        isActive
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <span className={cn(
+        "shrink-0 transition-colors",
+        isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
+      )}>
         {item.icon}
-        {sidebarOpen && (
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="truncate">{item.label}</span>
-            {item.description && (
-              <span className={cn(
-                "text-[10px]",
-                activeView === item.id ? "text-white/70" : "text-muted-foreground/60"
-              )}>
-                {item.description}
-              </span>
-            )}
-          </div>
-        )}
-        {/* Lock indicator for config modules */}
-        {sidebarOpen && item.adminModule && !isAdmin && (
-          <span
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.stopPropagation();
-                requestAdminUnlock(item.adminModule!);
-              }
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              requestAdminUnlock(item.adminModule!);
-            }}
-            className="shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors cursor-pointer"
-            title={`Desbloquear ${item.label}`}
-          >
-            <Unlock className="h-3 w-3 text-amber-500" />
-          </span>
-        )}
-      </button>
-      {/* Mini lock badge on collapsed sidebar */}
-      {!sidebarOpen && item.adminModule && !isAdmin && (
-        <div className="absolute -top-0.5 -right-0.5">
-          <div className="w-2 h-2 rounded-full bg-amber-400" title="Bloqueado" />
+      </span>
+      {sidebarOpen && (
+        <div className="flex flex-col min-w-0 flex-1 text-left">
+          <span className={cn("truncate text-sm", isActive && "font-medium")}>{item.label}</span>
+          {item.description && (
+            <span className={cn(
+              "text-[11px] leading-tight",
+              isActive ? "text-primary-foreground/65" : "text-muted-foreground/60"
+            )}>
+              {item.description}
+            </span>
+          )}
         </div>
       )}
-    </div>
+    </button>
   );
 }
-
-

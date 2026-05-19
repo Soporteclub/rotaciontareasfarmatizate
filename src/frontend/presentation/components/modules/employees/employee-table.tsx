@@ -203,7 +203,7 @@ function EmployeeRow({
   onDelete: (emp: EmployeeResponse) => void;
   onManageEligibility: (emp: EmployeeResponse) => void;
 }) {
-  const isAdmin = useUIStore((s) => s.adminModules.employees === true);
+  const isAdmin = useUIStore((s) => s.isAdmin);
   const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
   const groupColor = getGroupColor(groups, emp.groupId);
   const isEven = index % 2 === 0;
@@ -359,7 +359,7 @@ function EmployeeRow({
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 text-muted-foreground"
-              onClick={() => requestAdminUnlock("employees")}
+              onClick={() => requestAdminUnlock()}
               title="Requiere clave admin"
             >
               <MoreHorizontal className="h-4 w-4" />

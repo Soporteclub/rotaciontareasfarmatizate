@@ -63,7 +63,7 @@ export function EmployeeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <AdminOnly module="employees" fallback={null}>
+      <AdminOnly fallback={null}>
       <DialogTrigger asChild>
         <Button
           className="flex items-center gap-2 text-white"

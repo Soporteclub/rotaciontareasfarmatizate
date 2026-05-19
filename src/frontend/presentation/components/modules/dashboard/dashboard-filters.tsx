@@ -100,7 +100,7 @@ export function DashboardFilters({
           <FairnessTooltip />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          <AdminOnly module="calendar" fallback={
+          <AdminOnly fallback={
             <span className="text-xs text-muted-foreground italic flex items-center gap-1">
               <Lock className="h-3 w-3" />
               Generar requiere admin
