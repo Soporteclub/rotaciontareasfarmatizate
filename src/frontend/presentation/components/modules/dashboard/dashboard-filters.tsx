@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/tooltip";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
-import { Users, Search, Filter, X, Info, Play, Lock } from "lucide-react";
+import { useDeleteAssignments } from "@/frontend/presentation/lib/query/hooks";
+import { Users, Search, Filter, X, Info, Trash2, Loader2, Lock } from "lucide-react";
+import { toast } from "sonner";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface DashboardFiltersProps {
@@ -25,7 +27,6 @@ interface DashboardFiltersProps {
   filteredCount: number;
   hasActiveFilters: boolean;
   clearFilters: () => void;
-  onOpenGenerateDialog: (groupId: string) => void;
 }
 
 /** Tooltip explicativo del motor de equidad */
@@ -69,11 +70,23 @@ export function DashboardFilters({
   searchName, setSearchName,
   groups, availableTaskTypes,
   filteredCount, hasActiveFilters, clearFilters,
-  onOpenGenerateDialog,
 }: DashboardFiltersProps) {
+  const deleteAssignments = useDeleteAssignments();
+
+  const handleDeleteGroup = async (group: GroupResponse) => {
+    if (!confirm(`¿Eliminar TODAS las asignaciones de ${group.name}?\n\nEsta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`))
+      return;
+    try {
+      const result = await deleteAssignments.mutateAsync({ groupId: group.id });
+      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${group.name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    }
+  };
+
   return (
     <div className="space-y-3">
-      {/* Fila 1: Filtro de grupo + botones de generar */}
+      {/* Fila 1: Filtro de grupo + botones de eliminar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
@@ -103,18 +116,23 @@ export function DashboardFilters({
           <AdminOnly fallback={
             <span className="text-xs text-muted-foreground italic flex items-center gap-1">
               <Lock className="h-3 w-3" />
-              Generar requiere admin
+              Eliminar requiere admin
             </span>
           }>
             {groups && groups.length > 0 && groups.map((g) => (
               <button
                 key={g.id}
-                onClick={() => onOpenGenerateDialog(g.id)}
+                onClick={() => handleDeleteGroup(g)}
+                disabled={deleteAssignments.isPending}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow whitespace-nowrap shrink-0"
                 style={{ borderColor: g.color, color: g.color, backgroundColor: `${g.color}10` }}
               >
-                <Play className="h-3 w-3" />
-                <span className="hidden sm:inline">Generar </span>{g.name}
+                {deleteAssignments.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+                <span className="hidden sm:inline">Eliminar </span>{g.name}
               </button>
             ))}
           </AdminOnly>
