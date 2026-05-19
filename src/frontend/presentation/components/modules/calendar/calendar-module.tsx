@@ -24,7 +24,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
-import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
+import { DeleteDialog } from "@/frontend/presentation/components/shared/delete-dialog";
 import { AssignmentEditDialog } from "@/frontend/presentation/components/shared/assignment-edit-dialog";
 import type { AssignmentResponse } from "@/frontend/presentation/lib/query/hooks";
 
@@ -42,7 +42,7 @@ export function CalendarModule() {
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const deleteAssignments = useDeleteAssignments();
 
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // ─── Assignment edit dialog ────────────────────────────────────
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -125,24 +125,13 @@ export function CalendarModule() {
     });
   }, [assignments, groups]);
 
-  const handleDeleteGroup = () => {
-    if (!selectedGroupId) {
-      toast.error("Selecciona un grupo primero");
-      return;
-    }
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDeleteGroup = async () => {
-    if (!selectedGroupId) return;
-    const group = groups?.find((g) => g.id === selectedGroupId);
+  const handleDelete = async (params: { groupId: string; startDate: string; endDate: string }) => {
     try {
-      const result = await deleteAssignments.mutateAsync({ groupId: selectedGroupId });
-      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${group?.name}`);
+      const result = await deleteAssignments.mutateAsync(params);
+      const groupName = groups?.find((g) => g.id === params.groupId)?.name ?? "Grupo";
+      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${groupName}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
-    } finally {
-      setDeleteConfirmOpen(false);
     }
   };
 
@@ -319,17 +308,17 @@ export function CalendarModule() {
           </Select>
           <AdminOnly>
             <Button
-              onClick={handleDeleteGroup}
+              onClick={() => setDeleteDialogOpen(true)}
               variant="outline"
-              className="flex items-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
-              disabled={!selectedGroupId || deleteAssignments.isPending}
+              className="flex items-center gap-2 text-red-500 border-red-300 hover:bg-red-50 hover:text-red-600"
+              disabled={deleteAssignments.isPending}
             >
               {deleteAssignments.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Trash2 className="h-4 w-4" />
               )}
-              Eliminar
+              Borrar Asignaciones
             </Button>
           </AdminOnly>
         </div>
@@ -560,15 +549,13 @@ export function CalendarModule() {
         </div>
       </div>
 
-      {/* Confirmación de eliminación */}
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title={`Eliminar asignaciones de ${groups?.find((g) => g.id === selectedGroupId)?.name ?? ""}`}
-        description="¿Eliminar TODAS las asignaciones de este grupo? Esta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones."
-        confirmLabel="Eliminar todo"
-        variant="destructive"
-        onConfirm={confirmDeleteGroup}
+      {/* Diálogo de borrado */}
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        groups={groups}
+        onDelete={handleDelete}
+        isPending={deleteAssignments.isPending}
       />
 
       {/* Assignment edit dialog */}

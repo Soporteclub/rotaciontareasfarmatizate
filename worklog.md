@@ -491,3 +491,41 @@ Stage Summary:
 - Step instructions guide the user through the process
 - Title and all text changed from "Regenerar" to "Generar" terminology
 - Dev server running, no errors
+
+---
+Task ID: 15
+Agent: Main Agent
+Task: Create "Borrar Asignaciones" dialog matching screenshot style with date range support
+
+Work Log:
+- Analyzed user's screenshot showing "Borrar Asignaciones" dialog with group dropdown, date pickers, step instructions, red button
+- Added `deleteByGroupAndDateRange()` method to assignment repository (deletes both locked and unlocked assignments)
+- Added `deleteByGroupAndDateRange()` method to assignment service with audit logging
+- Updated delete API endpoint (`POST /api/assignments/delete`) to accept optional `startDate`/`endDate` params alongside `groupId`
+- Updated `useDeleteAssignments` hook to support optional date range parameters
+- Created `DeleteDialog` component at `src/frontend/presentation/components/shared/delete-dialog.tsx`:
+  - Title: "Borrar Asignaciones" with red Trash2 icon
+  - Description: explains to go to Reglas after deleting
+  - Group selector dropdown (single group at a time)
+  - Date range with "Desde"/"Hasta" Popover+Calendar pickers (dd/MM/yyyy format)
+  - Amber warning section with 2 steps:
+    - Paso 1: Borra las asignaciones del rango seleccionado (incluye bloqueadas)
+    - Paso 2: Ve a Reglas → Generar Asignaciones para crear nuevas
+  - Red-outlined "Borrar Asignaciones" button
+- Rewrote `dashboard-filters.tsx`:
+  - Replaced per-group "Eliminar Piso 1/Piso 2" buttons with single "Borrar Asignaciones" button (red outline)
+  - Opens DeleteDialog instead of ConfirmDialog
+  - Uses date-range-aware delete hook
+- Updated `calendar-module.tsx`:
+  - Replaced "Eliminar" button with "Borrar Asignaciones" button (red outline)
+  - Opens DeleteDialog instead of ConfirmDialog
+  - Uses same date-range-aware delete hook
+- Lint passes with zero errors
+
+Stage Summary:
+- New "Borrar Asignaciones" dialog matches the screenshot style
+- Supports date range deletion (not just delete-all)
+- Deletes both locked and unlocked assignments within the selected range
+- Dashboard and Calendar modules both use the new dialog
+- Backend supports groupId + startDate + endDate deletion
+- Consistent with the "Generar Asignaciones" dialog style from Task 14
