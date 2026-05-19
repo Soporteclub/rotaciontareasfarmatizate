@@ -24,6 +24,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
+import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
 
 
 /** Format a date string "2026-05-13" to "13 May 2026" */
@@ -38,6 +39,8 @@ export function CalendarModule() {
   const { data: groups, isLoading: loadingGroups } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const deleteAssignments = useDeleteAssignments();
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Balance date range filter — defaults to current month
   const [balanceDateRange, setBalanceDateRange] = useState(() => {
@@ -108,19 +111,24 @@ export function CalendarModule() {
     });
   }, [assignments, groups]);
 
-  const handleDeleteGroup = async () => {
+  const handleDeleteGroup = () => {
     if (!selectedGroupId) {
       toast.error("Selecciona un grupo primero");
       return;
     }
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!selectedGroupId) return;
     const group = groups?.find((g) => g.id === selectedGroupId);
-    if (!confirm(`¿Eliminar TODAS las asignaciones de ${group?.name ?? "este grupo"}?\n\nEsta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`))
-      return;
     try {
       const result = await deleteAssignments.mutateAsync({ groupId: selectedGroupId });
       toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${group?.name}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -536,6 +544,17 @@ export function CalendarModule() {
           </Card>
         </div>
       </div>
+
+      {/* Confirmación de eliminación */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={`Eliminar asignaciones de ${groups?.find((g) => g.id === selectedGroupId)?.name ?? ""}`}
+        description="¿Eliminar TODAS las asignaciones de este grupo? Esta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones."
+        confirmLabel="Eliminar todo"
+        variant="destructive"
+        onConfirm={confirmDeleteGroup}
+      />
     </div>
   );
 }

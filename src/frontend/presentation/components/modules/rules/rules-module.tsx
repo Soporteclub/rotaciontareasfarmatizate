@@ -40,6 +40,7 @@ import { TaskGroupCard } from "./rule-card";
 import { getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
+import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
 
 // ─── Stats Card ─────────────────────────────────────────────
 function StatsCard({
@@ -130,6 +131,7 @@ export function RulesModule() {
   const [editingTaskLabel, setEditingTaskLabel] = useState("");
   const [editingTaskRules, setEditingTaskRules] = useState<RuleResponse[]>([]);
   const [regenerating, setRegenerating] = useState(false);
+  const [deleteRuleTarget, setDeleteRuleTarget] = useState<string | null>(null);
 
   // Open the group edit dialog with all rules for a task
   const handleEditGroup = useCallback((taskLabel: string, taskRules: RuleResponse[]) => {
@@ -139,17 +141,25 @@ export function RulesModule() {
   }, []);
 
   const handleDeleteRule = useCallback(
-    async (id: string) => {
-      if (!confirm("¿Eliminar esta regla permanentemente? Esta acción no se puede deshacer."))
-        return;
+    (id: string) => {
+      setDeleteRuleTarget(id);
+    },
+    []
+  );
+
+  const confirmDeleteRule = useCallback(
+    async () => {
+      if (!deleteRuleTarget) return;
       try {
-        await deleteRule.mutateAsync({ id, permanent: true });
+        await deleteRule.mutateAsync({ id: deleteRuleTarget, permanent: true });
         toast.success("Regla eliminada");
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error");
+      } finally {
+        setDeleteRuleTarget(null);
       }
     },
-    [deleteRule]
+    [deleteRule, deleteRuleTarget]
   );
 
   const handleRegenerateAll = useCallback(async () => {
@@ -491,6 +501,17 @@ export function RulesModule() {
         taskLabel={editingTaskLabel}
         rules={editingTaskRules}
         groups={groups}
+      />
+
+      {/* Confirmación de eliminación de regla */}
+      <ConfirmDialog
+        open={!!deleteRuleTarget}
+        onOpenChange={(open) => { if (!open) setDeleteRuleTarget(null); }}
+        title="Eliminar regla"
+        description="¿Eliminar esta regla permanentemente? Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="destructive"
+        onConfirm={confirmDeleteRule}
       />
     </div>
   );

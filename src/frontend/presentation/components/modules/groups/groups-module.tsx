@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,7 @@ export function GroupsModule() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -202,13 +204,19 @@ export function GroupsModule() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Desactivar este grupo?")) return;
+  const handleDelete = (id: string) => {
+    setDeleteGroupTarget(id);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!deleteGroupTarget) return;
     try {
-      await deleteGroup.mutateAsync(id);
+      await deleteGroup.mutateAsync(deleteGroupTarget);
       toast.success("Grupo desactivado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleteGroupTarget(null);
     }
   };
 
@@ -423,6 +431,17 @@ export function GroupsModule() {
           </CardContent>
         </Card>
       )}
+
+      {/* Confirmación de eliminación de grupo */}
+      <ConfirmDialog
+        open={!!deleteGroupTarget}
+        onOpenChange={(open) => { if (!open) setDeleteGroupTarget(null); }}
+        title="Desactivar grupo"
+        description="¿Desactivar este grupo? Los datos se mantendrán pero el grupo no estará activo."
+        confirmLabel="Desactivar"
+        variant="destructive"
+        onConfirm={confirmDeleteGroup}
+      />
     </div>
   );
 }
