@@ -2,15 +2,13 @@
 
 import { useState, useMemo } from "react";
 import {
-  useGroups, useAssignments, useGenerateAssignments,
+  useGroups, useAssignments,
   useBalanceReport, useAutoInitialize, useRules, useEmployees,
 } from "@/frontend/presentation/lib/query/hooks";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { CalendarGrid } from "./calendar-grid";
 import { DashboardFilters } from "./dashboard-filters";
 import { DashboardSidebar } from "./dashboard-sidebar";
-import { GenerateDialog } from "./generate-dialog";
 import { TodayPanel } from "./today-panel";
 import {
   useCalendarNavigation,
@@ -74,48 +72,6 @@ export function DashboardModule() {
     return Array.from(taskTypes).sort();
   }, [filteredAssignments]);
 
-  // ─── Generate dialog ─────────────────────────────────────────
-  const generateAssignments = useGenerateAssignments();
-  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
-  const [generateRange, setGenerateRange] = useState({ startDate: "", endDate: "" });
-  const [generateGroupId, setGenerateGroupId] = useState<string>("");
-
-  const handleGenerate = async () => {
-    if (!generateGroupId || !generateRange.startDate || !generateRange.endDate) {
-      toast.error("Completa todos los campos");
-      return;
-    }
-    try {
-      const result = await generateAssignments.mutateAsync({
-        groupId: generateGroupId,
-        startDate: generateRange.startDate,
-        endDate: generateRange.endDate,
-      });
-      toast.success(`Se generaron ${result.assignments.length} asignaciones`);
-      setGenerateDialogOpen(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al generar");
-    }
-  };
-
-  const openGenerateDialog = (groupId: string) => {
-    if (!groupId || groupId === "_all") {
-      toast.error("Selecciona un grupo específico");
-      return;
-    }
-    setGenerateGroupId(groupId);
-    const n = new Date();
-    const start = new Date(n.getFullYear(), n.getMonth(), 1);
-    const end = new Date(n.getFullYear(), n.getMonth() + 3, 0);
-    const pad = (v: number) => String(v).padStart(2, "0");
-    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-    setGenerateRange({
-      startDate: fmt(start),
-      endDate: fmt(end),
-    });
-    setGenerateDialogOpen(true);
-  };
-
   const isLoading = isInitializing || loadingGroups || loadingAssignments;
 
   // ─── Render ──────────────────────────────────────────────────
@@ -143,7 +99,6 @@ export function DashboardModule() {
         filteredCount={filteredAssignments?.length ?? 0}
         hasActiveFilters={hasActiveFilters}
         clearFilters={clearFilters}
-        onOpenGenerateDialog={openGenerateDialog}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -175,18 +130,6 @@ export function DashboardModule() {
           effectiveGroupId={effectiveGroupId}
         />
       </div>
-
-      <GenerateDialog
-        open={generateDialogOpen}
-        onOpenChange={setGenerateDialogOpen}
-        groups={groups}
-        generateGroupId={generateGroupId}
-        setGenerateGroupId={setGenerateGroupId}
-        generateRange={generateRange}
-        setGenerateRange={setGenerateRange}
-        handleGenerate={handleGenerate}
-        isPending={generateAssignments.isPending}
-      />
     </div>
   );
 }

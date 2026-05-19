@@ -114,6 +114,16 @@ export const assignmentRepository = {
   },
 
   /**
+   * Delete ALL assignments (both locked and unlocked) for a group
+   * Used when admin wants to completely clear a group's schedule
+   */
+  async deleteAllByGroup(groupId: string) {
+    return db.assignment.deleteMany({
+      where: { groupId },
+    });
+  },
+
+  /**
    * Delete unlocked future assignments for a specific employee+task combination
    * Used when an employee's task eligibility is toggled OFF
    */

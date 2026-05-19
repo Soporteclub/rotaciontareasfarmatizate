@@ -30,6 +30,21 @@ export function useGenerateAssignments() {
   });
 }
 
+export function useDeleteAssignments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { groupId: string }) =>
+      apiFetch<{ deletedCount: number; message: string }>("/api/assignments/delete", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+    },
+  });
+}
+
 export function useBalanceReport(groupId?: string, startDate?: string, endDate?: string) {
   const params = new URLSearchParams();
   if (groupId) params.set("groupId", groupId);

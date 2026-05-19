@@ -239,6 +239,30 @@ export const assignmentService = {
   },
 
   /**
+   * Delete ALL assignments for a group (both locked and unlocked)
+   * Used when admin wants to completely clear a group's schedule from the Dashboard
+   * After clearing, they should go to Rules → Regenerar to create new assignments
+   */
+  async deleteAllByGroup(groupId: string) {
+    const count = await assignmentRepository.countByGroup(groupId);
+    const result = await assignmentRepository.deleteAllByGroup(groupId);
+
+    await auditLogRepository.create({
+      entityType: "assignment",
+      entityId: "batch",
+      action: "deleteRange",
+      changes: {
+        groupId,
+        deletedCount: result.count,
+        description: "Eliminación completa de asignaciones del grupo desde Dashboard",
+      },
+      groupId,
+    });
+
+    return { deletedCount: result.count };
+  },
+
+  /**
    * Get fairness balance report for a group
    * Counts ALL assignments (locked + unlocked) for accurate balance display
    * Includes date range of the data

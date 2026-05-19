@@ -40,6 +40,7 @@ export {
 export {
   useAssignments,
   useGenerateAssignments,
+  useDeleteAssignments,
   useBalanceReport,
 } from "./assignment-hooks";
 

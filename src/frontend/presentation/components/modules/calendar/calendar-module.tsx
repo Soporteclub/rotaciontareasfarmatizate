@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import {
   useGroups,
   useAssignments,
-  useGenerateAssignments,
+  useDeleteAssignments,
   useBalanceReport,
 } from "@/frontend/presentation/lib/query/hooks";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,18 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Play, BarChart3, Lock, Unlock, Calendar, TrendingUp, Users, Filter } from "lucide-react";
+import { Trash2, BarChart3, Lock, Unlock, Calendar, TrendingUp, Users, Filter, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
 
 
 /** Format a date string "2026-05-13" to "13 May 2026" */
@@ -42,9 +37,7 @@ function formatDateShort(dateStr: string | null): string {
 export function CalendarModule() {
   const { data: groups, isLoading: loadingGroups } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
-  const [generateRange, setGenerateRange] = useState({ startDate: "", endDate: "" });
-  const generateAssignments = useGenerateAssignments();
+  const deleteAssignments = useDeleteAssignments();
 
   // Balance date range filter — defaults to current month
   const [balanceDateRange, setBalanceDateRange] = useState(() => {
@@ -115,30 +108,20 @@ export function CalendarModule() {
     });
   }, [assignments, groups]);
 
-  const handleGenerate = async () => {
-    if (!selectedGroupId || !generateRange.startDate || !generateRange.endDate) {
-      toast.error("Completa todos los campos");
+  const handleDeleteGroup = async () => {
+    if (!selectedGroupId) {
+      toast.error("Selecciona un grupo primero");
       return;
     }
+    const group = groups?.find((g) => g.id === selectedGroupId);
+    if (!confirm(`¿Eliminar TODAS las asignaciones de ${group?.name ?? "este grupo"}?\n\nEsta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`))
+      return;
     try {
-      const result = await generateAssignments.mutateAsync({
-        groupId: selectedGroupId,
-        startDate: generateRange.startDate,
-        endDate: generateRange.endDate,
-      });
-      toast.success(`Se generaron ${result.assignments.length} asignaciones`);
-      setGenerateDialogOpen(false);
+      const result = await deleteAssignments.mutateAsync({ groupId: selectedGroupId });
+      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${group?.name}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al generar");
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     }
-  };
-
-  const handleDateClick = (info: { dateStr: string }) => {
-    setGenerateRange((prev) => ({
-      ...prev,
-      startDate: prev.startDate || info.dateStr,
-      endDate: prev.startDate ? info.dateStr : prev.endDate,
-    }));
   };
 
   const isLoading = loadingGroups || loadingAssignments;
@@ -299,7 +282,7 @@ export function CalendarModule() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Calendario</h1>
-          <p className="text-muted-foreground">Visualiza y genera asignaciones</p>
+          <p className="text-muted-foreground">Visualiza y elimina asignaciones</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
@@ -312,29 +295,21 @@ export function CalendarModule() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            onClick={() => {
-              if (!selectedGroupId) {
-                toast.error("Selecciona un grupo primero");
-                return;
-              }
-              // Default: generate for next 3 months
-              const now = new Date();
-              const start = new Date(now.getFullYear(), now.getMonth(), 1);
-              const end = new Date(now.getFullYear(), now.getMonth() + 3, 0);
-              setGenerateRange({
-                startDate: start.toISOString().split("T")[0],
-                endDate: end.toISOString().split("T")[0],
-              });
-              setGenerateDialogOpen(true);
-            }}
-            className="flex items-center gap-2"
-            style={{ backgroundColor: BRAND.PRIMARY }}
-            disabled={!selectedGroupId}
-          >
-            <Play className="h-4 w-4" />
-            Generar
-          </Button>
+          <AdminOnly>
+            <Button
+              onClick={handleDeleteGroup}
+              variant="outline"
+              className="flex items-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+              disabled={!selectedGroupId || deleteAssignments.isPending}
+            >
+              {deleteAssignments.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Eliminar
+            </Button>
+          </AdminOnly>
         </div>
       </div>
 
@@ -361,7 +336,6 @@ export function CalendarModule() {
                   month: "Mes",
                 }}
                 datesSet={handleDatesSet}
-                dateClick={handleDateClick}
                 eventDisplay="block"
                 dayMaxEvents={3}
                 editable={false}
@@ -562,51 +536,6 @@ export function CalendarModule() {
           </Card>
         </div>
       </div>
-
-      {/* Generate Dialog */}
-      <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Generar Asignaciones</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Se generarán asignaciones justas usando el motor de fairness.
-              Las asignaciones pasadas NO se modificarán.
-            </p>
-            <div className="space-y-2">
-              <Label>Fecha Inicio</Label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 border rounded-md text-sm"
-                value={generateRange.startDate}
-                onChange={(e) => setGenerateRange((r) => ({ ...r, startDate: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Fecha Fin</Label>
-              <input
-                type="date"
-                className="w-full px-3 py-2 border rounded-md text-sm"
-                value={generateRange.endDate}
-                onChange={(e) => setGenerateRange((r) => ({ ...r, endDate: e.target.value }))}
-              />
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-3 rounded-lg">
-              <Lock className="h-4 w-4" />
-              <span>Las asignaciones históricas (pasadas) están bloqueadas y no se modificarán.</span>
-            </div>
-            <Button
-              onClick={handleGenerate}
-              className="w-full"
-              style={{ backgroundColor: BRAND.PRIMARY }}
-              disabled={generateAssignments.isPending}
-            >
-              {generateAssignments.isPending ? "Generando..." : "Generar Asignaciones"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

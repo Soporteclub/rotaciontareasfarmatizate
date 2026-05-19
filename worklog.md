@@ -389,3 +389,32 @@ Stage Summary:
 - `generate()` now filters out locked past assignments that already exist in DB
 - Double-safety mechanism: both service layer and repository layer prevent duplicate creation
 - Assignment generation works correctly for all groups and date ranges
+
+---
+Task ID: 12
+Agent: Main Agent
+Task: Separate Dashboard (delete) and Rules (regenerate) responsibilities
+
+Work Log:
+- Created DELETE API endpoint at `/api/assignments/delete` — deletes ALL assignments for a group
+- Added `deleteAllByGroup()` to assignment repository (deletes all, both locked and unlocked)
+- Added `deleteAllByGroup()` to assignment service with audit logging
+- Created `useDeleteAssignments` hook in assignment-hooks.ts
+- Exported `useDeleteAssignments` from hooks barrel
+- Rewrote `dashboard-filters.tsx`: replaced "Generar Piso 1/Piso 2" buttons with "Eliminar Piso 1/Piso 2" buttons
+  - Each button uses the group's color as border/text
+  - Confirmation dialog before deleting: "¿Eliminar TODAS las asignaciones de {group.name}? Usa Reglas → Regenerar para crear nuevas"
+  - Loading spinner while deleting
+  - Success toast showing count of deleted assignments
+- Rewrote `dashboard-module.tsx`: removed GenerateDialog, useGenerateAssignments, and all related state
+- Updated `calendar-module.tsx`: replaced "Generar" button with "Eliminar" button (admin-only)
+- Rules module already has "Regenerar Asignaciones" button — unchanged
+- Tested full flow: Delete from Dashboard (106 assignments deleted) → Regenerate from Rules (assignments recreated)
+- Lint passes with zero errors
+
+Stage Summary:
+- Dashboard now only has "Eliminar" buttons per group (Piso 1, Piso 2) to clear assignments
+- Rules module has "Regenerar Asignaciones" to create new assignments
+- Clean separation: Dashboard = view/delete, Rules = configure/regenerate
+- Delete API endpoint at POST `/api/assignments/delete` with `{ groupId }` body
+- Full flow tested and working
