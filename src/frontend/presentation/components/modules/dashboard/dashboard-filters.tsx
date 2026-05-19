@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
+import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
 import { useDeleteAssignments } from "@/frontend/presentation/lib/query/hooks";
 import { Users, Search, Filter, X, Info, Trash2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -72,15 +74,21 @@ export function DashboardFilters({
   filteredCount, hasActiveFilters, clearFilters,
 }: DashboardFiltersProps) {
   const deleteAssignments = useDeleteAssignments();
+  const [deleteTarget, setDeleteTarget] = useState<GroupResponse | null>(null);
 
-  const handleDeleteGroup = async (group: GroupResponse) => {
-    if (!confirm(`¿Eliminar TODAS las asignaciones de ${group.name}?\n\nEsta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`))
-      return;
+  const handleDeleteGroup = (group: GroupResponse) => {
+    setDeleteTarget(group);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!deleteTarget) return;
     try {
-      const result = await deleteAssignments.mutateAsync({ groupId: group.id });
-      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${group.name}`);
+      const result = await deleteAssignments.mutateAsync({ groupId: deleteTarget.id });
+      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${deleteTarget.name}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -190,6 +198,17 @@ export function DashboardFilters({
           </span>
         )}
       </div>
+
+      {/* Confirmación de eliminación */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={`Eliminar asignaciones de ${deleteTarget?.name ?? ""}`}
+        description={`¿Eliminar TODAS las asignaciones de ${deleteTarget?.name ?? ""}? Esta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`}
+        confirmLabel="Eliminar todo"
+        variant="destructive"
+        onConfirm={confirmDeleteGroup}
+      />
     </div>
   );
 }
