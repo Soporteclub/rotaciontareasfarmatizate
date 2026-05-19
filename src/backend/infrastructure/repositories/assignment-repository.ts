@@ -124,6 +124,22 @@ export const assignmentRepository = {
   },
 
   /**
+   * Delete ALL assignments (both locked and unlocked) for a group within a date range
+   * Used when admin wants to clear assignments for a specific period
+   */
+  async deleteByGroupAndDateRange(groupId: string, startDate: Date, endDate: Date) {
+    return db.assignment.deleteMany({
+      where: {
+        groupId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+  },
+
+  /**
    * Delete unlocked future assignments for a specific employee+task combination
    * Used when an employee's task eligibility is toggled OFF
    */

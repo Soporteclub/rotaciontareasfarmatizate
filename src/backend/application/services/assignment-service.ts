@@ -241,7 +241,7 @@ export const assignmentService = {
   /**
    * Delete ALL assignments for a group (both locked and unlocked)
    * Used when admin wants to completely clear a group's schedule from the Dashboard
-   * After clearing, they should go to Rules → Regenerar to create new assignments
+   * After clearing, they should go to Rules → Generar to create new assignments
    */
   async deleteAllByGroup(groupId: string) {
     const count = await assignmentRepository.countByGroup(groupId);
@@ -255,6 +255,36 @@ export const assignmentService = {
         groupId,
         deletedCount: result.count,
         description: "Eliminación completa de asignaciones del grupo desde Dashboard",
+      },
+      groupId,
+    });
+
+    return { deletedCount: result.count };
+  },
+
+  /**
+   * Delete assignments for a group within a date range (both locked and unlocked)
+   * Used when admin wants to clear assignments for a specific period
+   * After clearing, they should go to Rules → Generar to create new assignments
+   */
+  async deleteByGroupAndDateRange(groupId: string, startDate: string, endDate: string) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const result = await assignmentRepository.deleteByGroupAndDateRange(groupId, start, end);
+
+    await auditLogRepository.create({
+      entityType: "assignment",
+      entityId: "batch",
+      action: "deleteRange",
+      changes: {
+        groupId,
+        startDate,
+        endDate,
+        deletedCount: result.count,
+        description: "Eliminación de asignaciones del grupo por rango de fechas desde Dashboard",
       },
       groupId,
     });

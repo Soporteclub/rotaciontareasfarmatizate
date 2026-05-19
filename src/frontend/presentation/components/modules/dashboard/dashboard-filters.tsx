@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
-import { ConfirmDialog } from "@/frontend/presentation/components/shared/confirm-dialog";
+import { DeleteDialog } from "@/frontend/presentation/components/shared/delete-dialog";
 import { useDeleteAssignments } from "@/frontend/presentation/lib/query/hooks";
 import { Users, Search, Filter, X, Info, Trash2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
@@ -74,27 +74,21 @@ export function DashboardFilters({
   filteredCount, hasActiveFilters, clearFilters,
 }: DashboardFiltersProps) {
   const deleteAssignments = useDeleteAssignments();
-  const [deleteTarget, setDeleteTarget] = useState<GroupResponse | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const handleDeleteGroup = (group: GroupResponse) => {
-    setDeleteTarget(group);
-  };
-
-  const confirmDeleteGroup = async () => {
-    if (!deleteTarget) return;
+  const handleDelete = async (params: { groupId: string; startDate: string; endDate: string }) => {
     try {
-      const result = await deleteAssignments.mutateAsync({ groupId: deleteTarget.id });
-      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${deleteTarget.name}`);
+      const result = await deleteAssignments.mutateAsync(params);
+      const groupName = groups?.find((g) => g.id === params.groupId)?.name ?? "Grupo";
+      toast.success(`Se eliminaron ${result.deletedCount} asignaciones de ${groupName}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar");
-    } finally {
-      setDeleteTarget(null);
     }
   };
 
   return (
     <div className="space-y-3">
-      {/* Fila 1: Filtro de grupo + botones de eliminar */}
+      {/* Fila 1: Filtro de grupo + botón de borrar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
@@ -120,29 +114,27 @@ export function DashboardFilters({
           </Select>
           <FairnessTooltip />
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <AdminOnly fallback={
             <span className="text-xs text-muted-foreground italic flex items-center gap-1">
               <Lock className="h-3 w-3" />
               Eliminar requiere admin
             </span>
           }>
-            {groups && groups.length > 0 && groups.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => handleDeleteGroup(g)}
-                disabled={deleteAssignments.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border hover:shadow-sm transition-shadow whitespace-nowrap shrink-0"
-                style={{ borderColor: g.color, color: g.color, backgroundColor: `${g.color}10` }}
-              >
-                {deleteAssignments.isPending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3 w-3" />
-                )}
-                <span className="hidden sm:inline">Eliminar </span>{g.name}
-              </button>
-            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-red-500 border-red-300 hover:bg-red-50 hover:text-red-600"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={deleteAssignments.isPending}
+            >
+              {deleteAssignments.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Borrar Asignaciones
+            </Button>
           </AdminOnly>
         </div>
       </div>
@@ -199,15 +191,13 @@ export function DashboardFilters({
         )}
       </div>
 
-      {/* Confirmación de eliminación */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title={`Eliminar asignaciones de ${deleteTarget?.name ?? ""}`}
-        description={`¿Eliminar TODAS las asignaciones de ${deleteTarget?.name ?? ""}? Esta acción no se puede deshacer. Usa Reglas → Regenerar para crear nuevas asignaciones.`}
-        confirmLabel="Eliminar todo"
-        variant="destructive"
-        onConfirm={confirmDeleteGroup}
+      {/* Diálogo de borrado */}
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        groups={groups}
+        onDelete={handleDelete}
+        isPending={deleteAssignments.isPending}
       />
     </div>
   );

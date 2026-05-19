@@ -48,7 +48,7 @@ export function useUpdateAssignment() {
 export function useDeleteAssignments() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { groupId: string }) =>
+    mutationFn: (data: { groupId: string; startDate?: string; endDate?: string }) =>
       apiFetch<{ deletedCount: number; message: string }>("/api/assignments/delete", {
         method: "POST",
         body: JSON.stringify(data),
