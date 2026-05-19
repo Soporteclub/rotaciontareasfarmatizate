@@ -418,3 +418,45 @@ Stage Summary:
 - Clean separation: Dashboard = view/delete, Rules = configure/regenerate
 - Delete API endpoint at POST `/api/assignments/delete` with `{ groupId }` body
 - Full flow tested and working
+
+---
+Task ID: 13
+Agent: Main Agent
+Task: Add date picker to regeneration and assignment editing feature
+
+Work Log:
+- Created RegenerateDialog component with shadcn Calendar date pickers for Rules module
+  - Group selector (or "All groups")
+  - Start date and end date pickers using Popover + Calendar (shadcn components)
+  - Quick range buttons: "Este mes", "3 meses", "Este año"
+  - Info note about locked past assignments
+- Created PATCH /api/assignments/[id] API endpoint for editing individual assignments
+  - Validates assignment exists and is not locked (historical)
+  - Updates employeeId with audit logging
+- Added `updateEmployee()` method to assignment repository
+- Added `useUpdateAssignment` hook in assignment-hooks.ts and exported from hooks barrel
+- Created AssignmentEditDialog component for editing individual assignments
+  - Shows assignment details (date, task, group, employee)
+  - Employee selector dropdown for unlocked (future) assignments
+  - Read-only view for locked (historical) assignments
+  - Uses key-based re-mount pattern to avoid useEffect setState lint error
+- Integrated RegenerateDialog into Rules module
+  - Replaced inline `handleRegenerateAll` with dialog-based regeneration
+  - Button now opens dialog instead of immediately regenerating
+- Integrated assignment editing into Dashboard module
+  - Added `employeeId` to CalendarDay assignment type
+  - CalendarCell, WeekDayColumn, DayAssignmentCard now accept `onAssignmentClick` callback
+  - Click on assignment opens edit dialog
+- Integrated assignment editing into Calendar module
+  - Added `eventClick` handler to FullCalendar
+  - Click on calendar event opens edit dialog
+- All changes use sonner toast notifications (project's existing library)
+- Lint passes with zero errors
+
+Stage Summary:
+- Regeneration now shows a dialog with date pickers (shadcn Calendar) and group selector
+- Individual assignments can be edited by clicking on them in Dashboard or Calendar
+- PATCH /api/assignments/[id] endpoint allows changing the assigned employee for unlocked assignments
+- Locked (historical) assignments show as read-only detail view
+- AssignmentEditDialog uses key-based re-mount pattern for clean state management
+- All toast notifications use sonner (project's standard UI library)

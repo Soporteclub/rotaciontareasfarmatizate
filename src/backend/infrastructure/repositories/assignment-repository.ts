@@ -189,6 +189,18 @@ export const assignmentRepository = {
     });
   },
 
+  /**
+   * Update the employee assigned to an assignment
+   * Only works for unlocked (future) assignments
+   */
+  async updateEmployee(id: string, employeeId: string) {
+    return db.assignment.update({
+      where: { id },
+      data: { employeeId },
+      include: { employee: true, group: true },
+    });
+  },
+
   async countByEmployee(employeeId: string) {
     return db.assignment.count({ where: { employeeId } });
   },

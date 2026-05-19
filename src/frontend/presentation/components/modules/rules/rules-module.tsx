@@ -37,6 +37,7 @@ import type { RuleResponse, GroupResponse } from "@/frontend/presentation/lib/qu
 import { CreateRuleDialog } from "./create-rule-dialog";
 import { EditTaskGroupDialog } from "./edit-task-group-dialog";
 import { TaskGroupCard } from "./rule-card";
+import { RegenerateDialog } from "./regenerate-dialog";
 import { getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard";
@@ -128,6 +129,7 @@ export function RulesModule() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editGroupDialogOpen, setEditGroupDialogOpen] = useState(false);
+  const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
   const [editingTaskLabel, setEditingTaskLabel] = useState("");
   const [editingTaskRules, setEditingTaskRules] = useState<RuleResponse[]>([]);
   const [regenerating, setRegenerating] = useState(false);
@@ -162,37 +164,17 @@ export function RulesModule() {
     [deleteRule, deleteRuleTarget]
   );
 
-  const handleRegenerateAll = useCallback(async () => {
-    if (!groups || groups.length === 0) {
-      toast.error("No hay grupos configurados");
-      return;
-    }
+  const handleRegenerate = useCallback(async (params: { groupId: string; startDate: string; endDate: string }) => {
     setRegenerating(true);
     try {
-      const now = new Date();
-      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() + 3, 0);
-      const startStr = startDate.toISOString().split("T")[0];
-      const endStr = endDate.toISOString().split("T")[0];
-
-      let totalAssignments = 0;
-      for (const group of groups) {
-        const result = await generateAssignments.mutateAsync({
-          groupId: group.id,
-          startDate: startStr,
-          endDate: endStr,
-        });
-        totalAssignments += result.assignments.length;
-      }
-      toast.success(
-        `Regeneradas ${totalAssignments} asignaciones en ${groups.length} grupos`
-      );
+      const result = await generateAssignments.mutateAsync(params);
+      toast.success(`Regeneradas ${result.assignments.length} asignaciones`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al regenerar");
     } finally {
       setRegenerating(false);
     }
-  }, [groups, generateAssignments]);
+  }, [generateAssignments]);
 
   const isLoading = loadingGroups || loadingRules;
 
@@ -289,7 +271,7 @@ export function RulesModule() {
             variant="outline"
             size="sm"
             className="gap-2"
-            onClick={handleRegenerateAll}
+            onClick={() => setRegenerateDialogOpen(true)}
             disabled={regenerating}
           >
             {regenerating ? (
@@ -512,6 +494,15 @@ export function RulesModule() {
         confirmLabel="Eliminar"
         variant="destructive"
         onConfirm={confirmDeleteRule}
+      />
+
+      {/* Diálogo de regeneración */}
+      <RegenerateDialog
+        open={regenerateDialogOpen}
+        onOpenChange={setRegenerateDialogOpen}
+        groups={groups}
+        onRegenerate={handleRegenerate}
+        isPending={regenerating}
       />
     </div>
   );

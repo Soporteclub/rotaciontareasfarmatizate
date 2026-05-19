@@ -10,6 +10,8 @@ import { CalendarGrid } from "./calendar-grid";
 import { DashboardFilters } from "./dashboard-filters";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { TodayPanel } from "./today-panel";
+import { AssignmentEditDialog } from "@/frontend/presentation/components/shared/assignment-edit-dialog";
+import type { AssignmentResponse } from "@/frontend/presentation/lib/query/hooks";
 import {
   useCalendarNavigation,
   useCalendarFilters,
@@ -23,6 +25,19 @@ export function DashboardModule() {
   const { data: groups, isLoading: loadingGroups } = useGroups();
   const { data: allEmployees } = useEmployees(undefined, true);
   const { data: allRules } = useRules(undefined, true);
+
+  // ─── Assignment edit dialog ────────────────────────────────────
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<AssignmentResponse | null>(null);
+
+  const handleAssignmentClick = (assignmentId: string) => {
+    // Find the full assignment from the filtered list
+    const found = filteredAssignments?.find((a) => a.id === assignmentId);
+    if (found) {
+      setEditingAssignment(found);
+      setEditDialogOpen(true);
+    }
+  };
 
   // ─── Calendar navigation ─────────────────────────────────────
   const {
@@ -116,6 +131,7 @@ export function DashboardModule() {
             goToday={goToday}
             groups={groups}
             availableTaskTypes={availableTaskTypes}
+            onAssignmentClick={handleAssignmentClick}
           />
         </div>
 
@@ -130,6 +146,14 @@ export function DashboardModule() {
           effectiveGroupId={effectiveGroupId}
         />
       </div>
+
+      {/* Assignment edit dialog */}
+      <AssignmentEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        assignment={editingAssignment}
+        groups={groups}
+      />
     </div>
   );
 }
