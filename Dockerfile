@@ -25,7 +25,6 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-# Set Next.js to collect telemetry (optional)
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build with standalone output for Docker
@@ -37,7 +36,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=4000
+ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL="file:/app/db/custom.db"
 
@@ -54,20 +53,19 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy database directory and ensure it exists
-COPY --from=builder /app/db ./db
+# Ensure DB directory exists with proper permissions
 RUN mkdir -p /app/db && chown -R appuser:appuser /app/db
 
-# Create a startup script that runs prisma db push then starts the server
+# Startup script: prisma db push then server
 RUN printf '#!/bin/sh\nset -e\nnpx prisma db push --skip-generate\nexec node server.js\n' > /app/start.sh && \
     chmod +x /app/start.sh && \
     chown appuser:appuser /app/start.sh
 
 USER appuser
 
-EXPOSE 4000
+EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
 CMD ["/app/start.sh"]

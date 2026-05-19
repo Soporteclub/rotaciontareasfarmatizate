@@ -13,9 +13,21 @@ db/*.db-journal
 .env.production.local
 logs
 *.log
-scripts
 Dockerfile
 docker-compose.yml
 .dockerignore
 .vscode
 .idea
+
+# Sandbox / z.ai specific (not needed in Docker)
+Caddyfile
+serve.pid
+server.pid
+agent-ctx/
+upload/
+download/
+worklog.md
+.claude
+.z-ai-config
+/skills/
+public/backup.json
