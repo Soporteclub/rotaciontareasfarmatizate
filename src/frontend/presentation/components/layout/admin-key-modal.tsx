@@ -36,7 +36,7 @@ export function AdminKeyModal() {
       const data = await res.json();
 
       if (data.data?.valid) {
-        unlockAdmin();
+        unlockAdmin(key.trim());
         setKey("");
         setError("");
       } else {
