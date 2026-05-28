@@ -13,6 +13,8 @@ interface UIState {
   sidebarOpen: boolean;
   // Global admin state — single key unlocks everything
   isAdmin: boolean;
+  // The verified admin key (stored when unlocking, cleared when locking)
+  adminKey: string | null;
   // Whether the admin key modal is open
   adminPendingUnlock: boolean;
 
@@ -21,7 +23,7 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
 
   // Global admin
-  unlockAdmin: () => void;
+  unlockAdmin: (key: string) => void;
   lockAdmin: () => void;
   requestAdminUnlock: () => void;
   clearAdminRequest: () => void;
@@ -42,21 +44,24 @@ export const useUIStore = create<UIState>()(
       selectedGroupId: null,
       sidebarOpen: getInitialSidebarOpen(),
       isAdmin: false,
+      adminKey: null,
       adminPendingUnlock: false,
 
       setActiveView: (view) => set({ activeView: view }),
       setSelectedGroupId: (id) => set({ selectedGroupId: id }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
-      unlockAdmin: () =>
+      unlockAdmin: (key: string) =>
         set({
           isAdmin: true,
+          adminKey: key,
           adminPendingUnlock: false,
         }),
 
       lockAdmin: () =>
         set({
           isAdmin: false,
+          adminKey: null,
           // Reset to calendar view when locking
           activeView: "calendar",
         }),
@@ -69,7 +74,7 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: "farmatizate-ui",
-      partialize: (state) => ({ isAdmin: state.isAdmin }),
+      partialize: (state) => ({ isAdmin: state.isAdmin, adminKey: state.adminKey }),
     }
   )
 );

@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
-import { useAdminStore } from "@/frontend/presentation/hooks/use-admin-store";
 import {
   useUpdateAssignment,
   useEmployees,
@@ -63,9 +62,9 @@ function AssignmentEditDialogContent({
       return;
     }
 
-    const adminKey = useAdminStore.getState().adminKey;
+    const adminKey = useUIStore.getState().adminKey;
     if (!adminKey) {
-      toast.error("Se requiere clave de administrador");
+      toast.error("Se requiere clave de administrador. Desbloquea desde la barra lateral.");
       onOpenChange(false);
       requestAdminUnlock();
       return;

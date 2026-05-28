@@ -1,12 +1,11 @@
 // Update Assignment API Route
 // PATCH /api/assignments/[id] - Update an assignment (change employee) only if not locked
-// Requires admin key verification
+// Requires admin key verification via settings service
 
 import { NextRequest, NextResponse } from "next/server";
 import { assignmentRepository } from "@/backend/infrastructure/repositories/assignment-repository";
 import { auditLogRepository } from "@/backend/infrastructure/repositories/audit-log-repository";
-
-const ADMIN_KEY = process.env.ADMIN_KEY || "farmatizate2025";
+import { settingsService } from "@/backend/application/services/settings-service";
 
 export async function PATCH(
   request: NextRequest,
@@ -17,10 +16,18 @@ export async function PATCH(
     const body = await request.json();
     const { employeeId, adminKey } = body;
 
-    // Verify admin key
-    if (!adminKey || adminKey !== ADMIN_KEY) {
+    // Verify admin key via settings service (same as sidebar unlock)
+    if (!adminKey) {
       return NextResponse.json(
         { error: "Se requiere clave de administrador para modificar asignaciones" },
+        { status: 403 }
+      );
+    }
+
+    const isValid = await settingsService.validateKey(adminKey);
+    if (!isValid) {
+      return NextResponse.json(
+        { error: "Clave de administrador incorrecta" },
         { status: 403 }
       );
     }
