@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Pencil, Lock, Loader2, User, Calendar, Tag } from "lucide-react";
+import { Pencil, Lock, Loader2, User, Calendar, Tag, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,6 +15,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BRAND } from "@/frontend/presentation/lib/brand";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
+import { useAdminStore } from "@/frontend/presentation/hooks/use-admin-store";
 import {
   useUpdateAssignment,
   useEmployees,
@@ -37,6 +39,8 @@ function AssignmentEditDialogContent({
   groups: GroupResponse[] | undefined;
   onOpenChange: (v: boolean) => void;
 }) {
+  const isAdmin = useUIStore((s) => s.isAdmin);
+  const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(assignment.employeeId);
   const updateAssignment = useUpdateAssignment();
 
@@ -50,9 +54,20 @@ function AssignmentEditDialogContent({
   const dateObj = new Date(assignment.date);
   const dateDisplay = format(dateObj, "EEEE d 'de' MMMM, yyyy", { locale: es });
 
+  // Only admin can edit unlocked assignments
+  const canEdit = isAdmin && !isLocked;
+
   const handleSave = async () => {
     if (selectedEmployeeId === assignment.employeeId) {
       onOpenChange(false);
+      return;
+    }
+
+    const adminKey = useAdminStore.getState().adminKey;
+    if (!adminKey) {
+      toast.error("Se requiere clave de administrador");
+      onOpenChange(false);
+      requestAdminUnlock();
       return;
     }
 
@@ -60,6 +75,7 @@ function AssignmentEditDialogContent({
       await updateAssignment.mutateAsync({
         id: assignment.id,
         employeeId: selectedEmployeeId,
+        adminKey,
       });
       const newEmp = activeEmployees.find((e) => e.id === selectedEmployeeId);
       toast.success(`Asignación actualizada: ahora ${newEmp?.name ?? "otro empleado"}`);
@@ -73,13 +89,24 @@ function AssignmentEditDialogContent({
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <Pencil className="h-5 w-5" />
-          {isLocked ? "Detalle de Asignación" : "Editar Asignación"}
+          {canEdit ? (
+            <>
+              <Pencil className="h-5 w-5" />
+              Editar Asignación
+            </>
+          ) : (
+            <>
+              <Calendar className="h-5 w-5" />
+              Detalle de Asignación
+            </>
+          )}
         </DialogTitle>
         <DialogDescription>
           {isLocked
             ? "Esta asignación está bloqueada porque es histórica y no se puede modificar."
-            : "Cambia el empleado asignado a esta tarea."}
+            : !isAdmin
+              ? "Solo un administrador puede modificar asignaciones."
+              : "Cambia el empleado asignado a esta tarea."}
         </DialogDescription>
       </DialogHeader>
 
@@ -110,26 +137,28 @@ function AssignmentEditDialogContent({
             )}
           </div>
 
-          {/* Status */}
+          {/* Status badges */}
           {isLocked && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Lock className="h-3 w-3" />
               <span>Bloqueada (histórica)</span>
             </div>
           )}
+          {!isAdmin && !isLocked && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+              <ShieldAlert className="h-3 w-3" />
+              <span>Protegida — requiere clave de administrador</span>
+            </div>
+          )}
         </div>
 
-        {/* Employee selector */}
+        {/* Employee selector or read-only display */}
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Empleado asignado
           </Label>
-          {isLocked ? (
-            <div className="px-3 py-2 border rounded-md bg-muted/30 text-sm">
-              {assignment.employee?.name ?? "Desconocido"}
-            </div>
-          ) : (
+          {canEdit ? (
             <Select
               value={selectedEmployeeId}
               onValueChange={setSelectedEmployeeId}
@@ -146,11 +175,15 @@ function AssignmentEditDialogContent({
                 ))}
               </SelectContent>
             </Select>
+          ) : (
+            <div className="px-3 py-2 border rounded-md bg-muted/30 text-sm">
+              {assignment.employee?.name ?? "Desconocido"}
+            </div>
           )}
         </div>
 
-        {/* Save button */}
-        {!isLocked && (
+        {/* Action buttons */}
+        {canEdit && (
           <Button
             onClick={handleSave}
             className="w-full"
@@ -168,6 +201,21 @@ function AssignmentEditDialogContent({
             ) : (
               "Guardar Cambio"
             )}
+          </Button>
+        )}
+
+        {/* Unlock button for non-admins */}
+        {!isAdmin && !isLocked && (
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => {
+              onOpenChange(false);
+              requestAdminUnlock();
+            }}
+          >
+            <Lock className="h-4 w-4" />
+            Desbloquear como administrador
           </Button>
         )}
       </div>

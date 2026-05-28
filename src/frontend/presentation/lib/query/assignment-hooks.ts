@@ -33,10 +33,10 @@ export function useGenerateAssignments() {
 export function useUpdateAssignment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { id: string; employeeId: string }) =>
+    mutationFn: (data: { id: string; employeeId: string; adminKey: string }) =>
       apiFetch<AssignmentResponse>(`/api/assignments/${data.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ employeeId: data.employeeId }),
+        body: JSON.stringify({ employeeId: data.employeeId, adminKey: data.adminKey }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
