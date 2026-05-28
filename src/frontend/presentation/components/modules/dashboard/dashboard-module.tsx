@@ -6,6 +6,7 @@ import {
   useBalanceReport, useAutoInitialize, useRules, useEmployees,
 } from "@/frontend/presentation/lib/query/hooks";
 import { Loader2 } from "lucide-react";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { CalendarGrid } from "./calendar-grid";
 import { DashboardFilters } from "./dashboard-filters";
 import { DashboardSidebar } from "./dashboard-sidebar";
@@ -30,7 +31,16 @@ export function DashboardModule() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentResponse | null>(null);
 
+  // ─── Admin check for editing assignments ──────────────────────
+  const isAdmin = useUIStore((s) => s.isAdmin);
+  const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
+
   const handleAssignmentClick = (assignmentId: string) => {
+    // Only admin can edit assignments — security gate
+    if (!isAdmin) {
+      requestAdminUnlock();
+      return;
+    }
     // Find the full assignment from the filtered list
     const found = filteredAssignments?.find((a) => a.id === assignmentId);
     if (found) {
@@ -42,7 +52,7 @@ export function DashboardModule() {
   // ─── Calendar navigation ─────────────────────────────────────
   const {
     viewYear, viewMonth, viewDay, viewMode, setViewMode,
-    navigatePrev, navigateNext, goToday,
+    navigatePrev, navigateNext, goToday, isViewingToday,
   } = useCalendarNavigation();
 
   // ─── Group filter (needed before data fetching) ──────────────
@@ -129,9 +139,12 @@ export function DashboardModule() {
             prevMonth={navigatePrev}
             nextMonth={navigateNext}
             goToday={goToday}
+            isViewingToday={isViewingToday}
             groups={groups}
             availableTaskTypes={availableTaskTypes}
-            onAssignmentClick={handleAssignmentClick}
+            onAssignmentClick={isAdmin ? handleAssignmentClick : undefined}
+            isAdmin={isAdmin}
+            onAdminUnlockRequest={requestAdminUnlock}
           />
         </div>
 

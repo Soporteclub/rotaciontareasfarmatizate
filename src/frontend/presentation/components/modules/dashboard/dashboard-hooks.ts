@@ -65,9 +65,28 @@ export function useCalendarNavigation() {
     // Keep current view mode — don't force switch to "day"
   };
 
+  // Determine if the current view is already showing today
+  const isViewingToday = useMemo(() => {
+    const t = new Date();
+    if (viewMode === "month") {
+      return viewYear === t.getFullYear() && viewMonth === t.getMonth();
+    }
+    if (viewMode === "week") {
+      // Check if today falls within the current week view
+      const weekDays = getWeekDays(viewYear, viewMonth, viewDay);
+      const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+      return weekDays.some((d) => {
+        const ds = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, "0")}-${String(d.date.getDate()).padStart(2, "0")}`;
+        return ds === todayStr;
+      });
+    }
+    // day view
+    return viewYear === t.getFullYear() && viewMonth === t.getMonth() && viewDay === t.getDate();
+  }, [viewYear, viewMonth, viewDay, viewMode]);
+
   return {
     viewYear, viewMonth, viewDay, viewMode, setViewMode,
-    navigatePrev, navigateNext, goToday,
+    navigatePrev, navigateNext, goToday, isViewingToday,
   };
 }
 

@@ -25,9 +25,12 @@ interface CalendarGridProps {
   prevMonth: () => void;
   nextMonth: () => void;
   goToday: () => void;
+  isViewingToday: boolean;
   groups: GroupResponse[] | undefined;
   availableTaskTypes: string[];
   onAssignmentClick?: (assignmentId: string) => void;
+  isAdmin?: boolean;
+  onAdminUnlockRequest?: () => void;
 }
 
 /** Día individual del calendario (vista mes) — TEXTO GRANDE Y LEGIBLE */
@@ -223,8 +226,8 @@ function ViewModeToggle({ viewMode, setViewMode }: {
 /** Grilla completa del calendario con navegación y vistas */
 export function CalendarGrid({
   calendarDays, isLoading, viewYear, viewMonth, viewDay,
-  viewMode, setViewMode, prevMonth, nextMonth, goToday,
-  groups, availableTaskTypes, onAssignmentClick,
+  viewMode, setViewMode, prevMonth, nextMonth, goToday, isViewingToday,
+  groups, availableTaskTypes, onAssignmentClick, isAdmin, onAdminUnlockRequest,
 }: CalendarGridProps) {
   // Título según la vista
   const headerTitle = (() => {
@@ -263,11 +266,26 @@ export function CalendarGrid({
             </Button>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
+            {!isAdmin && (
+              <button
+                onClick={() => onAdminUnlockRequest?.()}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer mr-1"
+                title="Clic para desbloquear edición (solo admin)"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Solo lectura</span>
+              </button>
+            )}
             <Button
               variant="outline"
               size="sm"
               onClick={handleGoToday}
-              className="text-sm font-semibold px-4 h-9"
+              disabled={isViewingToday}
+              className={`text-sm font-semibold px-4 h-9 transition-all ${
+                isViewingToday
+                  ? "opacity-40 cursor-not-allowed text-muted-foreground"
+                  : "hover:bg-primary hover:text-primary-foreground"
+              }`}
             >
               Hoy
             </Button>
