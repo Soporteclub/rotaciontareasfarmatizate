@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  serverExternalPackages: ["@prisma/client", "better-sqlite3"],
+  serverExternalPackages: ["@prisma/client"],
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns"],
   },
