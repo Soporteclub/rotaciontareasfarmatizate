@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import {
   BarChart3, Lock, Unlock, Sparkles, Building2, Scale, Calendar, Users, TrendingUp,
+  ThumbsUp, ThumbsDown, Equal,
 } from "lucide-react";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import type {
@@ -71,7 +72,42 @@ function FairnessCard() {
   );
 }
 
-/** Tarjeta: Balance de asignaciones — MEJORADA con rango de fechas y stats */
+/** Get human-readable status label for fairness score */
+function getBalanceStatus(fairnessScore: number): {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  bgColor: string;
+  description: string;
+} {
+  if (fairnessScore > 0.5) {
+    return {
+      label: "Le debe turnos",
+      icon: <ThumbsUp className="h-3 w-3" />,
+      color: "text-amber-700 dark:text-amber-400",
+      bgColor: "bg-amber-50 dark:bg-amber-950/30",
+      description: "Le faltan turnos comparado con el promedio",
+    };
+  }
+  if (fairnessScore < -0.5) {
+    return {
+      label: "Le deben descanso",
+      icon: <ThumbsDown className="h-3 w-3" />,
+      color: "text-emerald-700 dark:text-emerald-400",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+      description: "Ha hecho más turnos que el promedio",
+    };
+  }
+  return {
+    label: "Equilibrado",
+    icon: <Equal className="h-3 w-3" />,
+    color: "text-blue-700 dark:text-blue-400",
+    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+    description: "Tiene la cantidad justa de turnos",
+  };
+}
+
+/** Tarjeta: Balance de asignaciones — SIMPLIFICADO */
 function BalanceCard({
   balanceData, allEmployees, groups, effectiveGroupId,
 }: {
@@ -112,49 +148,43 @@ function BalanceCard({
         )}
       </CardHeader>
       <CardContent className="p-4 pt-0">
-        {/* Stats row */}
+        {/* Stats row — simplified labels */}
         {hasData && balanceData && (
           <div className="grid grid-cols-3 gap-2 mb-3 pb-3 border-b">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                 <Users className="h-3 w-3" />
-                <span className="text-[10px]">Empleados</span>
+                <span className="text-[10px]">Personas</span>
               </div>
               <span className="text-sm font-bold">{balanceData.employeeCount}</span>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                 <BarChart3 className="h-3 w-3" />
-                <span className="text-[10px]">Total</span>
+                <span className="text-[10px]">Turnos total</span>
               </div>
               <span className="text-sm font-bold">{balanceData.totalAssignments}</span>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                 <TrendingUp className="h-3 w-3" />
-                <span className="text-[10px]">Promedio</span>
+                <span className="text-[10px]">Turnos/persona</span>
               </div>
               <span className="text-sm font-bold">{balanceData.averagePerEmployee}</span>
             </div>
           </div>
         )}
 
-        {/* Employee bars */}
+        {/* Employee bars — simplified with status labels */}
         {hasData ? (
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="space-y-2.5 max-h-80 overflow-y-auto">
             {[...balanceReport!]
               .sort((a, b) => b.totalAssignments - a.totalAssignments)
               .map((item) => {
                 const emp = allEmployees?.find((e) => e.id === item.employeeId);
                 const groupColor = groups?.find((g) => g.id === emp?.groupId)?.color ?? "#6b7280";
                 const pct = Math.min(100, (item.totalAssignments / maxAssignments) * 100);
-                const scoreColor = item.fairnessScore
-                  ? item.fairnessScore > 0.5
-                    ? "text-amber-600 dark:text-amber-400"
-                    : item.fairnessScore < -0.5
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : ""
-                  : "";
+                const status = getBalanceStatus(item.fairnessScore ?? 0);
                 return (
                   <div key={item.employeeId} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
@@ -162,14 +192,13 @@ function BalanceCard({
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
                         <span className="font-medium truncate">{item.employeeName}</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {item.fairnessScore !== undefined && item.fairnessScore !== 0 && (
-                          <span className={`text-xs tabular-nums ${scoreColor}`} title={item.fairnessScore > 0 ? "Sub-asignado" : "Sobre-asignado"}>
-                            {item.fairnessScore > 0 ? "+" : ""}{item.fairnessScore.toFixed(1)}
-                          </span>
-                        )}
-                        <span className="text-muted-foreground tabular-nums font-bold">
-                          {item.totalAssignments}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${status.color} ${status.bgColor}`} title={status.description}>
+                          {status.icon}
+                          {status.label}
+                        </span>
+                        <span className="text-muted-foreground tabular-nums font-bold text-xs">
+                          {item.totalAssignments} turnos
                         </span>
                       </div>
                     </div>

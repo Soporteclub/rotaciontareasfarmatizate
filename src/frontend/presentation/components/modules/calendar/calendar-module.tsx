@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, BarChart3, Lock, Unlock, Calendar, TrendingUp, Users, Filter, Loader2 } from "lucide-react";
+import { Trash2, BarChart3, Lock, Unlock, Calendar, TrendingUp, Users, Filter, Loader2, ThumbsUp, ThumbsDown, Equal } from "lucide-react";
 import { toast } from "sonner";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import FullCalendar from "@fullcalendar/react";
@@ -464,21 +464,21 @@ export function CalendarModule() {
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                       <Users className="h-3 w-3" />
-                      <span className="text-[10px]">Empleados</span>
+                      <span className="text-[10px]">Personas</span>
                     </div>
                     <span className="text-sm font-bold">{balanceReport.employeeCount}</span>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                       <BarChart3 className="h-3 w-3" />
-                      <span className="text-[10px]">Total</span>
+                      <span className="text-[10px]">Turnos total</span>
                     </div>
                     <span className="text-sm font-bold">{balanceReport.totalAssignments}</span>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
                       <TrendingUp className="h-3 w-3" />
-                      <span className="text-[10px]">Promedio</span>
+                      <span className="text-[10px]">Turnos/persona</span>
                     </div>
                     <span className="text-sm font-bold">{balanceReport.averagePerEmployee}</span>
                   </div>
@@ -487,19 +487,29 @@ export function CalendarModule() {
 
               {/* Employee bars */}
               {balanceReport?.report && balanceReport.report.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
+                <div className="space-y-2.5 max-h-80 overflow-y-auto">
                   {[...balanceReport.report]
                     .sort((a, b) => b.totalAssignments - a.totalAssignments)
                     .map((item) => {
                       const emp = item;
                       const groupColor = groups?.find((g) => g.id === emp.employeeId)?.color ?? "#6b7280";
+                      const score = item.fairnessScore ?? 0;
+                      const statusLabel = score > 0.5 ? "Le debe turnos" : score < -0.5 ? "Le deben descanso" : "Equilibrado";
+                      const statusColor = score > 0.5 ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30" : score < -0.5 ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30" : "text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30";
+                      const StatusIcon = score > 0.5 ? ThumbsUp : score < -0.5 ? ThumbsDown : Equal;
                       return (
                         <div key={item.employeeId} className="space-y-1">
                           <div className="flex items-center justify-between text-sm">
                             <span className="font-medium truncate">{item.employeeName}</span>
-                            <span className="text-muted-foreground ml-2 shrink-0 tabular-nums font-bold">
-                              {item.totalAssignments}
-                            </span>
+                            <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${statusColor}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {statusLabel}
+                              </span>
+                              <span className="text-muted-foreground tabular-nums font-bold text-xs">
+                                {item.totalAssignments} turnos
+                              </span>
+                            </div>
                           </div>
                           <div className="w-full bg-muted rounded-full h-2">
                             <div
