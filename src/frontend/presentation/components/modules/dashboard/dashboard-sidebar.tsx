@@ -41,31 +41,61 @@ function FairnessCard() {
           Motor de Equidad
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4 pt-0 space-y-2 text-xs text-muted-foreground">
-        <p>
-          Cada <strong>piso/grupo</strong> rota de forma <strong>independiente</strong>
-          con su propio personal. Piso 1 y Piso 2 cada uno asigna a su persona
-          para cada tarea en cada día correspondiente.
-        </p>
-        <p>
-          El algoritmo elige al empleado con <strong>mayor puntaje de equidad</strong>:
-          quien menos tareas ha tenido, con más días de descanso, y sin asignaciones
-          consecutivas recientes.
-        </p>
-        <div className="pt-1 border-t space-y-1">
-          <p className="font-medium text-foreground">Factores del puntaje:</p>
-          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[10px]">
-            <span className="font-medium" style={{ color: "#00cd98" }}>+ Balance</span>
-            <span>Menos tareas = más puntaje</span>
-            <span className="font-medium" style={{ color: "#00cd98" }}>+ Mensual</span>
-            <span>Equilibrio por mes</span>
-            <span className="font-medium" style={{ color: "#f15a24" }}>− Enfriamiento</span>
-            <span>Penaliza si fue reciente</span>
-            <span className="font-medium" style={{ color: "#f15a24" }}>− Consecutivas</span>
-            <span>Penaliza rachas</span>
-            <span className="font-medium" style={{ color: "#f15a24" }}>− Mismo día</span>
-            <span>Evita doble tarea</span>
+      <CardContent className="p-4 pt-0 space-y-3 text-xs text-muted-foreground">
+        {/* Cómo funciona */}
+        <div>
+          <p className="font-medium text-foreground mb-1">¿Cómo decide quién hace cada tarea?</p>
+          <p>
+            Cada vez que hay una tarea por asignar, el sistema calcula un <strong>puntaje</strong> para cada
+            persona. <strong>El que tenga más puntaje, hace la tarea.</strong> Se basa en estos factores:
+          </p>
+        </div>
+
+        {/* Factores positivos */}
+        <div className="space-y-1.5">
+          <p className="font-medium text-foreground flex items-center gap-1">
+            <span style={{ color: "#00cd98" }}>✓</span> Factores que AUMENTAN el puntaje
+          </p>
+          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] ml-2">
+            <span className="font-medium" style={{ color: "#00cd98" }}>+5 pts</span>
+            <span><strong>Menos turnos en total</strong> — Si tienes menos turnos que el promedio, se te prioriza</span>
+            <span className="font-medium" style={{ color: "#00cd98" }}>+3 pts</span>
+            <span><strong>Menos turnos este mes</strong> — Se equilibra mes a mes, no solo en el año</span>
+            <span className="font-medium" style={{ color: "#00cd98" }}>+0.5 pts</span>
+            <span><strong>Persona nueva</strong> — Si nunca has tenido turnos, tienes prioridad</span>
           </div>
+        </div>
+
+        {/* Factores negativos */}
+        <div className="space-y-1.5">
+          <p className="font-medium text-foreground flex items-center gap-1">
+            <span style={{ color: "#f15a24" }}>✗</span> Factores que REDUCEN el puntaje
+          </p>
+          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] ml-2">
+            <span className="font-medium" style={{ color: "#f15a24" }}>−2 pts</span>
+            <span><strong>Hizo turno hace poco</strong> — Si te asignaron en los últimos 7 días, se penaliza</span>
+            <span className="font-medium" style={{ color: "#f15a24" }}>−3 pts</span>
+            <span><strong>Turnos seguidos</strong> — Mientras más días consecutivos, más penalización</span>
+            <span className="font-medium" style={{ color: "#f15a24" }}>−5 pts</span>
+            <span><strong>Ya tiene turno hoy</strong> — Nadie debería hacer 2 tareas el mismo día</span>
+          </div>
+        </div>
+
+        {/* Ejemplo práctico */}
+        <div className="pt-2 border-t">
+          <p className="font-medium text-foreground mb-1">💡 Ejemplo:</p>
+          <p className="text-[11px]">
+            Si Camila tiene 2 turnos y Sebastian tiene 5, Camila obtiene +15 pts (3 turnos menos × 5)
+            y Sebastian obtiene 0 pts. <strong>Camila es elegida primero</strong> porque necesita ponerse al día.
+          </p>
+        </div>
+
+        {/* Regla de separación */}
+        <div className="pt-1 border-t">
+          <p className="text-[11px]">
+            Cada <strong>piso/grupo</strong> rota de forma <strong>independiente</strong> con su propio personal.
+            Nadie de Piso 1 hace tareas de Piso 2, y viceversa.
+          </p>
         </div>
       </CardContent>
     </Card>
