@@ -33,7 +33,7 @@ export const employeeTaskEligibilityService = {
 
     // Get existing eligibility records for this employee
     const existingRecords = await employeeTaskEligibilityRepository.findByEmployee(employeeId);
-    const existingMap = new Map(existingRecords.map((r) => [r.taskLabel, r.isActive]));
+    const existingMap = new Map(existingRecords.map((r) => [r.taskName, r.isEnabled]));
 
     // Combine: if no record exists, employee is eligible (default true)
     const settings: TaskEligibilitySetting[] = allTaskLabels.map((taskLabel) => ({
