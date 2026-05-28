@@ -7,3 +7,4 @@ export { auditLogRepository } from "./audit-log-repository";
 export { holidayRepository } from "./holiday-repository";
 export { settingsRepository } from "./settings-repository";
 export { taskEligibilityRepository } from "./task-eligibility-repository";
+export { employeeTaskEligibilityRepository } from "./employee-task-eligibility-repository";
