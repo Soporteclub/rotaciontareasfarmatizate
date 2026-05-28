@@ -64,3 +64,6 @@ download/
 worklog.md
 test
 prompt
+.zscripts/
+mini-services/
+examples/
