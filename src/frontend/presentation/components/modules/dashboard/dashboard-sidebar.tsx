@@ -42,12 +42,21 @@ function FairnessCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0 space-y-3 text-xs text-muted-foreground">
+        {/* Principio clave */}
+        <div className="bg-background/60 rounded-md p-2 border">
+          <p className="font-semibold text-foreground text-[11px] mb-1">⚖️ Cada tarea se balancea INDEPENDIENTEMENTE</p>
+          <p className="text-[11px]">
+            La basura se reparte entre quienes pueden sacar basura. La cafetería entre quienes pueden atender la cafetería.
+            <strong> Si alguien no hace cafetería, NO le toca más basura por compensación.</strong>
+          </p>
+        </div>
+
         {/* Cómo funciona */}
         <div>
           <p className="font-medium text-foreground mb-1">¿Cómo decide quién hace cada tarea?</p>
           <p>
             Cada vez que hay una tarea por asignar, el sistema calcula un <strong>puntaje</strong> para cada
-            persona. <strong>El que tenga más puntaje, hace la tarea.</strong> Se basa en estos factores:
+            persona <strong>que es elegible</strong> para esa tarea. <strong>El que tenga más puntaje, hace la tarea.</strong>
           </p>
         </div>
 
@@ -58,11 +67,11 @@ function FairnessCard() {
           </p>
           <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] ml-2">
             <span className="font-medium" style={{ color: "#00cd98" }}>+5 pts</span>
-            <span><strong>Menos turnos en total</strong> — Si tienes menos turnos que el promedio, se te prioriza</span>
+            <span><strong>Menos turnos en ESTA tarea</strong> — Si tienes menos turnos de esta tarea que el promedio, se te prioriza</span>
             <span className="font-medium" style={{ color: "#00cd98" }}>+3 pts</span>
-            <span><strong>Menos turnos este mes</strong> — Se equilibra mes a mes, no solo en el año</span>
+            <span><strong>Menos turnos de esta tarea este mes</strong> — Se equilibra mes a mes por tarea</span>
             <span className="font-medium" style={{ color: "#00cd98" }}>+0.5 pts</span>
-            <span><strong>Persona nueva</strong> — Si nunca has tenido turnos, tienes prioridad</span>
+            <span><strong>Nunca ha hecho esta tarea</strong> — Si no tienes turnos de esta tarea, tienes prioridad</span>
           </div>
         </div>
 
@@ -75,7 +84,7 @@ function FairnessCard() {
             <span className="font-medium" style={{ color: "#f15a24" }}>−2 pts</span>
             <span><strong>Hizo turno hace poco</strong> — Si te asignaron en los últimos 7 días, se penaliza</span>
             <span className="font-medium" style={{ color: "#f15a24" }}>−3 pts</span>
-            <span><strong>Turnos seguidos</strong> — Mientras más días consecutivos, más penalización</span>
+            <span><strong>Turnos seguidos</strong> — Mientras más semanas consecutivas, más penalización</span>
             <span className="font-medium" style={{ color: "#f15a24" }}>−5 pts</span>
             <span><strong>Ya tiene turno hoy</strong> — Nadie debería hacer 2 tareas el mismo día</span>
           </div>
@@ -85,15 +94,19 @@ function FairnessCard() {
         <div className="pt-2 border-t">
           <p className="font-medium text-foreground mb-1">💡 Ejemplo:</p>
           <p className="text-[11px]">
-            Si Camila tiene 2 turnos y Sebastian tiene 5, Camila obtiene +15 pts (3 turnos menos × 5)
-            y Sebastian obtiene 0 pts. <strong>Camila es elegida primero</strong> porque necesita ponerse al día.
+            Para asignar "Basura": Camila tiene 2 turnos de basura, Sebastian tiene 5 turnos de basura.
+            Camila obtiene +15 pts (3 turnos menos × 5) y Sebastian obtiene 0 pts.
+            <strong> Camila es elegida primero</strong> porque necesita ponerse al día en <em>esa tarea específica</em>.
+          </p>
+          <p className="text-[11px] mt-1">
+            Si Camila no es elegible para "Cafetería", eso NO afecta su balance de "Basura" — cada tarea es independiente.
           </p>
         </div>
 
         {/* Regla de separación */}
         <div className="pt-1 border-t">
           <p className="text-[11px]">
-            Cada <strong>piso/grupo</strong> rota de forma <strong>independiente</strong> con su propio personal.
+            Cada <strong>piso/grupo</strong> también rota de forma <strong>independiente</strong> con su propio personal.
             Nadie de Piso 1 hace tareas de Piso 2, y viceversa.
           </p>
         </div>

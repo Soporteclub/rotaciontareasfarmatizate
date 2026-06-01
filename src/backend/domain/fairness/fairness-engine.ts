@@ -2,6 +2,11 @@
 // Input: employees, rules, historical assignments
 // Output: fair assignments
 // Supports MULTIPLE tasks per day per group and frequencyType (daily/weekly/monthly)
+//
+// KEY PRINCIPLE: Each task type is balanced INDEPENDENTLY.
+// Employees ineligible for a task (e.g., "cafetera") are NOT penalized in other tasks (e.g., "basura").
+// The engine tracks per-task-type counts so that "basura" is distributed fairly among
+// those eligible for it, regardless of how many "cafetera" turns someone has.
 
 import type { DayOfWeek, FrequencyType } from "../entities/types";
 
@@ -74,6 +79,8 @@ export interface EmployeeBalanceReport {
   fairnessScore: number;
   lastAssignmentDate: Date | null;
   consecutiveCount: number;
+  /** Per-task-type breakdown: how many times this employee has done each task */
+  taskBreakdown: Record<string, number>;
 }
 
 // ─── Configuration ────────────────────────────────────────────
@@ -86,7 +93,7 @@ export interface FairnessConfig {
   monthlyBalanceWeight: number;
   joinDateWeight: number;
   sameDayPenalty: number;
-  maxImbalance: number; // maximum allowed difference between employees
+  maxImbalance: number; // maximum allowed difference between employees FOR A SINGLE TASK
 }
 
 const DEFAULT_CONFIG: FairnessConfig = {
@@ -100,10 +107,29 @@ const DEFAULT_CONFIG: FairnessConfig = {
   maxImbalance: 1,
 };
 
+// ─── Internal Balance Entry ──────────────────────────────────
+
+interface BalanceEntry {
+  /** Total assignments across ALL tasks (used for same-day penalty, cooldown) */
+  total: number;
+  /** Per-task-type total: taskLabel → count */
+  taskTotals: Record<string, number>;
+  /** Per-month overall: "YYYY-MM" → count (used for cooldown, consecutive) */
+  monthly: Record<string, number>;
+  /** Per-task per-month: taskLabel → "YYYY-MM" → count */
+  taskMonthly: Record<string, Record<string, number>>;
+  /** Last date this employee was assigned any task */
+  lastDate: Date | null;
+  /** Consecutive weekly assignments */
+  consecutive: number;
+}
+
 // ─── Fairness Engine ──────────────────────────────────────────
 
 export class FairnessEngine {
   private config: FairnessConfig;
+  /** Map of employeeId → set of disabled task labels (built from input) */
+  private disabledTasksMap: Map<string, Set<string>> = new Map();
 
   constructor(config?: Partial<FairnessConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -115,6 +141,12 @@ export class FairnessEngine {
     const activeEmployees = employees.filter(
       (e) => e.isActive && e.groupId === groupId && (!e.leaveDate || e.leaveDate >= startDate)
     );
+
+    // Build disabled-tasks map from employee data
+    this.disabledTasksMap = new Map();
+    for (const emp of activeEmployees) {
+      this.disabledTasksMap.set(emp.id, new Set(emp.disabledTasks ?? []));
+    }
 
     if (activeEmployees.length === 0) {
       return this.emptyReport(groupId, startDate, endDate);
@@ -157,7 +189,7 @@ export class FairnessEngine {
 
       if (!best) continue;
 
-      this.updateBalanceEntry(balanceMap, best.employee.id, date, historicalAssignments, assignments);
+      this.updateBalanceEntry(balanceMap, best.employee.id, date, rule.taskLabel, historicalAssignments, assignments);
 
       assignments.push({
         employeeId: best.employee.id,
@@ -178,7 +210,7 @@ export class FairnessEngine {
     };
   }
 
-  // ─── Employee Selection with Equity Constraint ────────────────
+  // ─── Employee Selection with Per-Task Equity Constraint ────────
 
   private selectBestEmployee(
     employees: FairnessEmployee[],
@@ -189,6 +221,7 @@ export class FairnessEngine {
     historical: FairnessHistoricalAssignment[],
     alreadyAssignedToday: Set<string>
   ): { employee: FairnessEmployee; score: number } | null {
+    // Filter to employees eligible for THIS task
     const available = employees
       .filter((e) => this.isEmployeeAvailableOnDate(e, date))
       .filter((e) => !this.isTaskDisabled(e, taskType))
@@ -202,14 +235,16 @@ export class FairnessEngine {
 
     if (available.length === 0) return null;
 
-    // Equity constraint: never assign to someone who has maxImbalance+ more
-    // assignments than the least-assigned available employee
-    const totals = available.map((a) => this.getRunningTotal(a.employee.id, balanceMap, planned));
-    const minTotal = Math.min(...totals);
-    const maxAllowed = minTotal + this.config.maxImbalance;
+    // Per-task equity constraint: never assign someone who has maxImbalance+ more
+    // assignments FOR THIS SPECIFIC TASK than the least-assigned eligible employee
+    const taskTotals = available.map((a) =>
+      this.getRunningTaskTotal(a.employee.id, taskType, balanceMap, planned)
+    );
+    const minTaskTotal = Math.min(...taskTotals);
+    const maxAllowed = minTaskTotal + this.config.maxImbalance;
 
     const equitable = available.filter(
-      (a) => this.getRunningTotal(a.employee.id, balanceMap, planned) <= maxAllowed
+      (a) => this.getRunningTaskTotal(a.employee.id, taskType, balanceMap, planned) <= maxAllowed
     );
 
     // If all candidates exceed the limit, fall back to the full list
@@ -218,15 +253,39 @@ export class FairnessEngine {
     return candidates[0];
   }
 
+  /**
+   * Get the running total for a SPECIFIC TASK (history + planned).
+   * This is the key difference from the old engine: balance is per-task, not global.
+   */
+  private getRunningTaskTotal(
+    employeeId: string,
+    taskType: string,
+    balanceMap: Map<string, BalanceEntry>,
+    planned: FairnessAssignment[]
+  ): number {
+    const entry = balanceMap.get(employeeId);
+    const historicalTaskCount = entry?.taskTotals[taskType] ?? 0;
+    const plannedTaskCount = planned.filter(
+      (a) => a.employeeId === employeeId && a.taskType === taskType
+    ).length;
+    return historicalTaskCount + plannedTaskCount;
+  }
+
+  /**
+   * Get overall running total (all tasks combined) — used only for same-day penalty.
+   */
   private getRunningTotal(
     employeeId: string,
     balanceMap: Map<string, BalanceEntry>,
     planned: FairnessAssignment[]
   ): number {
-    return (balanceMap.get(employeeId)?.total ?? 0) + this.countPlannedAssignments(employeeId, planned);
+    const entry = balanceMap.get(employeeId);
+    const historicalTotal = entry?.total ?? 0;
+    const plannedTotal = planned.filter((a) => a.employeeId === employeeId).length;
+    return historicalTotal + plannedTotal;
   }
 
-  // ─── Scoring Algorithm ────────────────────────────────────────
+  // ─── Scoring Algorithm (Per-Task Independent) ──────────────────
 
   private calculateScore(
     employee: FairnessEmployee,
@@ -238,41 +297,77 @@ export class FairnessEngine {
     alreadyAssignedToday: Set<string>
   ): number {
     const balance = balanceMap.get(employee.id) ?? {
-      total: 0, monthly: {}, lastDate: null, consecutive: 0,
+      total: 0, taskTotals: {}, monthly: {}, taskMonthly: {},
+      lastDate: null, consecutive: 0,
     };
-    const totalAssignments = balance.total + this.countPlannedAssignments(employee.id, plannedAssignments);
+
+    // Per-task total (this is what we balance independently)
+    const taskTotal = balance.taskTotals[taskType] ?? 0;
+    const plannedTaskTotal = plannedAssignments.filter(
+      (a) => a.employeeId === employee.id && a.taskType === taskType
+    ).length;
+    const totalForThisTask = taskTotal + plannedTaskTotal;
 
     let score = 0;
-    score += this.balanceDeficitScore(totalAssignments, balanceMap, plannedAssignments);
-    score += this.monthlyDeficitScore(employee.id, date, balanceMap, balance, plannedAssignments);
+
+    // 1. PER-TASK balance deficit: who has done LESS of this specific task?
+    score += this.taskBalanceDeficitScore(totalForThisTask, taskType, balanceMap, plannedAssignments, employee.disabledTasks ?? []);
+
+    // 2. PER-TASK monthly deficit: who has done less of this task this month?
+    score += this.taskMonthlyDeficitScore(employee.id, date, taskType, balanceMap, balance, plannedAssignments, employee.disabledTasks ?? []);
+
+    // 3. Cooldown (still based on ANY task — you just worked, rest a bit)
     score += this.cooldownScore(employee.id, date, balance, historicalAssignments, plannedAssignments);
+
+    // 4. Consecutive weeks penalty (still based on any task)
     score += this.consecutiveScore(employee.id, date, historicalAssignments, plannedAssignments);
-    score += this.newEmployeeBonus(totalAssignments);
+
+    // 5. New employee bonus (only if they have zero assignments for THIS task)
+    score += this.newEmployeeTaskBonus(totalForThisTask);
+
+    // 6. Same-day penalty (already assigned today to ANY task)
     score += this.sameDayPenalty(employee.id, alreadyAssignedToday);
+
     return score;
   }
 
-  private balanceDeficitScore(
-    totalAssignments: number,
+  /**
+   * PER-TASK balance deficit score.
+   * Compares this employee's count for a specific task against the average
+   * among only those who are ELIGIBLE for this task.
+   */
+  private taskBalanceDeficitScore(
+    employeeTaskTotal: number,
+    taskType: string,
     balanceMap: Map<string, BalanceEntry>,
     planned: FairnessAssignment[],
+    disabledTasks: string[],
   ): number {
-    const avgAssignments = this.getAverageAssignments(balanceMap, planned);
-    const deficit = Math.max(0, avgAssignments - totalAssignments);
+    const avg = this.getAverageTaskAssignments(taskType, balanceMap, planned, disabledTasks);
+    const deficit = Math.max(0, avg - employeeTaskTotal);
     return deficit * this.config.balanceWeight;
   }
 
-  private monthlyDeficitScore(
+  /**
+   * PER-TASK monthly deficit score.
+   * Compares this employee's monthly count for a specific task against the monthly average
+   * among only those who are ELIGIBLE for this task.
+   */
+  private taskMonthlyDeficitScore(
     employeeId: string,
     date: Date,
+    taskType: string,
     balanceMap: Map<string, BalanceEntry>,
     balance: BalanceEntry,
     planned: FairnessAssignment[],
+    disabledTasks: string[],
   ): number {
     const monthKey = this.dateToMonthKey(date);
-    const monthlyCount = (balance.monthly[monthKey] ?? 0) + this.countPlannedMonthly(employeeId, monthKey, planned);
-    const avgMonthly = this.getAverageMonthly(balanceMap, monthKey, planned);
-    const monthlyDeficit = Math.max(0, avgMonthly - monthlyCount);
+    const taskMonthlyCount = (balance.taskMonthly[taskType]?.[monthKey] ?? 0) +
+      planned.filter((a) => a.employeeId === employeeId && a.taskType === taskType && this.dateToMonthKey(a.date) === monthKey).length;
+
+    const avgMonthly = this.getAverageTaskMonthly(taskType, monthKey, balanceMap, planned, disabledTasks);
+    const monthlyDeficit = Math.max(0, avgMonthly - taskMonthlyCount);
     return monthlyDeficit * this.config.monthlyBalanceWeight;
   }
 
@@ -304,29 +399,117 @@ export class FairnessEngine {
     return -(consecutive * this.config.consecutivePenalty);
   }
 
-  private newEmployeeBonus(totalAssignments: number): number {
-    return totalAssignments === 0 ? this.config.joinDateWeight : 0;
+  /**
+   * New employee bonus for a specific task.
+   * Only gives bonus if the employee has NEVER been assigned this task before.
+   */
+  private newEmployeeTaskBonus(taskTotal: number): number {
+    return taskTotal === 0 ? this.config.joinDateWeight : 0;
   }
 
   private sameDayPenalty(employeeId: string, alreadyAssignedToday: Set<string>): number {
     return alreadyAssignedToday.has(employeeId) ? -this.config.sameDayPenalty : 0;
   }
 
-  // ─── Balance Update ────────────────────────────────────────────
+  // ─── Per-Task Average Calculations ─────────────────────────────
+
+  /**
+   * Calculate the average number of assignments for a SPECIFIC TASK
+   * among only those employees who are ELIGIBLE for it.
+   * This is the core of the independent-task balancing.
+   */
+  private getAverageTaskAssignments(
+    taskType: string,
+    balanceMap: Map<string, BalanceEntry>,
+    planned: FairnessAssignment[],
+    _disabledTasks: string[],
+  ): number {
+    let total = 0;
+    let eligibleCount = 0;
+
+    for (const [empId, entry] of balanceMap) {
+      // Skip employees who are NOT eligible for this task
+      const empDisabled = this.disabledTasksMap.get(empId);
+      if (empDisabled?.has(taskType)) continue;
+
+      const taskCount = entry.taskTotals[taskType] ?? 0;
+      total += taskCount;
+      eligibleCount++;
+    }
+
+    // Add planned assignments for this task (only from eligible employees)
+    for (const a of planned) {
+      if (a.taskType !== taskType) continue;
+      const empDisabled = this.disabledTasksMap.get(a.employeeId);
+      if (empDisabled?.has(taskType)) continue;
+      total += 1;
+    }
+
+    return eligibleCount > 0 ? total / eligibleCount : 0;
+  }
+
+  /**
+   * Calculate the average monthly count for a SPECIFIC TASK
+   * among eligible employees.
+   */
+  private getAverageTaskMonthly(
+    taskType: string,
+    monthKey: string,
+    balanceMap: Map<string, BalanceEntry>,
+    planned: FairnessAssignment[],
+    _disabledTasks: string[],
+  ): number {
+    let total = 0;
+    let eligibleCount = 0;
+
+    for (const [empId, entry] of balanceMap) {
+      // Skip employees who are NOT eligible for this task
+      const empDisabled = this.disabledTasksMap.get(empId);
+      if (empDisabled?.has(taskType)) continue;
+
+      const taskMonthCount = entry.taskMonthly[taskType]?.[monthKey] ?? 0;
+      total += taskMonthCount;
+      eligibleCount++;
+    }
+
+    // Add planned for this task/month (only from eligible employees)
+    for (const a of planned) {
+      if (a.taskType !== taskType || this.dateToMonthKey(a.date) !== monthKey) continue;
+      const empDisabled = this.disabledTasksMap.get(a.employeeId);
+      if (empDisabled?.has(taskType)) continue;
+      total += 1;
+    }
+
+    return eligibleCount > 0 ? total / eligibleCount : 0;
+  }
+
+  // ─── Balance Update (Per-Task) ──────────────────────────────────
 
   private updateBalanceEntry(
     balanceMap: Map<string, BalanceEntry>,
     employeeId: string,
     date: Date,
+    taskType: string,
     historical: FairnessHistoricalAssignment[],
     planned: FairnessAssignment[],
   ): void {
     const monthKey = this.dateToMonthKey(date);
     const entry = balanceMap.get(employeeId) ?? {
-      total: 0, monthly: {}, lastDate: null, consecutive: 0,
+      total: 0, taskTotals: {}, monthly: {}, taskMonthly: {},
+      lastDate: null, consecutive: 0,
     };
+
+    // Update overall totals
     entry.total += 1;
     entry.monthly[monthKey] = (entry.monthly[monthKey] ?? 0) + 1;
+
+    // Update per-task totals
+    entry.taskTotals[taskType] = (entry.taskTotals[taskType] ?? 0) + 1;
+
+    // Update per-task monthly
+    if (!entry.taskMonthly[taskType]) entry.taskMonthly[taskType] = {};
+    entry.taskMonthly[taskType][monthKey] = (entry.taskMonthly[taskType][monthKey] ?? 0) + 1;
+
     entry.lastDate = date;
     entry.consecutive = this.calculateConsecutive(employeeId, date, historical, planned);
     balanceMap.set(employeeId, entry);
@@ -346,9 +529,6 @@ export class FairnessEngine {
 
   private isEmployeeAvailableOnDate(employee: FairnessEmployee, date: Date): boolean {
     if (!employee.isActive) return false;
-    // Normalize to date-only (strip time) for day-level comparison
-    // joinDate may have time component (e.g. T16:10:38Z) while assignment dates are midnight (T00:00:00Z)
-    // Without normalization, a new employee created at 11am is incorrectly "not yet joined" for that day
     const joinDateOnly = new Date(employee.joinDate);
     joinDateOnly.setUTCHours(0, 0, 0, 0);
     if (joinDateOnly > date) return false;
@@ -469,6 +649,9 @@ export class FairnessEngine {
     return employees;
   }
 
+  /**
+   * Build balance map from history, now tracking PER-TASK totals.
+   */
   private calculateBalanceFromHistory(
     employees: FairnessEmployee[],
     historicalAssignments: FairnessHistoricalAssignment[],
@@ -477,7 +660,10 @@ export class FairnessEngine {
     const map = new Map<string, BalanceEntry>();
 
     for (const e of employees) {
-      map.set(e.id, { total: 0, monthly: {}, lastDate: null, consecutive: 0 });
+      map.set(e.id, {
+        total: 0, taskTotals: {}, monthly: {}, taskMonthly: {},
+        lastDate: null, consecutive: 0,
+      });
     }
 
     const groupAssignments = historicalAssignments.filter(
@@ -487,9 +673,18 @@ export class FairnessEngine {
     for (const a of groupAssignments) {
       const entry = map.get(a.employeeId);
       if (entry) {
+        // Overall totals
         entry.total += 1;
         const monthKey = this.dateToMonthKey(a.date);
         entry.monthly[monthKey] = (entry.monthly[monthKey] ?? 0) + 1;
+
+        // Per-task totals
+        entry.taskTotals[a.taskType] = (entry.taskTotals[a.taskType] ?? 0) + 1;
+
+        // Per-task monthly
+        if (!entry.taskMonthly[a.taskType]) entry.taskMonthly[a.taskType] = {};
+        entry.taskMonthly[a.taskType][monthKey] = (entry.taskMonthly[a.taskType][monthKey] ?? 0) + 1;
+
         if (!entry.lastDate || a.date > entry.lastDate) {
           entry.lastDate = a.date;
         }
@@ -507,26 +702,6 @@ export class FairnessEngine {
     return planned.filter(
       (a) => a.employeeId === employeeId && this.dateToMonthKey(a.date) === monthKey
     ).length;
-  }
-
-  private getAverageAssignments(balanceMap: Map<string, BalanceEntry>, planned: FairnessAssignment[]): number {
-    if (balanceMap.size === 0) return 0;
-    let total = 0;
-    for (const [, entry] of balanceMap) {
-      total += entry.total;
-    }
-    total += planned.length;
-    return total / balanceMap.size;
-  }
-
-  private getAverageMonthly(balanceMap: Map<string, BalanceEntry>, monthKey: string, planned: FairnessAssignment[]): number {
-    if (balanceMap.size === 0) return 0;
-    let total = 0;
-    for (const [, entry] of balanceMap) {
-      total += entry.monthly[monthKey] ?? 0;
-    }
-    total += planned.filter((a) => this.dateToMonthKey(a.date) === monthKey).length;
-    return total / balanceMap.size;
   }
 
   private getLastAssignmentDate(
@@ -599,6 +774,15 @@ export class FairnessEngine {
 
     const monthlyBalance = this.buildMonthlyBalance(empHistorical, empPlanned);
 
+    // Build per-task breakdown
+    const taskBreakdown: Record<string, number> = {};
+    for (const a of empHistorical) {
+      taskBreakdown[a.taskType] = (taskBreakdown[a.taskType] ?? 0) + 1;
+    }
+    for (const a of empPlanned) {
+      taskBreakdown[a.taskType] = (taskBreakdown[a.taskType] ?? 0) + 1;
+    }
+
     const allDates = [
       ...empHistorical.map((a) => a.date),
       ...empPlanned.map((a) => a.date),
@@ -615,6 +799,7 @@ export class FairnessEngine {
       fairnessScore: avgTotal - total,
       lastAssignmentDate: lastDate,
       consecutiveCount: 0,
+      taskBreakdown,
     };
   }
 
@@ -655,11 +840,4 @@ export class FairnessEngine {
     const bNorm = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
     return Math.round(Math.abs(bNorm - aNorm) / msPerDay);
   }
-}
-
-interface BalanceEntry {
-  total: number;
-  monthly: Record<string, number>;
-  lastDate: Date | null;
-  consecutive: number;
 }
