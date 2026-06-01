@@ -301,6 +301,13 @@ export const assignmentService = {
   async getBalanceReport(groupId: string, startDate?: string, endDate?: string) {
     const employees = await employeeRepository.findActiveByGroup(groupId);
 
+    // Load disabled tasks for each employee
+    const disabledTasksMap = new Map<string, Set<string>>();
+    for (const emp of employees) {
+      const disabled = await taskEligibilityRepository.getDisabledTasks(emp.id);
+      disabledTasksMap.set(emp.id, new Set(disabled));
+    }
+
     // When date range is provided, fetch only assignments within that range
     const assignments = (startDate && endDate)
       ? await assignmentRepository.findByGroupAndDateRange(
@@ -312,6 +319,21 @@ export const assignmentService = {
 
     const totalAll = assignments.length;
     const avgAll = employees.length > 0 ? totalAll / employees.length : 0;
+
+    // Get all unique task types
+    const allTaskTypes = [...new Set(assignments.map((a) => a.taskName))].sort();
+
+    // Calculate per-task averages among ELIGIBLE employees only
+    const taskAverages: Record<string, number> = {};
+    for (const taskType of allTaskTypes) {
+      const eligibleForTask = employees.filter(
+        (e) => !(disabledTasksMap.get(e.id)?.has(taskType))
+      );
+      const taskAssignments = assignments.filter((a) => a.taskName === taskType);
+      taskAverages[taskType] = eligibleForTask.length > 0
+        ? taskAssignments.length / eligibleForTask.length
+        : 0;
+    }
 
     // Calculate date range from assignments
     let dateRange: { from: string | null; to: string | null } = { from: null, to: null };
@@ -332,24 +354,43 @@ export const assignmentService = {
       totalAssignments: number;
       monthlyBalance: Record<string, number>;
       fairnessScore: number;
+      taskBreakdown: Record<string, number>;
     }> = [];
 
     for (const emp of employees) {
       const empAssignments = assignments.filter((a) => a.employeeId === emp.id);
       const monthlyBalance: Record<string, number> = {};
 
+      // Per-task breakdown
+      const taskBreakdown: Record<string, number> = {};
       for (const a of empAssignments) {
+        taskBreakdown[a.taskName] = (taskBreakdown[a.taskName] ?? 0) + 1;
+
         const d = new Date(a.date);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         monthlyBalance[key] = (monthlyBalance[key] ?? 0) + 1;
       }
+
+      // Calculate per-task fairness score (sum of deficits across eligible tasks)
+      // Positive = employee has fewer turns than average for their eligible tasks (owes them)
+      // Negative = employee has more turns than average for their eligible tasks (is owed rest)
+      let fairnessScore = 0;
+      const empDisabled = disabledTasksMap.get(emp.id) ?? new Set();
+      for (const taskType of allTaskTypes) {
+        if (empDisabled.has(taskType)) continue; // Skip tasks this employee is ineligible for
+        const empTaskCount = taskBreakdown[taskType] ?? 0;
+        const avgForTask = taskAverages[taskType] ?? 0;
+        fairnessScore += avgForTask - empTaskCount;
+      }
+      fairnessScore = Math.round(fairnessScore * 100) / 100;
 
       report.push({
         employeeId: emp.id,
         employeeName: emp.name,
         totalAssignments: empAssignments.length,
         monthlyBalance,
-        fairnessScore: Math.round((avgAll - empAssignments.length) * 100) / 100,
+        fairnessScore,
+        taskBreakdown,
       });
     }
 
