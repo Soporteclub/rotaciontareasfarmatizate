@@ -171,12 +171,19 @@ export class FairnessEngine {
     const balanceMap = this.calculateBalanceFromHistory(activeEmployees, historicalAssignments, groupId);
 
     const assignments: FairnessAssignment[] = [];
+    // FIX (BUG-08): track taskKeys already added in THIS run. If two rules
+    // produce the same (date, taskLabel), only the first gets an assignment;
+    // the second is skipped. Previously both were pushed, and the second
+    // create() in transactionalRegenerate threw P2002 Unique constraint.
+    const plannedTaskKeys = new Set<string>();
 
     for (const { date, rule } of datesNeedingAssignment) {
       const dateKey = this.dateToKey(date);
       const taskKey = `${groupId}:${dateKey}:${rule.taskLabel}`;
 
       if (existingMap.has(taskKey)) continue;
+      if (plannedTaskKeys.has(taskKey)) continue;
+      plannedTaskKeys.add(taskKey);
 
       const alreadyAssignedToday = this.getEmployeesAssignedOnDate(
         date, groupId, historicalAssignments, assignments
@@ -559,10 +566,14 @@ export class FairnessEngine {
   ): Array<{ date: Date; rule: FairnessRule }> {
     const dates: Array<{ date: Date; rule: FairnessRule }> = [];
     const current = new Date(startDate);
-    current.setHours(0, 0, 0, 0);
+    // FIX (BUG-01, BUG-09): use UTC consistently. Previously setHours (LOCAL)
+    // was mixed with setUTCHours in isEmployeeAvailableOnDate, causing
+    // employees joined on day D to be excluded from day D assignments on
+    // non-UTC servers.
+    current.setUTCHours(0, 0, 0, 0);
 
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    end.setUTCHours(23, 59, 59, 999);
 
     // Track monthly rules: only first occurrence per month
     const monthlyTracker = new Map<string, string>();
@@ -821,23 +832,27 @@ export class FairnessEngine {
 
   // ─── Date Utilities ───────────────────────────────────────────
 
+  // FIX (BUG-01, BUG-10): use UTC accessors so date keys are stable regardless
+  // of server timezone. Previously getFullYear/getMonth/getDate (LOCAL) caused
+  // a date stored as 2026-01-01T00:00:00Z to be formatted as "2025-12-31" on
+  // a UTC-5 server, skipping holidays and mismatching existing assignments.
   private dateToKey(date: Date): string {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(date.getUTCDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
 
   private dateToMonthKey(date: Date): string {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, "0");
     return `${y}-${m}`;
   }
 
   private daysBetween(a: Date, b: Date): number {
     const msPerDay = 86400000;
-    const aNorm = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
-    const bNorm = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+    const aNorm = Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
+    const bNorm = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
     return Math.round(Math.abs(bNorm - aNorm) / msPerDay);
   }
 }

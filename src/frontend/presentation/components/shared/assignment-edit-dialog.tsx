@@ -50,7 +50,18 @@ function AssignmentEditDialogContent({
   const isLocked = assignment.isLocked;
   const activeEmployees = groupEmployees?.filter((e) => e.isActive) ?? [];
 
-  const dateObj = new Date(assignment.date);
+  // FIX (FE-05): parse the date as a LOCAL date (year, month, day) so that
+  // date-fns `format` shows the SAME day the calendar shows. The backend stores
+  // dates at UTC midnight (e.g. "2026-07-15T00:00:00.000Z"); on a UTC-5 client,
+  // `new Date(that)` -> 2026-07-14T19:00:00 LOCAL, and date-fns (which uses
+  // LOCAL time) would display "martes 14 de julio" while the calendar cell
+  // shows "miércoles 15". Extracting the YYYY-MM-DD substring and building a
+  // local Date keeps both in sync.
+  const dateStr = typeof assignment.date === "string"
+    ? assignment.date.substring(0, 10)
+    : assignment.date.toISOString().substring(0, 10);
+  const [yyyy, mm, dd] = dateStr.split("-").map(Number);
+  const dateObj = new Date(yyyy, (mm ?? 1) - 1, dd ?? 1);
   const dateDisplay = format(dateObj, "EEEE d 'de' MMMM, yyyy", { locale: es });
 
   // Only admin can edit unlocked assignments

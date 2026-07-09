@@ -36,10 +36,15 @@ export const assignmentService = {
    */
   async generate(input: GenerateAssignmentsInput) {
     const { groupId, startDate: startStr, endDate: endStr } = input;
-    const startDate = new Date(startStr);
-    const endDate = new Date(endStr);
+    // FIX (BUG-01): Use UTC explicitly. `new Date("2026-07-01")` parses as UTC
+    // midnight, but `today.setHours(0,0,0,0)` uses LOCAL time. On a server in
+    // America/Bogota (UTC-5) the two references diverged by 5 hours, causing
+    // assignments for "today" to be misclassified as future/past and silently
+    // deleted on regeneration. Now everything is UTC.
+    const startDate = new Date(`${startStr}T00:00:00.000Z`);
+    const endDate = new Date(`${endStr}T23:59:59.999Z`);
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     // 1. Get active employees in the group
     const employees = await employeeRepository.findActiveByGroup(groupId);
@@ -184,8 +189,9 @@ export const assignmentService = {
    * Lock all past assignments that are still unlocked
    */
   async lockPastAssignments(groupId: string) {
+    // FIX (BUG-01): UTC explicit
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const result = await assignmentRepository.lockPastAssignments(groupId, today);
 
@@ -213,8 +219,9 @@ export const assignmentService = {
     }
 
     // Disabling a task - remove all unlocked future assignments for this employee+task
+    // FIX (BUG-01): UTC explicit
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const result = await assignmentRepository.deleteUnlockedByEmployeeAndTask(
       employeeId,
@@ -322,12 +329,15 @@ export const assignmentService = {
       disabledTasksMap.set(emp.id, new Set(disabled));
     }
 
-    // When date range is provided, fetch only assignments within that range
+    // When date range is provided, fetch only assignments within that range.
+    // FIX (BUG-07): normalize endDate to end-of-day UTC. Previously
+    // `new Date("2026-07-31")` = 2026-07-31T00:00:00Z excluded any assignment
+    // on the 31st stored at 00:00 LOCAL (05:00Z). Now we use T23:59:59.999Z.
     const assignments = (startDate && endDate)
       ? await assignmentRepository.findByGroupAndDateRange(
           groupId,
-          new Date(startDate),
-          new Date(endDate)
+          new Date(`${startDate}T00:00:00.000Z`),
+          new Date(`${endDate}T23:59:59.999Z`)
         )
       : await assignmentRepository.findAllByGroup(groupId);
 

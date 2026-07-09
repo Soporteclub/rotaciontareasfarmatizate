@@ -284,14 +284,19 @@ export const assignmentRepository = {
         existingAssignments.map((a) => `${a.date.getTime()}:${a.taskName}`)
       );
 
-      // 4. Create only assignments that don't already exist
+      // FIX (BUG-02): Also dedupe WITHIN newAssignments. Previously, if two rules
+      // produced the same (date, taskName) pair, both passed the existingKeys
+      // check and the second `create` threw P2002 Unique constraint -> ROLLBACK
+      // -> 0 assignments and a 500. Now we track seen keys in this run too.
+      const seenKeys = new Set<string>();
       const created = [];
       for (const a of newAssignments) {
         const key = `${new Date(a.date).getTime()}:${a.taskName}`;
-        if (existingKeys.has(key)) {
-          // Skip - assignment already exists (locked historical)
+        if (existingKeys.has(key) || seenKeys.has(key)) {
+          // Skip - assignment already exists (locked historical OR already in this batch)
           continue;
         }
+        seenKeys.add(key);
         const assignment = await tx.assignment.create({ data: a });
         created.push(assignment);
       }

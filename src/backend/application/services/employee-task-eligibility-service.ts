@@ -1,7 +1,13 @@
 // Employee Task Eligibility Service - Business logic for per-employee task activation
 // Controls which tasks each employee is eligible for
+//
+// FIX (BUG-03): update() and toggle() now call assignmentService.syncEligibilityChange
+// for every task that is being DISABLED, so future assignments for that task are
+// removed. Previously, disabling a task via PATCH /api/employees/[id]/task-eligibility
+// left "ghost assignments" in the calendar that the admin could not explain.
 
 import { employeeTaskEligibilityRepository, employeeRepository, ruleRepository, auditLogRepository } from "@/backend/infrastructure/repositories";
+import { assignmentService } from "./assignment-service";
 
 export interface TaskEligibilitySetting {
   taskLabel: string;
@@ -62,7 +68,10 @@ export const employeeTaskEligibilityService = {
 
   /**
    * Update task eligibility for an employee
-   * Creates or updates records
+   * Creates or updates records.
+   *
+   * FIX (BUG-03): for every task being DISABLED, calls assignmentService.syncEligibilityChange
+   * so future unlocked assignments for that task are removed (no more "ghost assignments").
    */
   async update(employeeId: string, settings: TaskEligibilitySetting[]) {
     const employee = await employeeRepository.findById(employeeId);
@@ -79,6 +88,18 @@ export const employeeTaskEligibilityService = {
       }))
     );
 
+    // FIX (BUG-03): sync assignments for every task being DISABLED.
+    // This removes future unlocked assignments so the employee disappears from
+    // the calendar for that task immediately (instead of waiting for the next
+    // manual regeneration).
+    let totalDeleted = 0;
+    for (const s of settings) {
+      if (!s.isActive) {
+        const sync = await assignmentService.syncEligibilityChange(employeeId, s.taskLabel, false);
+        totalDeleted += sync.deletedCount;
+      }
+    }
+
     // Audit log
     await auditLogRepository.create({
       entityType: "employee",
@@ -87,6 +108,7 @@ export const employeeTaskEligibilityService = {
       changes: {
         type: "task_eligibility",
         settings: settings.map((s) => `${s.taskLabel}: ${s.isActive ? "activo" : "inactivo"}`).join(", "),
+        deletedFutureAssignments: totalDeleted,
       },
       groupId: employee.groupId,
     });
@@ -95,7 +117,9 @@ export const employeeTaskEligibilityService = {
   },
 
   /**
-   * Toggle a single task eligibility for an employee
+   * Toggle a single task eligibility for an employee.
+   *
+   * FIX (BUG-03): syncs assignments when disabling (same as update()).
    */
   async toggle(employeeId: string, taskLabel: string, isActive: boolean) {
     const employee = await employeeRepository.findById(employeeId);
@@ -104,6 +128,13 @@ export const employeeTaskEligibilityService = {
     }
 
     const result = await employeeTaskEligibilityRepository.upsert(employeeId, taskLabel, isActive);
+
+    // FIX (BUG-03): sync assignments when disabling
+    let deletedAssignments = 0;
+    if (!isActive) {
+      const sync = await assignmentService.syncEligibilityChange(employeeId, taskLabel, false);
+      deletedAssignments = sync.deletedCount;
+    }
 
     // Audit log
     await auditLogRepository.create({
@@ -114,6 +145,7 @@ export const employeeTaskEligibilityService = {
         type: "task_eligibility_toggle",
         taskLabel,
         isActive,
+        deletedFutureAssignments: deletedAssignments,
       },
       groupId: employee.groupId,
     });

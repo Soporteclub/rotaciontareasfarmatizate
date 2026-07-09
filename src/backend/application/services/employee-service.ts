@@ -80,6 +80,11 @@ export const employeeService = {
     if (input.groupId !== undefined) data.group = { connect: { id: input.groupId } };
     if (input.joinDate !== undefined) data.joinDate = new Date(input.joinDate);
     if (input.isActive === false) data.leaveDate = new Date();
+    // FIX (BUG-11): when reactivating (isActive === true) without an explicit
+    // leaveDate, clear leaveDate. Previously the employee stayed "active" but
+    // with a past leaveDate, and the fairness-engine filtered them out
+    // (!e.leaveDate || e.leaveDate >= startDate), so they never got assignments.
+    if (input.isActive === true && input.leaveDate === undefined) data.leaveDate = null;
     if (input.leaveDate !== undefined) data.leaveDate = input.leaveDate ? new Date(input.leaveDate) : null;
     if (input.isActive !== undefined) data.isActive = input.isActive;
 
@@ -90,8 +95,9 @@ export const employeeService = {
     const changedGroup = input.groupId && input.groupId !== existing.groupId;
 
     if (wasDeactivated || changedGroup) {
+      // FIX (BUG-01): UTC explicit
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      today.setUTCHours(0, 0, 0, 0);
 
       if (wasDeactivated) {
         // Remove ALL future unlocked assignments for this employee

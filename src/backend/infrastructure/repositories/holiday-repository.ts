@@ -78,7 +78,11 @@ export const holidayRepository = {
     const set = new Set<string>();
     for (const h of holidays) {
       const d = new Date(h.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      // FIX (BUG-10): use UTC accessors so the holiday key matches the dateToKey
+      // of the fairness-engine. Previously getFullYear/getMonth/getDate (LOCAL)
+      // returned the previous day on a UTC-5 server for a holiday stored at
+      // 2026-01-01T00:00:00Z, causing the holiday to be skipped.
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
       set.add(key);
     }
     return set;
