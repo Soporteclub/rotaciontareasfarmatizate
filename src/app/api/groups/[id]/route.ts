@@ -1,7 +1,10 @@
 // Groups [id] API Route - CRUD for single group
+// FIX (API-13): DELETE now requires admin key (header x-admin-key).
+
 import { NextRequest, NextResponse } from "next/server";
 import { groupService } from "@/backend/application/services/group-service";
 import { updateGroupSchema } from "@/backend/application/validators/schemas";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 export async function GET(
   _request: NextRequest,
@@ -42,9 +45,19 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX (API-13): require admin key
+  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
     const group = await groupService.softDelete(id);

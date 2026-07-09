@@ -477,7 +477,9 @@ export function AuditModule() {
   const PAGE_SIZE = 50;
 
   const { data: groups } = useGroups();
-  const { data: employeesData } = useEmployees({ includeInactive: true });
+  // FIX (FE-07): useEmployees expects (groupId?, includeInactive?) not an object.
+  // Pass undefined as groupId and true as includeInactive.
+  const { data: employeesData } = useEmployees(undefined, true);
   const { data: auditData, isLoading } = useAuditLogs({
     entityType: entityType || undefined,
     groupId: groupId || undefined,

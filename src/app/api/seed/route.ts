@@ -184,10 +184,15 @@ export async function POST() {
     });
 
     // ─── Initialize Settings ───────────────────────────────────────
+    // FIX (API-07, SEC-01, SEC-02): No more hardcoded "farmatizate2025" admin key.
+    // The key is now randomly generated (32 hex chars) and returned ONCE to the
+    // caller so the admin can note it. It is never written to source control.
+    const crypto = await import("crypto");
+    const generatedAdminKey = crypto.randomBytes(16).toString("hex"); // 32 chars
     await db.settings.upsert({
       where: { id: "app" },
       update: {},
-      create: { id: "app", key: "***REMOVED***", value: "***REMOVED***" },
+      create: { id: "app", key: generatedAdminKey, value: generatedAdminKey },
     });
 
     const totalRules = TASK_CONFIGS.reduce((sum, t) => sum + t.days.length, 0) * 2;
@@ -199,6 +204,11 @@ export async function POST() {
       rules: totalRules,
       holidays: colombianHolidays.length,
       tasks: ["Sacar Basura (Mar, Jue)", "Lavar Cafetera (Lun-Vie)"],
+      // FIX (API-07): return the generated admin key ONCE so the admin can note it.
+      // It is stored hashed-equivalent (plaintext in DB for now, but never in source).
+      // The admin should change it immediately via PUT /api/settings.
+      adminKey: generatedAdminKey,
+      adminKeyNotice: "Guarda esta clave en un lugar seguro. No se volvera a mostrar.",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error en seed";
@@ -208,29 +218,31 @@ export async function POST() {
 }
 
 // ─── Employee creation helpers ────────────────────────────────
+// FIX (SEC-02): Replaced 16 real employees' PII (names, positions, areas) with
+// obviously synthetic placeholder data. Real PII must never live in source code.
 
 async function createPiso1Employees(groupId: string): Promise<EmployeeRecord[]> {
   return Promise.all([
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora integral de producto", area: "POS", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora técnica de producto", area: "Calidad", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesor comercial", area: "Comercial", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora técnica de producto", area: "SSTAPP", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesor comercial", area: "Comercial", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Líder asesoras calidad", area: "Calidad", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora técnica de producto", area: "SSTAPP", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Coordinador Comercial", area: "Comercial", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora técnica de producto", area: "Calidad", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Asesora técnica de producto", area: "POS", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 01", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 02", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 03", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 04", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 05", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 06", position: "Coordinador", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 07", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 08", position: "Coordinador", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 09", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso1 10", position: "Auxiliar", area: "Operacion", groupId } }),
   ]);
 }
 
 async function createPiso2Employees(groupId: string): Promise<EmployeeRecord[]> {
   return Promise.all([
-    db.employee.create({ data: { name: "***REMOVED***", position: "Desarrollador", area: "Ingeniería", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Director de proyectos", area: "Ingeniería", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Publicista Junior", area: "Marketing", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Desarrollador", area: "Ingeniería", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Soporte Software", area: "Ingeniería", groupId } }),
-    db.employee.create({ data: { name: "***REMOVED***", position: "Contador", area: "Administrativo", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 01", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 02", position: "Coordinador", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 03", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 04", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 05", position: "Auxiliar", area: "Operacion", groupId } }),
+    db.employee.create({ data: { name: "Empleado Piso2 06", position: "Auxiliar", area: "Operacion", groupId } }),
   ]);
 }

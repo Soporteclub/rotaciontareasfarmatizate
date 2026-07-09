@@ -126,7 +126,8 @@ export function useAutoInitialize() {
         return;
       }
 
-      // Step 3: Groups exist — check if assignments exist for current month
+      // Step 3: Groups exist — check if assignments exist for current month.
+      // We only CHECK here; we no longer auto-generate (see FIX FE-02 below).
       setState({ isInitializing: true, step: "checking-assignments", message: "Verificando asignaciones..." });
 
       const { startStr, endStr } = getCurrentMonthRange();
@@ -139,12 +140,19 @@ export function useAutoInitialize() {
         },
       });
 
-      // Step 4: If no assignments for current month, auto-generate for all groups
+      // FIX (FE-02): REMOVED the auto-generation step.
+      // Previously, if there were no assignments for the current month, ANY
+      // visitor (anonymous, not admin) would trigger POST /api/assignments/generate
+      // for ALL groups — which destroyed any future assignments the admin had
+      // edited manually. Errors were silently swallowed with console.warn.
+      //
+      // Generation is now an EXPLICIT admin action via the "Generar" button,
+      // which sends the admin key in the x-admin-key header (API-06).
+      //
+      // If no assignments exist, the calendar will simply show an empty month
+      // and the admin can click "Generar" to populate it.
       if (existingAssignments.length === 0) {
-        setState({ isInitializing: true, step: "generating", message: "Generando asignaciones..." });
-        const genRange = getGenerationDateRange();
-        await generateAssignmentsForGroups(groups, genRange.startStr, genRange.endStr);
-        await queryClient.invalidateQueries({ queryKey: ["assignments"] });
+        // No-op: leave the calendar empty. The admin will generate manually.
       }
 
       setState({ isInitializing: false, step: "done", message: "" });

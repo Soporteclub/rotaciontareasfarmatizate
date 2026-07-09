@@ -2,7 +2,14 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { AutoBackupProvider } from "../shared/auto-backup-provider";
+
+// FIX (FE-03): Removed <AutoBackupProvider> wrapper.
+// Previously, this component fired POST /api/backup every 5 minutes
+// (and 30s after mount) for EVERY visitor — including anonymous ones.
+// Combined with the old GET /api/backup that wrote to public/backup.json,
+// this continuously exfiltrated the admin key + PII to a publicly
+// downloadable static file. Backups are now an explicit admin action
+// via POST /api/backup with an admin key (header x-admin-key).
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -19,7 +26,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AutoBackupProvider>{children}</AutoBackupProvider>
+      {children}
     </QueryClientProvider>
   );
 }

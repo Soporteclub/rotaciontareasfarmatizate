@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./api-client";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import type { RuleResponse } from "./types";
 
 export function useRules(groupId?: string, includeInactive = false) {
@@ -24,6 +25,12 @@ export function useCreateRule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rules"] });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
+      // FIX (FE-09): invalidate assignments + balance + audit so the UI reflects
+      // the new rule on the calendar (previously the calendar stayed stale and
+      // the admin thought the rule "didn't work", leading to duplicate creation).
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
     },
   });
 }
@@ -38,6 +45,9 @@ export function useUpdateRule() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rules"] });
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
     },
   });
 }
@@ -45,13 +55,22 @@ export function useUpdateRule() {
 export function useDeleteRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, permanent }: { id: string; permanent?: boolean }) =>
-      apiFetch<RuleResponse>(
+    // FIX (API-13): DELETE now requires admin key (header x-admin-key)
+    mutationFn: ({ id, permanent }: { id: string; permanent?: boolean }) => {
+      const adminKey = useUIStore.getState().adminKey;
+      if (!adminKey) {
+        throw new Error("Se requiere clave de administrador. Desbloquea el panel admin primero.");
+      }
+      return apiFetch<RuleResponse>(
         `/api/rules/${id}${permanent ? "?permanent=true" : ""}`,
-        { method: "DELETE" }
-      ),
+        { method: "DELETE", headers: { "x-admin-key": adminKey } }
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rules"] });
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["balance"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
     },
   });
 }

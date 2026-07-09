@@ -1,13 +1,21 @@
 // Restore API Route - Restore database from backup JSON file
 // POST /api/restore
+//
+// FIX (API-04): Now requires admin key (requireAdmin).
+// FIX (API-04): Wrapped in a transaction so a mid-way failure rolls back
+//               (previously left the DB empty if an insert failed).
+// FIX (API-03): No longer reads from public/ — reads from /data/backup.json.
+// FIX (SEC-03): The backup file is no longer web-accessible.
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/backend/infrastructure/database";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
-const BACKUP_PATH = join(process.cwd(), "public", "backup.json");
+// FIX (SEC-03): moved out of public/ so it is not served as a static asset
+const BACKUP_PATH = join(process.cwd(), "data", "backup.json");
 
 // ─── Helper: convert ISO string dates back to Date objects ───
 
@@ -38,12 +46,22 @@ function reviveDates(record: RecordData): RecordData {
 
 // ─── Route handler ───────────────────────────────────────────
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Authorize via header
+  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     // Check if backup file exists
     if (!existsSync(BACKUP_PATH)) {
       return NextResponse.json(
-        { error: "No se encontró archivo de backup" },
+        { error: "No se encontro archivo de backup" },
         { status: 404 },
       );
     }
@@ -54,7 +72,7 @@ export async function POST() {
 
     if (!backup.data) {
       return NextResponse.json(
-        { error: "Formato de backup inválido: falta 'data'" },
+        { error: "Formato de backup invalido: falta 'data'" },
         { status: 400 },
       );
     }
@@ -70,107 +88,61 @@ export async function POST() {
       auditLogs = [],
     } = backup.data;
 
-    // ── Delete all data in reverse dependency order ─────────────
-    await db.auditLog.deleteMany();
-    await db.assignment.deleteMany();
-    await db.taskEligibility.deleteMany();
-    await db.rule.deleteMany();
-    await db.employee.deleteMany();
-    await db.group.deleteMany();
-    await db.holiday.deleteMany();
-    await db.settings.deleteMany();
+    // FIX (API-04): single transaction. If any insert fails, everything rolls
+    // back and the DB is left in its previous state instead of empty.
+    await db.$transaction(async (tx) => {
+      // Delete all in reverse dependency order
+      await tx.auditLog.deleteMany();
+      await tx.assignment.deleteMany();
+      await tx.taskEligibility.deleteMany();
+      await tx.rule.deleteMany();
+      await tx.employee.deleteMany();
+      await tx.group.deleteMany();
+      await tx.holiday.deleteMany();
+      await tx.settings.deleteMany();
 
-    // ── Recreate in dependency order ────────────────────────────
-
-    // 1. Settings (preserving original IDs)
-    if (settings.length > 0) {
-      await Promise.all(
-        settings.map((s: RecordData) =>
-          db.settings.create({ data: reviveDates(s) as never }),
-        ),
-      );
-    }
-
-    // 2. Groups (preserving original IDs)
-    if (groups.length > 0) {
-      await Promise.all(
-        groups.map((g: RecordData) =>
-          db.group.create({ data: reviveDates(g) as never }),
-        ),
-      );
-    }
-
-    // 3. Employees (need group to exist first)
-    if (employees.length > 0) {
-      await Promise.all(
-        employees.map((e: RecordData) =>
-          db.employee.create({ data: reviveDates(e) as never }),
-        ),
-      );
-    }
-
-    // 4. Rules (need group to exist first)
-    // Rule has @@unique([groupId, dayOfWeek, taskLabel])
-    if (rules.length > 0) {
-      await Promise.all(
-        rules.map((r: RecordData) =>
-          db.rule.create({ data: reviveDates(r) as never }),
-        ),
-      );
-    }
-
-    // 5. TaskEligibility (need employee to exist first)
-    // TaskEligibility has @@unique([employeeId, taskName])
-    if (taskEligibility.length > 0) {
-      await Promise.all(
-        taskEligibility.map((te: RecordData) =>
-          db.taskEligibility.create({ data: reviveDates(te) as never }),
-        ),
-      );
-    }
-
-    // 6. Holidays (independent)
-    // Holiday has @@unique([date, name])
-    if (holidays.length > 0) {
-      await Promise.all(
-        holidays.map((h: RecordData) =>
-          db.holiday.create({ data: reviveDates(h) as never }),
-        ),
-      );
-    }
-
-    // 7. Assignments (need group + employee to exist first)
-    // Assignment has @@unique([groupId, date, taskName])
-    if (assignments.length > 0) {
-      await Promise.all(
-        assignments.map((a: RecordData) =>
-          db.assignment.create({ data: reviveDates(a) as never }),
-        ),
-      );
-    }
-
-    // 8. AuditLogs (need group to exist first)
-    if (auditLogs.length > 0) {
-      await Promise.all(
-        auditLogs.map((al: RecordData) =>
-          db.auditLog.create({ data: reviveDates(al) as never }),
-        ),
-      );
-    }
+      // Recreate in dependency order using createMany (atomic, faster)
+      if (settings.length > 0) {
+        await tx.settings.createMany({ data: settings.map((s: RecordData) => reviveDates(s)) as never });
+      }
+      if (groups.length > 0) {
+        await tx.group.createMany({ data: groups.map((g: RecordData) => reviveDates(g)) as never });
+      }
+      if (employees.length > 0) {
+        await tx.employee.createMany({ data: employees.map((e: RecordData) => reviveDates(e)) as never });
+      }
+      if (rules.length > 0) {
+        await tx.rule.createMany({ data: rules.map((r: RecordData) => reviveDates(r)) as never });
+      }
+      if (taskEligibility.length > 0) {
+        await tx.taskEligibility.createMany({ data: taskEligibility.map((te: RecordData) => reviveDates(te)) as never });
+      }
+      if (holidays.length > 0) {
+        await tx.holiday.createMany({ data: holidays.map((h: RecordData) => reviveDates(h)) as never });
+      }
+      if (assignments.length > 0) {
+        await tx.assignment.createMany({ data: assignments.map((a: RecordData) => reviveDates(a)) as never });
+      }
+      if (auditLogs.length > 0) {
+        await tx.auditLog.createMany({ data: auditLogs.map((al: RecordData) => reviveDates(al)) as never });
+      }
+    });
 
     return NextResponse.json({
-      message: "Base de datos restaurada exitosamente",
-      timestamp: backup.timestamp,
-      version: backup.version,
-      restored: {
-        settings: settings.length,
-        groups: groups.length,
-        employees: employees.length,
-        rules: rules.length,
-        taskEligibility: taskEligibility.length,
-        holidays: holidays.length,
-        assignments: assignments.length,
-        auditLogs: auditLogs.length,
+      data: {
+        message: "Base de datos restaurada exitosamente",
+        timestamp: backup.timestamp,
+        version: backup.version,
+        restored: {
+          settings: settings.length,
+          groups: groups.length,
+          employees: employees.length,
+          rules: rules.length,
+          taskEligibility: taskEligibility.length,
+          holidays: holidays.length,
+          assignments: assignments.length,
+          auditLogs: auditLogs.length,
+        },
       },
     });
   } catch (error) {

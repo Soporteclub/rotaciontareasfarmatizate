@@ -239,13 +239,14 @@ export const assignmentService = {
   },
 
   /**
-   * Delete ALL assignments for a group (both locked and unlocked)
-   * Used when admin wants to completely clear a group's schedule from the Dashboard
-   * After clearing, they should go to Rules → Generar to create new assignments
+   * Delete assignments for a group.
+   *
+   * FIX (BUG-04): By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge).
    */
-  async deleteAllByGroup(groupId: string) {
-    const count = await assignmentRepository.countByGroup(groupId);
-    const result = await assignmentRepository.deleteAllByGroup(groupId);
+  async deleteAllByGroup(groupId: string, opts: { preserveLocked?: boolean } = {}) {
+    const result = await assignmentRepository.deleteAllByGroup(groupId, opts);
 
     await auditLogRepository.create({
       entityType: "assignment",
@@ -254,7 +255,10 @@ export const assignmentService = {
       changes: {
         groupId,
         deletedCount: result.count,
-        description: "Eliminación completa de asignaciones del grupo desde Dashboard",
+        preserveLocked: opts.preserveLocked !== false,
+        description: opts.preserveLocked !== false
+          ? "Eliminacion de asignaciones futuras (desbloqueadas) del grupo"
+          : "Eliminacion COMPLETA de asignaciones del grupo (incluye historico bloqueado)",
       },
       groupId,
     });
@@ -263,17 +267,24 @@ export const assignmentService = {
   },
 
   /**
-   * Delete assignments for a group within a date range (both locked and unlocked)
-   * Used when admin wants to clear assignments for a specific period
-   * After clearing, they should go to Rules → Generar to create new assignments
+   * Delete assignments for a group within a date range.
+   *
+   * FIX (BUG-04): By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge).
    */
-  async deleteByGroupAndDateRange(groupId: string, startDate: string, endDate: string) {
-    // Use UTC date parsing to avoid timezone shifts
+  async deleteByGroupAndDateRange(
+    groupId: string,
+    startDate: string,
+    endDate: string,
+    opts: { preserveLocked?: boolean } = {}
+  ) {
+    // FIX (BUG-01): Use UTC date parsing to avoid timezone shifts.
     // "2026-07-31" -> start of day UTC to end of day UTC
     const start = new Date(`${startDate}T00:00:00.000Z`);
     const end = new Date(`${endDate}T23:59:59.999Z`);
 
-    const result = await assignmentRepository.deleteByGroupAndDateRange(groupId, start, end);
+    const result = await assignmentRepository.deleteByGroupAndDateRange(groupId, start, end, opts);
 
     await auditLogRepository.create({
       entityType: "assignment",
@@ -284,7 +295,10 @@ export const assignmentService = {
         startDate,
         endDate,
         deletedCount: result.count,
-        description: "Eliminación de asignaciones del grupo por rango de fechas desde Dashboard",
+        preserveLocked: opts.preserveLocked !== false,
+        description: opts.preserveLocked !== false
+          ? "Eliminacion de asignaciones futuras (desbloqueadas) por rango de fechas"
+          : "Eliminacion COMPLETA por rango de fechas (incluye historico bloqueado)",
       },
       groupId,
     });

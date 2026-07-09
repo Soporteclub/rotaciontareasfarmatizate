@@ -114,28 +114,39 @@ export const assignmentRepository = {
   },
 
   /**
-   * Delete ALL assignments (both locked and unlocked) for a group
-   * Used when admin wants to completely clear a group's schedule
+   * Delete assignments for a group.
+   *
+   * FIX (BUG-04): By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge — should be gated by admin).
    */
-  async deleteAllByGroup(groupId: string) {
+  async deleteAllByGroup(groupId: string, opts: { preserveLocked?: boolean } = {}) {
+    const preserveLocked = opts.preserveLocked !== false; // default true
     return db.assignment.deleteMany({
-      where: { groupId },
+      where: preserveLocked
+        ? { groupId, isLocked: false }
+        : { groupId },
     });
   },
 
   /**
-   * Delete ALL assignments (both locked and unlocked) for a group within a date range
-   * Used when admin wants to clear assignments for a specific period
+   * Delete assignments for a group within a date range.
+   *
+   * FIX (BUG-04): By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge — should be gated by admin).
    */
-  async deleteByGroupAndDateRange(groupId: string, startDate: Date, endDate: Date) {
+  async deleteByGroupAndDateRange(
+    groupId: string,
+    startDate: Date,
+    endDate: Date,
+    opts: { preserveLocked?: boolean } = {}
+  ) {
+    const preserveLocked = opts.preserveLocked !== false; // default true
     return db.assignment.deleteMany({
-      where: {
-        groupId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
+      where: preserveLocked
+        ? { groupId, isLocked: false, date: { gte: startDate, lte: endDate } }
+        : { groupId, date: { gte: startDate, lte: endDate } },
     });
   },
 

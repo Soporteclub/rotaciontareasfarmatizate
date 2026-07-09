@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./api-client";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import type { GroupResponse } from "./types";
 
 export function useGroups(includeInactive = false) {
@@ -48,10 +49,20 @@ export function useUpdateGroup() {
 export function useDeleteGroup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      apiFetch<GroupResponse>(`/api/groups/${id}`, { method: "DELETE" }),
+    // FIX (API-13): DELETE now requires admin key (header x-admin-key)
+    mutationFn: (id: string) => {
+      const adminKey = useUIStore.getState().adminKey;
+      if (!adminKey) {
+        throw new Error("Se requiere clave de administrador. Desbloquea el panel admin primero.");
+      }
+      return apiFetch<GroupResponse>(`/api/groups/${id}`, {
+        method: "DELETE",
+        headers: { "x-admin-key": adminKey },
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["audit"] });
     },
   });
 }

@@ -1,11 +1,13 @@
 // Admin Verification API Route
 // POST /api/admin/verify - Verify admin key
+//
+// FIX (API-01): Previously validated against a hardcoded fallback "farmatizate2026"
+// while the rest of the backend validated against the DB key ("farmatizate2025").
+// Now there is a SINGLE source of truth: settingsService.validateKey (DB).
+// FIX (SEC-04): Uses constant-time comparison via settingsService.
 
 import { NextRequest, NextResponse } from "next/server";
-
-// Admin key - in production this would be hashed and stored securely
-// For now using env variable with fallback
-const ADMIN_KEY = process.env.ADMIN_KEY || "***REMOVED***";
+import { settingsService } from "@/backend/application/services/settings-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +21,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const valid = key === ADMIN_KEY;
+    const settings = await settingsService.getSettings();
+    if (!settings) {
+      // System not initialized yet — be honest but don't leak details
+      return NextResponse.json(
+        { data: { valid: false, error: "El sistema no está configurado" } },
+        { status: 503 }
+      );
+    }
+
+    // Delegate to settingsService which uses constant-time comparison
+    const valid = await settingsService.validateKey(key);
 
     if (!valid) {
       return NextResponse.json(
