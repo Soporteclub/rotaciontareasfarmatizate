@@ -1597,7 +1597,7 @@ export const openApiSpec = {
         type: "object",
         properties: {
           id: { type: "string", description: "CUID" },
-          name: { type: "string", example: "***REMOVED***" },
+          name: { type: "string", example: "Juan Perez" },
           position: { type: "string", nullable: true, example: "Asesora integral de producto" },
           area: { type: "string", nullable: true, example: "POS" },
           groupId: { type: "string" },

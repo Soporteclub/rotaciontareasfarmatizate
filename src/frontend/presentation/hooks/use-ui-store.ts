@@ -1,6 +1,13 @@
 // UI Store - Minimal global state for navigation and active selections
 // Admin access is global: one key unlocks ALL admin sections at once
 // Regular users can only see the Calendar/Dashboard
+//
+// FIX (FE-01, FE-04): adminKey is NO LONGER persisted to localStorage.
+// Previously it was stored in plaintext and could be injected by anyone with
+// DevTools access, bypassing the backend verification. Now only `isAdmin`
+// (a boolean flag) is persisted; the actual key lives in memory only and must
+// be re-entered after a page refresh. When a mutation returns 403, the frontend
+// calls lockAdmin() + requestAdminUnlock() to prompt for the key again.
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -13,7 +20,7 @@ interface UIState {
   sidebarOpen: boolean;
   // Global admin state — single key unlocks everything
   isAdmin: boolean;
-  // The verified admin key (stored when unlocking, cleared when locking)
+  // The verified admin key (IN-MEMORY ONLY — not persisted to localStorage)
   adminKey: string | null;
   // Whether the admin key modal is open
   adminPendingUnlock: boolean;
@@ -58,10 +65,13 @@ export const useUIStore = create<UIState>()(
           adminPendingUnlock: false,
         }),
 
+      // FIX (FE-04): lockAdmin clears adminKey AND opens the unlock modal so
+      // the admin can re-enter the key after a 403.
       lockAdmin: () =>
         set({
           isAdmin: false,
           adminKey: null,
+          adminPendingUnlock: true, // prompt for re-unlock
           // Reset to calendar view when locking
           activeView: "calendar",
         }),
@@ -74,7 +84,10 @@ export const useUIStore = create<UIState>()(
     }),
     {
       name: "farmatizate-ui",
-      partialize: (state) => ({ isAdmin: state.isAdmin, adminKey: state.adminKey }),
+      // FIX (FE-01): only persist the isAdmin boolean, NOT the adminKey.
+      // On rehydration, isAdmin may be true but adminKey will be null, so the
+      // first protected mutation will 403 and trigger lockAdmin() -> re-unlock.
+      partialize: (state) => ({ isAdmin: state.isAdmin }),
     }
   )
 );

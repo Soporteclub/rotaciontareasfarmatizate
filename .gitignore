@@ -30,6 +30,8 @@ yarn-error.log*
 
 # env files
 .env*
+# FIX (PROC-10): keep the example tracked
+!.env.example
 
 # vercel
 .vercel
@@ -48,8 +50,9 @@ dev.out.log
 # Database (local SQLite — should not be committed)
 db/*.db
 
-# Public runtime backups
+# FIX (SEC-03): backups now live in /data/ (not public/). Never commit them.
 public/backup.json
+/data/
 
 # ─── Sandbox / z.ai specific (not needed locally) ────────────────
 .claude
@@ -67,3 +70,5 @@ prompt
 .zscripts/
 mini-services/
 examples/
+.kilo/
+*.pid

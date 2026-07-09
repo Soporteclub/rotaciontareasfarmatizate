@@ -91,7 +91,15 @@ function AssignmentEditDialogContent({
       toast.success(`Asignación actualizada: ahora ${newEmp?.name ?? "otro empleado"}`);
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al actualizar");
+      // FIX (FE-04): detect 403 (admin key invalid/expired) and force re-unlock.
+      const msg = err instanceof Error ? err.message : "Error al actualizar";
+      if (msg.includes("clave de administrador") || msg.includes("403")) {
+        toast.error("Tu sesión de admin expiró o la clave cambió. Vuelve a ingresarla.");
+        useUIStore.getState().lockAdmin(); // clears adminKey + opens modal
+        onOpenChange(false);
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
