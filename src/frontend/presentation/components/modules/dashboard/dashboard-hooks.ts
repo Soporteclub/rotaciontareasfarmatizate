@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   getCalendarDays, getWeekDays, getDayView, type CalendarDay, type ViewMode,
 } from "./calendar-utils";
-import type { AssignmentResponse, GroupResponse } from "@/frontend/presentation/lib/query/hooks";
+import type { AssignmentResponse, GroupResponse, RuleResponse } from "@/frontend/presentation/lib/query/hooks";
 
 /** Format a Date as YYYY-MM-DD using local timezone (avoids UTC shift) */
 function toLocalDateStr(d: Date): string {
@@ -139,6 +139,7 @@ export function useCalendarDays(
   viewMode: ViewMode,
   filteredAssignments: AssignmentResponse[],
   groups: GroupResponse[] | undefined,
+  allRules: RuleResponse[] | undefined,
 ): CalendarDay[] {
   return useMemo(() => {
     let days: CalendarDay[];
@@ -152,18 +153,34 @@ export function useCalendarDays(
 
     if (!filteredAssignments || !groups) return days;
 
+    // FIX (Tarea 1+2): build a lookup map of taskName → { color, icon } from
+    // all rules. The first rule that defines a color/icon for a taskName wins.
+    // This lets the calendar display per-task colors and icons instead of
+    // mixing with the group color.
+    const taskStyleMap = new Map<string, { color: string | null; icon: string | null }>();
+    if (allRules) {
+      for (const r of allRules) {
+        if (!taskStyleMap.has(r.taskLabel)) {
+          taskStyleMap.set(r.taskLabel, { color: r.color, icon: r.icon });
+        }
+      }
+    }
+
     const dateMap = new Map<string, CalendarDay["assignments"]>();
     for (const a of filteredAssignments) {
       // Use toUtcDateStr to avoid timezone shift (e.g. UTC-5 Colombia)
       const dateKey = toUtcDateStr(a.date);
       if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
       const group = groups.find((g) => g.id === a.groupId);
+      const taskStyle = taskStyleMap.get(a.taskName ?? "");
       dateMap.get(dateKey)!.push({
         id: a.id, taskName: a.taskName ?? "",
         employeeName: a.employee?.name ?? "",
         employeeId: a.employeeId,
         groupName: group?.name ?? "", groupId: a.groupId,
         isLocked: a.isLocked, groupColor: group?.color ?? "#6b7280",
+        taskColor: taskStyle?.color ?? null,
+        taskIcon: taskStyle?.icon ?? null,
       });
     }
 
@@ -172,7 +189,7 @@ export function useCalendarDays(
       day.assignments = dateMap.get(key) ?? [];
     }
     return days;
-  }, [viewYear, viewMonth, viewDay, viewMode, filteredAssignments, groups]);
+  }, [viewYear, viewMonth, viewDay, viewMode, filteredAssignments, groups, allRules]);
 }
 
 /* ─── Date Range Calculator ─────────────────────────────────────── */

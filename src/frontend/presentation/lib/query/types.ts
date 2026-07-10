@@ -35,6 +35,9 @@ export interface RuleResponse {
   frequencyType: string;
   frequency: number;
   taskLabel: string;
+  // FIX (Tarea 1+2): per-task color and icon (stored on the Rule)
+  color: string | null;
+  icon: string | null;
   validFrom: string;
   validTo: string | null;
   isActive: boolean;

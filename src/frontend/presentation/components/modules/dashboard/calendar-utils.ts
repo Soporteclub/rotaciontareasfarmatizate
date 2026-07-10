@@ -28,6 +28,11 @@ export interface CalendarDay {
     groupId: string;
     isLocked: boolean;
     groupColor: string;
+    // FIX (Tarea 1+2): per-task color and icon (from the Rule). These take
+    // precedence over groupColor in the calendar. groupColor is kept only for
+    // the Employees module.
+    taskColor: string | null;
+    taskIcon: string | null;
   }>;
 }
 

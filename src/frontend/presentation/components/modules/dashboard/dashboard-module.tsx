@@ -9,10 +9,10 @@ import { Loader2 } from "lucide-react";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { CalendarGrid } from "./calendar-grid";
 import { DashboardFilters } from "./dashboard-filters";
-import { DashboardSidebar } from "./dashboard-sidebar";
+import { DashboardInfoModal } from "./dashboard-info-modal";
 import { TodayPanel } from "./today-panel";
 import { AssignmentEditDialog } from "@/frontend/presentation/components/shared/assignment-edit-dialog";
-import type { AssignmentResponse } from "@/frontend/presentation/lib/query/hooks";
+import type { AssignmentResponse, RuleResponse } from "@/frontend/presentation/lib/query/hooks";
 import {
   useCalendarNavigation,
   useCalendarFilters,
@@ -30,6 +30,9 @@ export function DashboardModule() {
   // ─── Assignment edit dialog ────────────────────────────────────
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<AssignmentResponse | null>(null);
+
+  // ─── FIX (Tarea 3): Info modal state (replaces the right sidebar) ──
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
 
   // ─── Admin check for editing assignments ──────────────────────
   const isAdmin = useUIStore((s) => s.isAdmin);
@@ -86,8 +89,10 @@ export function DashboardModule() {
   };
 
   // ─── Calendar grid ───────────────────────────────────────────
+  // FIX (Tarea 1+2): pass allRules so the calendar can resolve per-task
+  // color and icon (stored on the Rule) instead of using the group color.
   const calendarDays = useCalendarDays(
-    viewYear, viewMonth, viewDay, viewMode, filteredAssignments, groups,
+    viewYear, viewMonth, viewDay, viewMode, filteredAssignments, groups, allRules,
   );
 
   const taskLegend = useMemo(() => {
@@ -96,6 +101,21 @@ export function DashboardModule() {
     filteredAssignments.forEach((a) => { if (a.taskName) taskTypes.add(a.taskName); });
     return Array.from(taskTypes).sort();
   }, [filteredAssignments]);
+
+  // FIX (Tarea 1+2): build a taskName → { color, icon } map from all rules.
+  // The first rule that defines a color/icon for a taskName wins. Passed to
+  // CalendarGrid so it can render per-task colors/icons instead of group colors.
+  const taskStyles = useMemo(() => {
+    const map = new Map<string, { color: string | null; icon: string | null }>();
+    if (allRules) {
+      for (const r of allRules as RuleResponse[]) {
+        if (!map.has(r.taskLabel)) {
+          map.set(r.taskLabel, { color: r.color, icon: r.icon });
+        }
+      }
+    }
+    return map;
+  }, [allRules]);
 
   const isLoading = isInitializing || loadingGroups || loadingAssignments;
 
@@ -126,39 +146,41 @@ export function DashboardModule() {
         clearFilters={clearFilters}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-4">
-          <CalendarGrid
-            calendarDays={calendarDays}
-            isLoading={isLoading}
-            viewYear={viewYear}
-            viewMonth={viewMonth}
-            viewDay={viewDay}
-            viewMode={viewMode}
-            setViewMode={setViewMode}
-            prevMonth={navigatePrev}
-            nextMonth={navigateNext}
-            goToday={goToday}
-            isViewingToday={isViewingToday}
-            groups={groups}
-            availableTaskTypes={availableTaskTypes}
-            onAssignmentClick={isAdmin ? handleAssignmentClick : undefined}
-            isAdmin={isAdmin}
-            onAdminUnlockRequest={requestAdminUnlock}
-          />
-        </div>
+      {/* FIX (Tarea 3): Calendar now takes full width. The right sidebar was
+          removed and its content moved into the DashboardInfoModal (ⓘ button). */}
+      <CalendarGrid
+        calendarDays={calendarDays}
+        isLoading={isLoading}
+        viewYear={viewYear}
+        viewMonth={viewMonth}
+        viewDay={viewDay}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        prevMonth={navigatePrev}
+        nextMonth={navigateNext}
+        goToday={goToday}
+        isViewingToday={isViewingToday}
+        availableTaskTypes={availableTaskTypes}
+        taskStyles={taskStyles}
+        onAssignmentClick={isAdmin ? handleAssignmentClick : undefined}
+        isAdmin={isAdmin}
+        onAdminUnlockRequest={requestAdminUnlock}
+        onOpenInfo={() => setInfoModalOpen(true)}
+      />
 
-        <DashboardSidebar
-          groups={groups}
-          balanceData={balanceReport}
-          allEmployees={allEmployees}
-          allRules={allRules}
-          filteredAssignments={filteredAssignments ?? []}
-          availableTaskTypes={availableTaskTypes}
-          taskLegend={taskLegend}
-          effectiveGroupId={effectiveGroupId}
-        />
-      </div>
+      {/* FIX (Tarea 3): Info modal (replaces the right sidebar) */}
+      <DashboardInfoModal
+        open={infoModalOpen}
+        onOpenChange={setInfoModalOpen}
+        groups={groups}
+        balanceData={balanceReport}
+        allEmployees={allEmployees}
+        allRules={allRules}
+        filteredAssignments={filteredAssignments ?? []}
+        availableTaskTypes={availableTaskTypes}
+        taskLegend={taskLegend}
+        effectiveGroupId={effectiveGroupId}
+      />
 
       {/* Assignment edit dialog */}
       <AssignmentEditDialog

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import {
-  ChevronLeft, ChevronRight, Loader2, Lock, CalendarHeart,
+  ChevronLeft, ChevronRight, Loader2, Lock, CalendarHeart, Info,
 } from "lucide-react";
 import {
   DAY_NAMES_SHORT, MONTH_NAMES, type CalendarDay, type ViewMode,
@@ -12,7 +12,6 @@ import {
 } from "./calendar-utils";
 import { getEventColor, getEventBgColor } from "./color-utils";
 import { BRAND } from "@/frontend/presentation/lib/brand";
-import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface CalendarGridProps {
   calendarDays: CalendarDay[];
@@ -26,11 +25,14 @@ interface CalendarGridProps {
   nextMonth: () => void;
   goToday: () => void;
   isViewingToday: boolean;
-  groups: GroupResponse[] | undefined;
   availableTaskTypes: string[];
+  // FIX (Tarea 1+2): per-task styles (color + icon) resolved from rules
+  taskStyles: Map<string, { color: string | null; icon: string | null }>;
   onAssignmentClick?: (assignmentId: string) => void;
   isAdmin?: boolean;
   onAdminUnlockRequest?: () => void;
+  // Optional callback to open the info modal (Tarea 3)
+  onOpenInfo?: () => void;
 }
 
 /** Día individual del calendario (vista mes) — TEXTO GRANDE Y LEGIBLE */
@@ -48,8 +50,9 @@ function CalendarCell({ day, onAssignmentClick }: { day: CalendarDay; onAssignme
       </div>
       <div className="space-y-0.5">
         {day.assignments.slice(0, 3).map((a) => {
-          const eventColor = getEventColor(a.groupColor, a.taskName);
-          const eventBg = getEventBgColor(a.groupColor, a.taskName);
+          // FIX (Tarea 1): use the task's color (from the Rule), not the group color
+          const eventColor = getEventColor(a.taskColor, a.taskName);
+          const eventBg = getEventBgColor(a.taskColor, a.taskName);
           return (
             <div
               key={a.id}
@@ -61,6 +64,7 @@ function CalendarCell({ day, onAssignmentClick }: { day: CalendarDay; onAssignme
               title={`${a.taskName} — ${a.employeeName} (${a.groupName})${a.isLocked ? " 🔒" : ""}`}
               onClick={() => onAssignmentClick?.(a.id)}
             >
+              <TaskIcon taskType={a.taskName} iconName={a.taskIcon} color={a.taskColor} size="xs" showBg={false} />
               <span className="font-semibold truncate" style={{ color: eventColor }}>
                 {a.employeeName}
               </span>
@@ -102,8 +106,9 @@ function WeekDayColumn({ day, onAssignmentClick }: { day: CalendarDay; onAssignm
           </div>
         ) : (
           day.assignments.map((a) => {
-            const eventColor = getEventColor(a.groupColor, a.taskName);
-            const eventBg = getEventBgColor(a.groupColor, a.taskName);
+            // FIX (Tarea 1): use the task's color (from the Rule), not the group color
+            const eventColor = getEventColor(a.taskColor, a.taskName);
+            const eventBg = getEventBgColor(a.taskColor, a.taskName);
             return (
               <div
                 key={a.id}
@@ -114,7 +119,7 @@ function WeekDayColumn({ day, onAssignmentClick }: { day: CalendarDay; onAssignm
                 }}
                 onClick={() => onAssignmentClick?.(a.id)}
               >
-                <TaskIcon taskType={a.taskName} size="sm" showBg={false} />
+                <TaskIcon taskType={a.taskName} iconName={a.taskIcon} color={a.taskColor} size="sm" showBg={false} />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold truncate" style={{ color: eventColor }}>
                     {a.employeeName}
@@ -135,8 +140,9 @@ function WeekDayColumn({ day, onAssignmentClick }: { day: CalendarDay; onAssignm
 
 /** Tarjeta de asignación en la vista de día — TEXTO GRANDE */
 function DayAssignmentCard({ a, onAssignmentClick }: { a: CalendarDay["assignments"][number]; onAssignmentClick?: (assignmentId: string) => void }) {
-  const eventColor = getEventColor(a.groupColor, a.taskName);
-  const eventBg = getEventBgColor(a.groupColor, a.taskName);
+  // FIX (Tarea 1): use the task's color (from the Rule), not the group color
+  const eventColor = getEventColor(a.taskColor, a.taskName);
+  const eventBg = getEventBgColor(a.taskColor, a.taskName);
 
   return (
     <div
@@ -147,7 +153,7 @@ function DayAssignmentCard({ a, onAssignmentClick }: { a: CalendarDay["assignmen
       }}
       onClick={() => onAssignmentClick?.(a.id)}
     >
-      <TaskIcon taskType={a.taskName} size="md" showBg={true} />
+      <TaskIcon taskType={a.taskName} iconName={a.taskIcon} color={a.taskColor} size="md" showBg={true} />
       <div className="min-w-0 flex-1">
         <div className="font-bold text-base" style={{ color: eventColor }}>
           {a.employeeName}
@@ -166,27 +172,26 @@ function DayAssignmentCard({ a, onAssignmentClick }: { a: CalendarDay["assignmen
   );
 }
 
-/** Leyenda de colores debajo del calendario */
-function CalendarLegend({ groups, availableTaskTypes }: {
-  groups: GroupResponse[] | undefined;
+/** Leyenda de colores debajo del calendario — muestra TAREAS (no grupos) */
+function CalendarLegend({
+  availableTaskTypes,
+  taskStyles,
+}: {
   availableTaskTypes: string[];
+  taskStyles: Map<string, { color: string | null; icon: string | null }>;
 }) {
+  if (availableTaskTypes.length === 0) return null;
   return (
-    <div className="mt-4 flex items-center gap-4 flex-wrap text-sm">
-      {groups?.map((g) => (
-        <div key={g.id} className="flex items-center gap-2">
-          <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: g.color }} />
-          <span className="font-medium">{g.name}</span>
-        </div>
-      ))}
-      <div className="border-l pl-4 flex items-center gap-3">
-        {availableTaskTypes.map((t) => (
+    <div className="mt-4 flex items-center gap-3 flex-wrap text-sm">
+      {availableTaskTypes.map((t) => {
+        const style = taskStyles.get(t);
+        return (
           <div key={t} className="flex items-center gap-1.5">
-            <TaskIcon taskType={t} size="sm" showBg={false} />
+            <TaskIcon taskType={t} iconName={style?.icon} color={style?.color} size="sm" showBg={false} />
             <span className="text-muted-foreground">{t}</span>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -227,7 +232,8 @@ function ViewModeToggle({ viewMode, setViewMode }: {
 export function CalendarGrid({
   calendarDays, isLoading, viewYear, viewMonth, viewDay,
   viewMode, setViewMode, prevMonth, nextMonth, goToday, isViewingToday,
-  groups, availableTaskTypes, onAssignmentClick, isAdmin, onAdminUnlockRequest,
+  availableTaskTypes, taskStyles, onAssignmentClick, isAdmin, onAdminUnlockRequest,
+  onOpenInfo,
 }: CalendarGridProps) {
   // Título según la vista
   const headerTitle = (() => {
@@ -290,6 +296,17 @@ export function CalendarGrid({
               Hoy
             </Button>
             <ViewModeToggle viewMode={viewMode} setViewMode={setViewMode} />
+            {onOpenInfo && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onOpenInfo}
+                className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                title="Información del sistema (motor de equidad, balance, grupos, resumen)"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -370,7 +387,7 @@ export function CalendarGrid({
           </>
         )}
 
-        <CalendarLegend groups={groups} availableTaskTypes={availableTaskTypes} />
+        <CalendarLegend availableTaskTypes={availableTaskTypes} taskStyles={taskStyles} />
       </CardContent>
     </Card>
   );

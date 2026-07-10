@@ -21,11 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Sparkles, Users, Check, ArrowRight } from "lucide-react";
+import { Loader2, Sparkles, Users, Check, ArrowRight, Palette, Shapes } from "lucide-react";
 import { TASK_LABELS } from "@/backend/domain/entities/types";
 import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
 import { toast } from "sonner";
-import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
+import {
+  TaskIcon, getTaskColor, resolveIcon,
+  TASK_COLOR_PALETTE, ICON_GALLERY_CATEGORIES,
+} from "@/frontend/presentation/components/shared/task-icon";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useCreateRule } from "@/frontend/presentation/lib/query/hooks";
 import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
@@ -52,6 +55,9 @@ interface FormState {
   frequencyType: FrequencyType;
   groupId: string;
   applyToAllGroups: boolean;
+  // FIX (Tarea 1+2): per-task color and icon
+  color: string;
+  icon: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -60,6 +66,8 @@ const INITIAL_FORM: FormState = {
   frequencyType: "weekly",
   groupId: "",
   applyToAllGroups: false,
+  color: "#6b7280",
+  icon: "clipboard-list",
 };
 
 // ─── Step Indicator ──────────────────────────────────────────
@@ -115,12 +123,20 @@ export function CreateRuleDialog({
     const template = TEMPLATES.find((t) => t.id === templateId);
     if (!template) return;
     setSelectedTemplate(templateId);
+    // FIX (Tarea 1+2): preset color and icon from the known task config
+    const presetColor = getTaskColor(template.taskLabel);
+    const presetIcon = (template.taskLabel === "Sacar Basura") ? "trash-2"
+      : (template.taskLabel === "Lavar Cafetera") ? "coffee"
+      : (template.taskLabel === "Aseo General") ? "brush"
+      : "clipboard-list";
     setForm((f) => ({
       ...f,
       taskLabel: template.taskLabel,
       selectedDays: template.days,
       applyToAllGroups: template.applyToAllGroups,
       frequencyType: template.frequencyType,
+      color: presetColor,
+      icon: presetIcon,
     }));
   }, []);
 
@@ -176,6 +192,8 @@ export function CreateRuleDialog({
               dayOfWeek: 1,
               frequencyType: form.frequencyType,
               taskLabel,
+              color: form.color,
+              icon: form.icon,
             })
           );
         } else {
@@ -186,6 +204,8 @@ export function CreateRuleDialog({
                 dayOfWeek: day,
                 frequencyType: form.frequencyType,
                 taskLabel,
+                color: form.color,
+                icon: form.icon,
               })
             );
           }
@@ -355,6 +375,92 @@ export function CreateRuleDialog({
                 </Button>
               </div>
             )}
+          </div>
+
+          {/* ─── FIX (Tarea 1+2): Color & Icon Selector ────────── */}
+          <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Palette className="h-3.5 w-3.5" />
+                Color e Ícono de la tarea
+              </Label>
+              {/* Live preview */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Vista previa:</span>
+                <TaskIcon
+                  taskType={form.taskLabel || "Tarea"}
+                  iconName={form.icon}
+                  color={form.color}
+                  size="md"
+                  showBg={true}
+                />
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: form.color }}
+                >
+                  {form.taskLabel || "Nombre de la tarea"}
+                </span>
+              </div>
+            </div>
+
+            {/* Color palette */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Palette className="h-3 w-3" /> Color
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {TASK_COLOR_PALETTE.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, color: c.value }))}
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${
+                      form.color === c.value
+                        ? "ring-2 ring-offset-2 ring-offset-background scale-110"
+                        : "hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: c.value, borderColor: form.color === c.value ? c.value : "transparent" }}
+                    title={c.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Icon gallery */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Shapes className="h-3 w-3" /> Ícono
+              </span>
+              <div className="max-h-48 overflow-y-auto rounded-md border bg-background p-2 space-y-2">
+                {ICON_GALLERY_CATEGORIES.map((cat) => (
+                  <div key={cat.label} className="space-y-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase">{cat.label}</span>
+                    <div className="grid grid-cols-10 sm:grid-cols-12 gap-1">
+                      {cat.icons.map((iconName) => {
+                        const Icon = resolveIcon(iconName);
+                        const isSelected = form.icon === iconName;
+                        return (
+                          <button
+                            key={iconName}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, icon: iconName }))}
+                            className={`aspect-square rounded-md flex items-center justify-center transition-all border ${
+                              isSelected
+                                ? "border-foreground bg-foreground/5 scale-105"
+                                : "border-transparent hover:bg-muted hover:scale-105"
+                            }`}
+                            style={isSelected ? { color: form.color } : undefined}
+                            title={iconName}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* ─── Frequency ────────────────────────────────────── */}

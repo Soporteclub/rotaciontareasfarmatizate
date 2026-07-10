@@ -46,12 +46,18 @@ export const updateEmployeeSchema = z.object({
 
 // ─── Rule Schemas ─────────────────────────────────────────────
 
+// FIX (Tarea 1+2): added optional `color` (hex) and `icon` (lucide name) fields
+// so each task can have its own visual identity independent of the group color.
+const hexColorRegex = /^#[0-9a-fA-F]{6}$/;
+
 export const createRuleSchema = z.object({
   groupId: z.string().min(1, "El grupo es requerido"),
   dayOfWeek: z.number().int().min(0).max(6, "Día inválido (0-6)"),
   frequencyType: z.enum(["daily", "weekly", "monthly"], { message: "Frecuencia inválida" }).default("weekly"),
   frequency: z.number().int().min(1).max(52).optional(), // legacy
   taskLabel: z.string().min(1, "La etiqueta de tarea es requerida").max(100, "Máximo 100 caracteres"),
+  color: z.string().regex(hexColorRegex, "Color inválido (formato: #RRGGBB)").optional(),
+  icon: z.string().min(1).max(60).optional(), // lucide icon name, e.g. "trash-2"
   validFrom: z.string().optional(),
   validTo: z.string().nullable().optional(),
 });
@@ -61,6 +67,8 @@ export const updateRuleSchema = z.object({
   frequencyType: z.enum(["daily", "weekly", "monthly"]).optional(),
   frequency: z.number().int().min(1).max(52).optional(), // legacy
   taskLabel: z.string().min(1).max(100).optional(),
+  color: z.string().regex(hexColorRegex, "Color inválido").nullable().optional(),
+  icon: z.string().min(1).max(60).nullable().optional(),
   validFrom: z.string().optional(),
   validTo: z.string().nullable().optional(),
   isActive: z.boolean().optional(),

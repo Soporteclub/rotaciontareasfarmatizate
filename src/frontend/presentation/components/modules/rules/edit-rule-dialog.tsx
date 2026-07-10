@@ -36,6 +36,8 @@ import {
   RefreshCw,
   Minus,
   Info,
+  Palette,
+  Shapes,
 } from "lucide-react";
 import { TASK_LABELS, DAY_NAMES } from "@/backend/domain/entities/types";
 import type { DayOfWeek, FrequencyType } from "@/backend/domain/entities/types";
@@ -49,6 +51,9 @@ import type { RuleResponse } from "@/frontend/presentation/lib/query/hooks";
 import {
   TaskIcon,
   getTaskColor,
+  resolveIcon,
+  TASK_COLOR_PALETTE,
+  ICON_GALLERY_CATEGORIES,
 } from "@/frontend/presentation/components/shared/task-icon";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import {
@@ -261,8 +266,11 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
     (rule.frequencyType as FrequencyType) || "weekly"
   );
   const [isActive, setIsActive] = useState(rule.isActive);
+  // FIX (Tarea 1+2): per-task color and icon state, initialized from the rule
+  const [taskColor, setTaskColor] = useState<string>(rule.color ?? getTaskColor(rule.taskLabel));
+  const [taskIcon, setTaskIcon] = useState<string>(rule.icon ?? "clipboard-list");
 
-  const color = getTaskColor(taskLabel);
+  const color = taskColor;
   const config = getTaskConfig(taskLabel);
 
   // Resolve group info
@@ -310,9 +318,12 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
     const freqChanged =
       frequencyType !== ((rule.frequencyType as FrequencyType) || "weekly");
     const activeChanged = isActive !== rule.isActive;
+    // FIX (Tarea 1+2): detect color/icon changes
+    const colorChanged = taskColor !== (rule.color ?? getTaskColor(rule.taskLabel));
+    const iconChanged = taskIcon !== (rule.icon ?? "clipboard-list");
 
-    return labelChanged || daysChanged || freqChanged || activeChanged;
-  }, [taskLabel, selectedDays, frequencyType, isActive, rule, originalDay]);
+    return labelChanged || daysChanged || freqChanged || activeChanged || colorChanged || iconChanged;
+  }, [taskLabel, selectedDays, frequencyType, isActive, rule, originalDay, taskColor, taskIcon]);
 
   const handleSubmit = async () => {
     try {
@@ -341,6 +352,8 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
               dayOfWeek: selectedDays[0],
               frequencyType,
               isActive,
+              color: taskColor,
+              icon: taskIcon,
             })
           );
           // Create rules for remaining days
@@ -352,6 +365,8 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
                 dayOfWeek: day,
                 frequencyType,
                 taskLabel: trimmedLabel,
+                color: taskColor,
+                icon: taskIcon,
               })
             );
           }
@@ -363,6 +378,8 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
               dayOfWeek: 1,
               frequencyType,
               isActive,
+              color: taskColor,
+              icon: taskIcon,
             })
           );
         }
@@ -375,6 +392,8 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
             dayOfWeek: originalDay,
             frequencyType,
             isActive,
+            color: taskColor,
+            icon: taskIcon,
           })
         );
 
@@ -386,6 +405,8 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
               dayOfWeek: day,
               frequencyType,
               taskLabel: trimmedLabel,
+              color: taskColor,
+              icon: taskIcon,
             })
           );
         }
@@ -589,6 +610,87 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
               </Button>
             </div>
           )}
+        </FormSection>
+
+        <Separator />
+
+        {/* ─── FIX (Tarea 1+2): Color & Icon Selector ────────── */}
+        <FormSection
+          icon={<Palette className="h-4 w-4" />}
+          title="Color e ícono de la tarea"
+        >
+          {/* Live preview */}
+          <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-muted/40">
+            <TaskIcon
+              taskType={taskLabel || "Tarea"}
+              iconName={taskIcon}
+              color={taskColor}
+              size="md"
+              showBg={true}
+            />
+            <span className="text-sm font-medium" style={{ color: taskColor }}>
+              {taskLabel || "Nombre de la tarea"}
+            </span>
+          </div>
+
+          {/* Color palette */}
+          <div className="space-y-1.5 mb-3">
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Palette className="h-3 w-3" /> Color
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {TASK_COLOR_PALETTE.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setTaskColor(c.value)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    taskColor === c.value
+                      ? "ring-2 ring-offset-2 ring-offset-background scale-110"
+                      : "hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: c.value, borderColor: taskColor === c.value ? c.value : "transparent" }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Icon gallery */}
+          <div className="space-y-1.5">
+            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Shapes className="h-3 w-3" /> Ícono
+            </span>
+            <div className="max-h-40 overflow-y-auto rounded-md border bg-background p-2 space-y-2">
+              {ICON_GALLERY_CATEGORIES.map((cat) => (
+                <div key={cat.label} className="space-y-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">{cat.label}</span>
+                  <div className="grid grid-cols-10 sm:grid-cols-12 gap-1">
+                    {cat.icons.map((iconName) => {
+                      const Icon = resolveIcon(iconName);
+                      const isSelected = taskIcon === iconName;
+                      return (
+                        <button
+                          key={iconName}
+                          type="button"
+                          onClick={() => setTaskIcon(iconName)}
+                          className={`aspect-square rounded-md flex items-center justify-center transition-all border ${
+                            isSelected
+                              ? "border-foreground bg-foreground/5 scale-105"
+                              : "border-transparent hover:bg-muted hover:scale-105"
+                          }`}
+                          style={isSelected ? { color: taskColor } : undefined}
+                          title={iconName}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </FormSection>
 
         <Separator />

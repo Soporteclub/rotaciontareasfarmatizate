@@ -85,6 +85,11 @@ model Rule {
   frequencyType String   @default("weekly")  // daily, weekly, monthly
   frequency     Int      @default(1)          // Cada N semanas (legacy)
   taskLabel     String                       // "Sacar Basura", "Lavar Cafetera"
+  // FIX (Tarea 1+2): color and icon per task. Stored on the Rule so that every
+  // assignment generated from this rule inherits the same visual identity.
+  // color: hex string like "#f15a24". icon: lucide icon name like "trash-2".
+  color         String?                      // Color de la tarea (hex). Si es null, se usa un color por defecto.
+  icon          String?                      // Nombre del ícono Lucide para la tarea. Si es null, se usa uno por defecto.
   validFrom     DateTime @default(now())      // Vigencia desde
   validTo       DateTime?                     // Vigencia hasta (null = siempre)
   isActive      Boolean  @default(true)
