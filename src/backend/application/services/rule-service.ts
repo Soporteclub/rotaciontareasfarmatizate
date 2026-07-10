@@ -42,6 +42,9 @@ export const ruleService = {
       frequencyType: input.frequencyType ?? "weekly",
       frequency: input.frequency ?? 1,
       taskLabel: input.taskLabel,
+      // FIX (Tarea 1+2): persist color and icon so they show up in the calendar
+      color: input.color,
+      icon: input.icon,
       validFrom: input.validFrom ? new Date(input.validFrom) : new Date(),
       validTo: input.validTo ? new Date(input.validTo) : null,
       group: { connect: { id: input.groupId } },
@@ -71,6 +74,12 @@ export const ruleService = {
     if (input.frequencyType !== undefined) data.frequencyType = input.frequencyType;
     if (input.frequency !== undefined) data.frequency = input.frequency;
     if (input.taskLabel !== undefined) data.taskLabel = input.taskLabel;
+    // FIX (Tarea 1+2): persist color and icon updates. Previously these were
+    // accepted by the Zod schema and sent by the frontend, but discarded here
+    // so the DB never stored the new values — the UI showed "updated" but the
+    // calendar kept rendering the old color/icon.
+    if (input.color !== undefined) data.color = input.color;
+    if (input.icon !== undefined) data.icon = input.icon;
     if (input.validFrom !== undefined) data.validFrom = new Date(input.validFrom);
     if (input.validTo !== undefined) data.validTo = input.validTo ? new Date(input.validTo) : null;
     if (input.isActive !== undefined) data.isActive = input.isActive;
