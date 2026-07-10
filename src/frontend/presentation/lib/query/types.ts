@@ -77,6 +77,10 @@ export interface BalanceReportItem {
   totalAssignments: number;
   monthlyBalance: Record<string, number>;
   fairnessScore?: number;
+  // FIX: per-task breakdown (taskName → count). Returned by the backend but
+  // was missing from the frontend type. Used by the Balance section in the
+  // DashboardInfoModal to show a per-task detail per employee.
+  taskBreakdown?: Record<string, number>;
 }
 
 export interface BalanceReportResponse {
