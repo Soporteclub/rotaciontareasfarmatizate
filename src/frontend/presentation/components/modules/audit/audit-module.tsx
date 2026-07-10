@@ -558,8 +558,9 @@ export function AuditModule() {
                 {dateLogs.map((log) => {
                   const style = ACTION_STYLES[log.action] ?? ACTION_STYLES.update;
                   const description = describeChange(log, groupInfo, empInfo);
+                  // FIX (FE-08): find()?.name can be undefined; coerce to null
                   const groupName = log.groupId
-                    ? groupInfo.find(g => g.id === log.groupId)?.name
+                    ? (groupInfo.find(g => g.id === log.groupId)?.name ?? null)
                     : null;
 
                   return (

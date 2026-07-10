@@ -13,10 +13,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  eslint: {
-    // NOTE: leaving as-is for now; the CI workflow (Lote 4) will enforce lint.
-    ignoreDuringBuilds: false,
-  },
+  // NOTE: the `eslint` block was removed because the NextConfig type in this
+  // Next.js version doesn't recognize it, causing a TS build error on Netlify.
+  // ESLint is still enforced by the CI workflow (.github/workflows/ci.yml).
   reactStrictMode: true,
   serverExternalPackages: ["@prisma/client"],
   experimental: {

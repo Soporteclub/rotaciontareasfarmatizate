@@ -216,10 +216,13 @@ export function CreateRuleDialog({
   const step1Complete = form.taskLabel.trim().length > 0;
   const step2Complete =
     form.frequencyType === "daily" || form.selectedDays.length > 0;
-  const step3Complete =
+  // FIX (FE-08): coerce to boolean — form.groupId/selectedGroupId are strings,
+  // not booleans. Using `!!` ensures the prop type is boolean.
+  const step3Complete = Boolean(
     form.applyToAllGroups ||
     form.groupId ||
-    selectedGroupId;
+    selectedGroupId
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

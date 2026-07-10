@@ -57,9 +57,7 @@ function AssignmentEditDialogContent({
   // LOCAL time) would display "martes 14 de julio" while the calendar cell
   // shows "miércoles 15". Extracting the YYYY-MM-DD substring and building a
   // local Date keeps both in sync.
-  const dateStr = typeof assignment.date === "string"
-    ? assignment.date.substring(0, 10)
-    : assignment.date.toISOString().substring(0, 10);
+  const dateStr = String(assignment.date).substring(0, 10);
   const [yyyy, mm, dd] = dateStr.split("-").map(Number);
   const dateObj = new Date(yyyy, (mm ?? 1) - 1, dd ?? 1);
   const dateDisplay = format(dateObj, "EEEE d 'de' MMMM, yyyy", { locale: es });

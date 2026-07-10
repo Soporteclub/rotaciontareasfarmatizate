@@ -61,10 +61,17 @@ export function GroupsModule() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  // FIX (FE-08): explicitly type form state as { color: string, ... } so that
+  // assigning group.color (string) doesn't fail against the literal type of BRAND.PRIMARY.
+  const [form, setForm] = useState<{
+    name: string;
+    description: string;
+    taskType: string;
+    color: string;
+  }>({
     name: "",
     description: "",
-    taskType: "cleaning" as string,
+    taskType: "cleaning",
     color: BRAND.PRIMARY,
   });
 
