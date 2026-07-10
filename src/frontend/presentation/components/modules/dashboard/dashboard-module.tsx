@@ -130,7 +130,7 @@ export function DashboardModule() {
       )}
 
       {/* ─── Panel de Hoy: asignaciones del día ──────────────── */}
-      <TodayPanel groups={groups} />
+      <TodayPanel groups={groups} allRules={allRules} />
 
       <DashboardFilters
         selectedGroupId={selectedGroupId}

@@ -90,13 +90,16 @@ export function TaskGroupCard({
   onDeleteRule,
 }: TaskGroupCardProps) {
   const config = getTaskConfig(taskLabel);
-  const color = getTaskColor(taskLabel);
+  // FIX (Tarea 1+2): use the color/icon from the first rule (all rules for the
+  // same taskLabel share the same color/icon). Fall back to legacy map by name.
+  const firstRule = taskRules[0];
+  const color = getTaskColor(taskLabel, firstRule?.color);
+  const iconName = firstRule?.icon ?? null;
   const sortedDays = Array.from(days).sort() as DayOfWeek[];
   const isAllGroups =
     groups &&
     groupIds.size === groups.length &&
     groups.every((g) => groupIds.has(g.id));
-  const firstRule = taskRules[0];
   const isDaily = firstRule?.frequencyType === "daily";
   const displayDays = isDaily ? ([1, 2, 3, 4, 5] as DayOfWeek[]) : sortedDays;
 
@@ -125,7 +128,7 @@ export function TaskGroupCard({
           <div className="flex items-start justify-between gap-3">
             {/* Left: Task info */}
             <div className="flex items-center gap-3">
-              <TaskIcon taskType={taskLabel} size="lg" />
+              <TaskIcon taskType={taskLabel} iconName={iconName} color={color} size="lg" />
               <div>
                 <h3 className="font-bold text-base leading-tight">{taskLabel}</h3>
                 <p className="text-sm text-muted-foreground mt-0.5">

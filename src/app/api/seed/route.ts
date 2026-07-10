@@ -48,7 +48,7 @@ function isTaskDay(taskConfig: TaskConfig, dayOfWeek: number): boolean {
 // ─── Database seeding helpers ─────────────────────────────────
 
 async function createRulesForGroup(groupId: string): Promise<void> {
-  const rulePromises = [];
+  const rulePromises: Promise<unknown>[] = [];
 
   for (const task of TASK_CONFIGS) {
     for (const day of task.days) {

@@ -8,6 +8,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // FIX: set turbopack.root so Next.js doesn't get confused by the parent
+  // bun.lock. Without this, dev server crashes on first request because it
+  // resolves the workspace root to /home/z/my-project instead of this dir.
+  turbopack: {
+    root: __dirname,
+  },
   // FIX (CFG-05): do NOT ignore build errors. The repo had 10+ TS errors that
   // were silently shipping to production. They must be fixed, not hidden.
   typescript: {

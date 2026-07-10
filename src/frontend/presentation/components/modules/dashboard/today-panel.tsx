@@ -5,7 +5,7 @@ import { CalendarHeart, Coffee, PartyPopper } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAssignments } from "@/frontend/presentation/lib/query/hooks";
-import type { GroupResponse, AssignmentResponse } from "@/frontend/presentation/lib/query/types";
+import type { GroupResponse, AssignmentResponse, RuleResponse } from "@/frontend/presentation/lib/query/types";
 import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
 import { DAY_NAMES_FULL, MONTH_NAMES, formatFullDate } from "./calendar-utils";
 import {
@@ -17,6 +17,8 @@ import {
 
 interface TodayPanelProps {
   groups: GroupResponse[] | undefined;
+  // FIX (Tarea 1+2): allRules to resolve per-task color/icon
+  allRules?: RuleResponse[] | undefined;
 }
 
 interface GroupedAssignments {
@@ -124,13 +126,17 @@ function EmptyState({ isWeekendDay, holidayName }: { isWeekendDay: boolean; holi
 function AssignmentRow({
   assignment,
   groupColor,
+  taskColor,
+  taskIcon,
 }: {
   assignment: AssignmentResponse;
   groupColor: string;
+  taskColor: string | null;
+  taskIcon: string | null;
 }) {
   return (
     <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/40 transition-colors">
-      <TaskIcon taskType={assignment.taskName} size="md" />
+      <TaskIcon taskType={assignment.taskName} iconName={taskIcon} color={taskColor} size="md" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">{assignment.taskName}</p>
         <p className="text-sm text-muted-foreground truncate">
@@ -146,7 +152,13 @@ function AssignmentRow({
   );
 }
 
-function GroupColumn({ group }: { group: GroupedAssignments }) {
+function GroupColumn({
+  group,
+  taskStyles,
+}: {
+  group: GroupedAssignments;
+  taskStyles: Map<string, { color: string | null; icon: string | null }>;
+}) {
   return (
     <div
       className="rounded-xl border p-4 space-y-1"
@@ -166,9 +178,18 @@ function GroupColumn({ group }: { group: GroupedAssignments }) {
 
       {/* Lista de asignaciones */}
       <div className="space-y-0.5 max-h-64 overflow-y-auto">
-        {group.assignments.map((a) => (
-          <AssignmentRow key={a.id} assignment={a} groupColor={group.groupColor} />
-        ))}
+        {group.assignments.map((a) => {
+          const style = taskStyles.get(a.taskName);
+          return (
+            <AssignmentRow
+              key={a.id}
+              assignment={a}
+              groupColor={group.groupColor}
+              taskColor={style?.color ?? null}
+              taskIcon={style?.icon ?? null}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -176,7 +197,7 @@ function GroupColumn({ group }: { group: GroupedAssignments }) {
 
 // ─── Componente principal ─────────────────────────────────────
 
-export function TodayPanel({ groups }: TodayPanelProps) {
+export function TodayPanel({ groups, allRules }: TodayPanelProps) {
   const todayStr = getLocalTodayStr();
   const now = new Date();
 
@@ -188,6 +209,19 @@ export function TodayPanel({ groups }: TodayPanelProps) {
     if (!assignments) return [];
     return groupAssignmentsByGroup(assignments, groups);
   }, [assignments, groups]);
+
+  // FIX (Tarea 1+2): build taskName → {color, icon} map from all rules
+  const taskStyles = useMemo(() => {
+    const map = new Map<string, { color: string | null; icon: string | null }>();
+    if (allRules) {
+      for (const r of allRules) {
+        if (!map.has(r.taskLabel)) {
+          map.set(r.taskLabel, { color: r.color, icon: r.icon });
+        }
+      }
+    }
+    return map;
+  }, [allRules]);
 
   // Total de asignaciones
   const totalCount = assignments?.length ?? 0;
@@ -234,7 +268,7 @@ export function TodayPanel({ groups }: TodayPanelProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {groupedAssignments.map((group) => (
-              <GroupColumn key={group.groupId} group={group} />
+              <GroupColumn key={group.groupId} group={group} taskStyles={taskStyles} />
             ))}
           </div>
         )}

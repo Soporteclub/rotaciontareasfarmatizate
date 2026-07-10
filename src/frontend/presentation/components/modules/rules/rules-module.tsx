@@ -395,7 +395,8 @@ export function RulesModule() {
               </div>
               <div className="space-y-1.5">
                 {Array.from(inactiveRulesByTask.entries()).map(([taskLabel, taskRules]) => {
-                  const color = getTaskColor(taskLabel);
+                  // FIX (Tarea 1+2): use the color/icon from the rule
+                  const color = getTaskColor(taskLabel, taskRules[0]?.color);
                   return (
                     <div
                       key={taskLabel}

@@ -88,9 +88,10 @@ export function EditRuleDialog({
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center border"
                 style={{
-                  backgroundColor: `${getTaskColor(rule.taskLabel)}12`,
-                  borderColor: `${getTaskColor(rule.taskLabel)}30`,
-                  color: getTaskColor(rule.taskLabel),
+                  // FIX (Tarea 1+2): use the rule's color (with fallback to legacy map)
+                  backgroundColor: `${getTaskColor(rule.taskLabel, rule.color)}12`,
+                  borderColor: `${getTaskColor(rule.taskLabel, rule.color)}30`,
+                  color: getTaskColor(rule.taskLabel, rule.color),
                 }}
               >
                 <Pencil className="h-5 w-5" />

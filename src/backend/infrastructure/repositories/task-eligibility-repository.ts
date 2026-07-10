@@ -31,7 +31,7 @@ export const taskEligibilityRepository = {
   },
 
   async bulkUpsert(entries: Array<{ employeeId: string; taskName: string; isEnabled: boolean }>) {
-    const results = [];
+    const results: unknown[] = [];
     for (const entry of entries) {
       const result = await db.taskEligibility.upsert({
         where: { employeeId_taskName: { employeeId: entry.employeeId, taskName: entry.taskName } },

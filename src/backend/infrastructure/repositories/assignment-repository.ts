@@ -289,7 +289,7 @@ export const assignmentRepository = {
       // check and the second `create` threw P2002 Unique constraint -> ROLLBACK
       // -> 0 assignments and a 500. Now we track seen keys in this run too.
       const seenKeys = new Set<string>();
-      const created = [];
+      const created: unknown[] = [];
       for (const a of newAssignments) {
         const key = `${new Date(a.date).getTime()}:${a.taskName}`;
         if (existingKeys.has(key) || seenKeys.has(key)) {
