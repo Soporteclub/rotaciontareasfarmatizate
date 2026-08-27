@@ -30,7 +30,7 @@ import { AdminOnly } from "@/frontend/presentation/components/shared/admin-guard
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { TASK_TYPES, TASK_LABELS } from "@/backend/domain/entities/types";
-import { TaskIcon } from "@/frontend/presentation/components/shared/task-icon";
+import { TaskIcon, getTaskColor } from "@/frontend/presentation/components/shared/task-icon";
 import { getTaskConfig } from "@/frontend/presentation/components/modules/rules/rules-constants";
 import { DAY_ABBR } from "@/frontend/presentation/components/modules/rules/rules-constants";
 import { toast } from "sonner";
@@ -389,23 +389,26 @@ export function GroupsModule() {
                   {/* Task badges */}
                   {taskLabels.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                      {taskLabels.map((label) => (
-                        <span
-                          key={label}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
-                          style={(() => {
-                            const cfg = getTaskConfig(label);
-                            return {
-                              backgroundColor: cfg.bgLight,
-                              color: cfg.color,
-                              border: `1px solid ${cfg.border}`,
-                            };
-                          })()}
-                        >
-                          <TaskIcon taskType={label} size="xs" showBg={false} />
-                          {label}
-                        </span>
-                      ))}
+                      {taskLabels.map((label) => {
+                        // FIX (Tarea-iconos): use the rule's icon/color when defined
+                        // (fall back to the legacy map by name otherwise).
+                        const rule = group.rules?.find((r) => r.taskLabel === label && (r.icon || r.color));
+                        const color = getTaskColor(label, rule?.color);
+                        return (
+                          <span
+                            key={label}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
+                            style={{
+                              backgroundColor: `${color}1a`,
+                              color,
+                              border: `1px solid ${color}40`,
+                            }}
+                          >
+                            <TaskIcon taskType={label} iconName={rule?.icon ?? null} color={rule?.color ?? null} size="xs" showBg={false} />
+                            {label}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">

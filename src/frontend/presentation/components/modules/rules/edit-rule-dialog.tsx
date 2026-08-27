@@ -454,7 +454,7 @@ function EditRuleForm({ rule, onOpenChange }: EditRuleFormProps) {
           <div className="px-4 py-3" style={{ backgroundColor: config.bgLight }}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <TaskIcon taskType={taskLabel} size="lg" />
+                <TaskIcon taskType={taskLabel} iconName={taskIcon} color={color} size="lg" />
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm">{taskLabel}</span>

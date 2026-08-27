@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +15,7 @@ import { DeleteDialog } from "@/frontend/presentation/components/shared/delete-d
 import { useDeleteAssignments } from "@/frontend/presentation/lib/query/hooks";
 import { Users, Search, Filter, X, Info, Trash2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
-import type { GroupResponse } from "@/frontend/presentation/lib/query/hooks";
+import type { GroupResponse, RuleResponse } from "@/frontend/presentation/lib/query/hooks";
 
 interface DashboardFiltersProps {
   selectedGroupId: string;
@@ -26,6 +26,8 @@ interface DashboardFiltersProps {
   setSearchName: (v: string) => void;
   groups: GroupResponse[] | undefined;
   availableTaskTypes: string[];
+  // FIX (Tarea-iconos): rules so the task filter shows each task's icon/color
+  allRules: RuleResponse[] | undefined;
   filteredCount: number;
   hasActiveFilters: boolean;
   clearFilters: () => void;
@@ -52,7 +54,7 @@ function FairnessTooltip() {
                   <li>Balance mensual</li>
                   <li>Enfriamiento (días desde última tarea)</li>
                   <li>Penalización por consecutivas</li>
-                  <li>Penalización por doble tarea el mismo día</li>
+                  <li>Restricción dura: nadie recibe dos tareas el mismo día (salvo que no quede otra alternativa o el admin lo reasigne)</li>
                 </ul>
               </li>
               <li>El empleado con <strong>mayor puntaje</strong> (más &quot;merecido&quot;) es asignado.</li>
@@ -70,11 +72,25 @@ export function DashboardFilters({
   selectedGroupId, setSelectedGroupId,
   selectedTaskType, setSelectedTaskType,
   searchName, setSearchName,
-  groups, availableTaskTypes,
+  groups, availableTaskTypes, allRules,
   filteredCount, hasActiveFilters, clearFilters,
 }: DashboardFiltersProps) {
   const deleteAssignments = useDeleteAssignments();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // FIX (Tarea-iconos): resolve per-task color/icon from the rules so the
+  // filter dropdown shows the same icon/color as the rules module.
+  const styleByTask = useMemo(() => {
+    const map = new Map<string, { color: string | null; icon: string | null }>();
+    if (allRules) {
+      for (const r of allRules) {
+        if (!map.has(r.taskLabel)) {
+          map.set(r.taskLabel, { color: r.color, icon: r.icon });
+        }
+      }
+    }
+    return map;
+  }, [allRules]);
 
   const handleDelete = async (params: { groupId: string; startDate: string; endDate: string }) => {
     try {
@@ -166,14 +182,17 @@ export function DashboardFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="_all">Todas las tareas</SelectItem>
-            {availableTaskTypes.map((t) => (
-              <SelectItem key={t} value={t}>
-                <div className="flex items-center gap-2">
-                  <TaskIcon taskType={t} size="xs" showBg={false} />
-                  {t}
-                </div>
-              </SelectItem>
-            ))}
+            {availableTaskTypes.map((t) => {
+              const style = styleByTask.get(t);
+              return (
+                <SelectItem key={t} value={t}>
+                  <div className="flex items-center gap-2">
+                    <TaskIcon taskType={t} iconName={style?.icon ?? null} color={style?.color ?? null} size="xs" showBg={false} />
+                    {t}
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
 

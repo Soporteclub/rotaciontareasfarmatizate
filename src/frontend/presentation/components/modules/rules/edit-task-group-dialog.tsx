@@ -454,7 +454,7 @@ export function EditTaskGroupDialog({
             <div className="px-4 py-3" style={{ backgroundColor: config.bgLight }}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <TaskIcon taskType={form.taskLabel} size="lg" />
+                  <TaskIcon taskType={form.taskLabel} iconName={form.icon || null} color={form.color || null} size="lg" />
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm">{form.taskLabel}</span>

@@ -21,7 +21,7 @@ import {
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { BRAND } from "@/frontend/presentation/lib/brand";
 import { cn } from "@/frontend/lib/utils";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useBackupStatus, useCreateBackup, useRestoreBackup } from "@/frontend/presentation/lib/query/backup-hooks";
@@ -344,6 +344,30 @@ function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
   const createBackup = useCreateBackup();
   const restoreBackup = useRestoreBackup();
   const [confirmRestore, setConfirmRestore] = useState(false);
+
+  // FIX (hydratación): este bloque depende de estado del lado cliente (React
+  // Query + store de Zustand isAdmin). En el SSR el query está deshabilitado
+  // (isAdmin=false) y renderizaba "Sin backup", mientras el cliente (admin
+  // desbloqueado) mostraba el loader → árbol distinto entre server y client,
+  // provocando el error "Hydration failed". useSyncExternalStore devuelve
+  // false durante SSR/hidratación (getServerSnapshot) y true tras el mount
+  // (getSnapshot), sin setState-en-effect, así ambos lados renderizan el mismo
+  // placeholder antes de la hidratación.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  if (!hydrated) {
+    return sidebarOpen ? (
+      <div className="space-y-1.5" />
+    ) : (
+      <button className="flex justify-center w-full py-0.5" disabled>
+        <Database className="h-3.5 w-3.5" />
+      </button>
+    );
+  }
 
   const backupExists = backupStatus?.exists === true;
   const isMutating = createBackup.isPending || restoreBackup.isPending;

@@ -674,6 +674,8 @@ export function CreateRuleDialog({
                 <div className="flex items-center gap-2 mb-1.5">
                   <TaskIcon
                     taskType={form.taskLabel}
+                    iconName={form.icon || null}
+                    color={form.color || null}
                     size="sm"
                     showBg={false}
                   />

@@ -2,6 +2,7 @@ import { FairnessEngine } from "@/backend/domain/fairness/fairness-engine";
 import type {
   FairnessEngineInput,
   FairnessEmployee,
+  FairnessHistoricalAssignment,
   FairnessRule,
 } from "@/backend/domain/fairness/fairness-engine";
 import { formatDateKeyUTC } from "@/backend/domain/shared/utc-date";
@@ -105,5 +106,43 @@ describe("FairnessEngine (invariants)", () => {
     }
     const vals = Object.values(totals);
     expect(Math.max(...vals) - Math.min(...vals)).toBeLessThanOrEqual(1);
+  });
+
+  it("does not double-book an employee on the same day while a free eligible employee exists", () => {
+    // FIX (FAIRNESS-2): the same-day rule must be a HARD constraint, not just a
+    // penalty. Previously sameDayPenalty (-5) was overridden by a big task
+    // deficit (e.g. 5 × balanceWeight 2.0 = 10) and the same employee could
+    // receive two tasks on the same date.
+    const two = employees.slice(0, 2); // e1, e2
+    const e2Id = two[1]!.id;
+    const mondayRules: FairnessRule[] = [
+      { ...rules[0], id: "mon-a", taskLabel: "Tarea A" },
+      { ...rules[0], id: "mon-b", taskLabel: "Tarea B" }, // also Monday
+    ];
+    // e2 is heavily loaded with "Tarea B" in history; e1 is free of it. This
+    // creates a deficit big enough that, under the old soft-penalty logic, e1
+    // would win "Tarea B" too — double-booking them on the same Monday.
+    const history: FairnessHistoricalAssignment[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `h${i}`,
+      employeeId: e2Id,
+      groupId: GROUP_ID,
+      date: new Date(Date.UTC(2025, 11, 29 - (9 - i) * 7)), // 10 Mondays of Dec 2025 back to Oct
+      taskType: "Tarea B",
+      isLocked: true,
+    }));
+    const input: FairnessEngineInput = {
+      employees: two,
+      rules: mondayRules,
+      historicalAssignments: history,
+      groupId: GROUP_ID,
+      startDate: new Date(Date.UTC(2026, 0, 5)), // Mon 05-ene-2026
+      endDate: new Date(Date.UTC(2026, 0, 5)), // single-Monday range
+      holidays: new Set(),
+    };
+    const report = new FairnessEngine().generateAssignments(input);
+
+    expect(report.assignments.length).toBe(2);
+    const ids = new Set(report.assignments.map((a) => a.employeeId));
+    expect(ids.size).toBe(2); // two DIFFERENT people share the same day
   });
 });

@@ -141,6 +141,7 @@ export function DashboardModule() {
         setSearchName={setSearchName}
         groups={groups}
         availableTaskTypes={availableTaskTypes}
+        allRules={allRules}
         filteredCount={filteredAssignments?.length ?? 0}
         hasActiveFilters={hasActiveFilters}
         clearFilters={clearFilters}

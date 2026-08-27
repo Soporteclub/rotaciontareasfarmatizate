@@ -229,9 +229,21 @@ export class FairnessEngine {
     alreadyAssignedToday: Set<string>
   ): { employee: FairnessEmployee; score: number } | null {
     // Filter to employees eligible for THIS task
-    const available = employees
+    const eligible = employees
       .filter((e) => this.isEmployeeAvailableOnDate(e, date))
-      .filter((e) => !this.isTaskDisabled(e, taskType))
+      .filter((e) => !this.isTaskDisabled(e, taskType));
+
+    if (eligible.length === 0) return null;
+
+    // FIX (FAIRNESS-2): HARD constraint — while another eligible employee is
+    // free, an employee who already has an assignment today is NOT considered.
+    // Giving one person two or more tasks the same day defeats the rotation's
+    // equity purpose. The admin can still reassign manually afterwards (manual
+    // edits bypass this engine). Fallback: if EVERY eligible employee already
+    // has a task today, keep the scored choice so the date is not left empty.
+    const freeToday = eligible.filter((e) => !alreadyAssignedToday.has(e.id));
+
+    const available = (freeToday.length > 0 ? freeToday : eligible)
       .map((employee) => ({
         employee,
         score: this.calculateScore(
@@ -239,8 +251,6 @@ export class FairnessEngine {
         ),
       }))
       .sort((a, b) => b.score - a.score);
-
-    if (available.length === 0) return null;
 
     // Per-task equity constraint: never assign someone who has maxImbalance+ more
     // assignments FOR THIS SPECIFIC TASK than the least-assigned eligible employee
