@@ -32,11 +32,14 @@ export const holidayRepository = {
     return db.holiday.findUnique({ where: { id } });
   },
 
-  async findByDate(date: Date) {
+    async findByDate(date: Date) {
+    // FIX (BC-1/BC-2): UTC day boundaries so the window matches holiday
+    // instants stored at 00:00:00.000Z regardless of server TZ. Previously
+    // setHours() (LOCAL) shifted the window on non-UTC servers.
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
     return db.holiday.findMany({
       where: {
@@ -47,10 +50,11 @@ export const holidayRepository = {
   },
 
   async isHoliday(date: Date): Promise<boolean> {
+    // FIX (BC-1/BC-2): same UTC-boundary fix as findByDate.
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
     const count = await db.holiday.count({
       where: {

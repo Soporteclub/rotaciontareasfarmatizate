@@ -1761,6 +1761,7 @@ export const openApiSpec = {
           groupId: { type: "string", description: "ID del grupo cuyas asignaciones se eliminarán" },
           startDate: { type: "string", format: "date", description: "Fecha inicio del rango (ISO 8601). Opcional: sin fechas elimina todas." },
           endDate: { type: "string", format: "date", description: "Fecha fin del rango (ISO 8601). Opcional: sin fechas elimina todas." },
+          force: { type: "boolean", default: false, description: "Si true, también elimina asignaciones bloqueadas (históricas). Por defecto false." },
         },
       },
 

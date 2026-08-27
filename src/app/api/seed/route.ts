@@ -28,17 +28,24 @@ const TASK_CONFIGS: TaskConfig[] = [
 
 // ─── Pure helpers ─────────────────────────────────────────────
 
+// FIX (BC-2): build holiday date keys with UTC accessors so the seed loop
+// lines up with the instants as the Fairness Engine's dateToKey (also UTC)
+// and with holiday rows stored in the DB. On a TZ≠UTC server (p. ej. UTC de
+// Netlify) a local `getDate()` key shifted the day and could skip mismatches.
 function buildHolidayDateSet(holidays: Array<{ date: Date }>): Set<string> {
   const dateSet = new Set<string>();
   for (const h of holidays) {
-    const key = `${h.date.getFullYear()}-${String(h.date.getMonth() + 1).padStart(2, "0")}-${String(h.date.getDate()).padStart(2, "0")}`;
+    const d = h.date;
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
     dateSet.add(key);
   }
   return dateSet;
 }
 
 function formatDateKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  // FIX (BC-2): UTC accessors (mirror of fairness-engine.dateToKey) so keys
+  // are stable regardless of the server timezone.
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
 function isTaskDay(taskConfig: TaskConfig, dayOfWeek: number): boolean {

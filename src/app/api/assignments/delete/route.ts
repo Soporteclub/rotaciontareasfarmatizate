@@ -5,22 +5,17 @@
 // - Without dates: deletes ALL UNLOCKED assignments for the group (preserves history)
 // - With dates: deletes UNLOCKED assignments within the date range (preserves history)
 //
-// FIX (API-05): Now requires admin key (header x-admin-key).
+// FIX (API-05): Requires admin key (header x-admin-key).
 // FIX (API-08): Validates body with Zod.
-// FIX (BUG-04): By default only deletes isLocked:false (preserves historical).
+// FIX (BUG-04): By default only deletes isLocked:false (preserve historical).
 //               Pass { force: true } to also delete locked (requires admin anyway).
+// FIX (BC-3): Date strings now validated with the shared isoDate helper in
+//             validators/schemas.ts (YYYY-MM-DD + real day; startDate<=endDate).
 
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { assignmentService } from "@/backend/application/services/assignment-service";
 import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
-
-const deleteAssignmentsSchema = z.object({
-  groupId: z.string().min(1, "groupId es requerido"),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  force: z.boolean().optional().default(false),
-});
+import { deleteAssignmentsSchema } from "@/backend/application/validators/schemas";
 
 export async function POST(request: NextRequest) {
   // Authorize via header so the body can still be parsed below

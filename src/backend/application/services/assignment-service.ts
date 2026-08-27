@@ -361,14 +361,16 @@ export const assignmentService = {
 
     // Calculate date range from assignments
     let dateRange: { from: string | null; to: string | null } = { from: null, to: null };
-    if (assignments.length > 0) {
+        if (assignments.length > 0) {
       const dates = assignments.map((a) => new Date(a.date).getTime());
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
       const pad = (n: number) => String(n).padStart(2, "0");
+      // FIX (BC-1): UTC accessors so the reported range matches the canonical
+      // 00:00:00.000Z storage form regardless of the server timezone.
       dateRange = {
-        from: `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}`,
-        to: `${maxDate.getFullYear()}-${pad(maxDate.getMonth() + 1)}-${pad(maxDate.getDate())}`,
+        from: `${minDate.getUTCFullYear()}-${pad(minDate.getUTCMonth() + 1)}-${pad(minDate.getUTCDate())}`,
+        to: `${maxDate.getUTCFullYear()}-${pad(maxDate.getUTCMonth() + 1)}-${pad(maxDate.getUTCDate())}`,
       };
     }
 
@@ -390,8 +392,9 @@ export const assignmentService = {
       for (const a of empAssignments) {
         taskBreakdown[a.taskName] = (taskBreakdown[a.taskName] ?? 0) + 1;
 
+        // FIX (BC-1): monthly balance keyed by UTC year-month.
         const d = new Date(a.date);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
         monthlyBalance[key] = (monthlyBalance[key] ?? 0) + 1;
       }
 

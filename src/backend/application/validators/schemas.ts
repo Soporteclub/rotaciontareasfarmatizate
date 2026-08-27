@@ -76,14 +76,73 @@ export const updateRuleSchema = z.object({
 
 // ─── Assignment Generation Schema ─────────────────────────────
 
-export const generateAssignmentsSchema = z.object({
-  groupId: z.string().min(1, "El grupo es requerido"),
-  startDate: z.string().min(1, "Fecha inicio requerida"),
-  endDate: z.string().min(1, "Fecha fin requerida"),
-}).refine(
-  (data) => new Date(data.startDate) < new Date(data.endDate),
-  { message: "La fecha inicio debe ser anterior a la fecha fin", path: ["startDate"] }
-);
+// FIX (BC-3): startDate/endDate must be REAL ISO dates (YYYY-MM-DD), not just
+// non-empty strings. `new Date("garbage")` becomes Invalid Date and previously
+// slipped past the `<` comparison (NaN < NaN is false, yielding a confusing
+// downstream failure). Range is also capped to 366 days so a caller cannot
+// book a year+ of assignments in a single request.
+const isoDate = z
+  .string()
+  .min(1, "Fecha requerida")
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)")
+  .refine((s) => !Number.isNaN(new Date(`${s}T00:00:00.000Z`).getTime()), {
+    message: "Fecha inválida",
+  });
+
+// FIX (BC-3): 86400s = 24h; used to cap the generation range above.
+const MS_PER_DAY = 86_400_000;
+
+export const generateAssignmentsSchema = z
+  .object({
+    groupId: z.string().min(1, "El grupo es requerido"),
+    startDate: isoDate,
+    endDate: isoDate,
+  })
+  .refine((data) => new Date(`${data.endDate}T00:00:00.000Z`) > new Date(`${data.startDate}T00:00:00.000Z`), {
+    message: "La fecha inicio debe ser anterior a la fecha fin",
+    path: ["startDate"],
+  })
+  .refine(
+    (data) =>
+      (new Date(`${data.endDate}T00:00:00.000Z`).getTime() -
+        new Date(`${data.startDate}T00:00:00.000Z`).getTime()) /
+        MS_PER_DAY <=
+      366,
+    { message: "El rango no puede superar 366 días", path: ["endDate"] },
+    );
+
+// ─── Assignment Deletion Schema ─────────────────────────────────
+// FIX (BC-3): reuses the strict isoDate helper so date strings are validated
+// (YYYY-MM-DD + real calendar day) before being passed to the service. Previously
+// the delete route validated dates as plain optional strings, which let invalid
+// values reach the service silently.
+
+export const deleteAssignmentsSchema = z
+  .object({
+    groupId: z.string().min(1, "groupId es requerido"),
+    startDate: isoDate.optional().nullable().transform((v) => v ?? null),
+    endDate: isoDate.optional().nullable().transform((v) => v ?? null),
+    force: z.boolean().optional().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (data.startDate && !data.endDate) {
+      ctx.addIssue({ code: "custom", message: "startDate requiere endDate", path: ["endDate"] });
+    }
+    if (data.endDate && !data.startDate) {
+      ctx.addIssue({ code: "custom", message: "endDate requiere startDate", path: ["startDate"] });
+    }
+    if (
+      data.startDate &&
+      data.endDate &&
+      new Date(`${data.endDate}T00:00:00.000Z`) < new Date(`${data.startDate}T00:00:00.000Z`)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "La fecha inicio debe ser anterior a la fecha fin",
+        path: ["startDate"],
+      });
+    }
+  });
 
 // ─── Audit Query Schema ───────────────────────────────────────
 
@@ -104,4 +163,5 @@ export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type CreateRuleInput = z.infer<typeof createRuleSchema>;
 export type UpdateRuleInput = z.infer<typeof updateRuleSchema>;
 export type GenerateAssignmentsInput = z.infer<typeof generateAssignmentsSchema>;
+export type DeleteAssignmentsInput = z.infer<typeof deleteAssignmentsSchema>;
 export type AuditQueryInput = z.infer<typeof auditQuerySchema>;

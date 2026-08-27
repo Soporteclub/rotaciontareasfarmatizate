@@ -579,7 +579,7 @@ export class FairnessEngine {
     const monthlyTracker = new Map<string, string>();
 
     while (current <= end) {
-      const dayOfWeek = current.getDay() as DayOfWeek;
+      const dayOfWeek = current.getUTCDay() as DayOfWeek;
       const dateKey = this.dateToKey(current);
 
       if (!this.isHoliday(dateKey, holidays)) {
