@@ -1,18 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 
 export default function DocsPage() {
+  const isAdmin = useSyncExternalStore(
+    useUIStore.subscribe,
+    () => useUIStore.getState().isAdmin,
+    () => false
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const [spec, setSpec] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isAdmin) return;
     fetch("/api/docs")
       .then((res) => res.json())
       .then((data) => setSpec(data))
       .catch((err) => setError(err.message));
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!spec || !containerRef.current) return;
@@ -56,6 +63,16 @@ export default function DocsPage() {
       }
     };
   }, [spec]);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Acceso restringido a administradores.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">

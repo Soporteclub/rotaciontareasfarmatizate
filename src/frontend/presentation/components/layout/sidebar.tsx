@@ -205,36 +205,36 @@ function SidebarFooter({
     <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
       {isAdmin ? (
         <UnlockedStatus sidebarOpen={sidebarOpen} lockAdmin={lockAdmin} />
-      ) : (
-        <LockedStatus sidebarOpen={sidebarOpen} requestAdminUnlock={requestAdminUnlock} />
-      )}
-      <BackupSection sidebarOpen={sidebarOpen} />
-      {sidebarOpen && (
-        <div className="space-y-1 pt-1">
-          <a
-            href="/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary transition-colors"
-          >
-            <FileCode2 className="h-3 w-3" />
-            API Docs
-          </a>
-          <p className="text-[10px] text-muted-foreground/50 font-medium">v2.0</p>
-        </div>
-      )}
-      {!sidebarOpen && (
-        <a
-          href="/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex justify-center text-muted-foreground hover:text-primary transition-colors py-1"
-          title="API Docs"
-        >
-          <FileCode2 className="h-3.5 w-3.5" />
-        </a>
-      )}
+  ) : (
+    <LockedStatus sidebarOpen={sidebarOpen} requestAdminUnlock={requestAdminUnlock} />
+  )}
+  {isAdmin && <BackupSection sidebarOpen={sidebarOpen} />}
+  {isAdmin && sidebarOpen && (
+    <div className="space-y-1 pt-1">
+      <a
+        href="/docs"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+      >
+        <FileCode2 className="h-3 w-3" />
+        API Docs
+      </a>
+      <p className="text-[10px] text-muted-foreground/50 font-medium">v2.0</p>
     </div>
+  )}
+  {isAdmin && !sidebarOpen && (
+    <a
+      href="/docs"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex justify-center text-muted-foreground hover:text-primary transition-colors py-1"
+      title="API Docs"
+    >
+      <FileCode2 className="h-3.5 w-3.5" />
+    </a>
+  )}
+</div>
   );
 }
 
