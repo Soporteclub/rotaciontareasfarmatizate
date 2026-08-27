@@ -16,6 +16,7 @@ import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 export function AdminKeyModal() {
   const adminPendingUnlock = useUIStore((s) => s.adminPendingUnlock);
   const unlockAdmin = useUIStore((s) => s.unlockAdmin);
+  const lockAdmin = useUIStore((s) => s.lockAdmin);
   const clearAdminRequest = useUIStore((s) => s.clearAdminRequest);
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -54,6 +55,9 @@ export function AdminKeyModal() {
       clearAdminRequest();
       setKey("");
       setError("");
+      // FIX (admin modal): cancelar/bloquear el modal también bloquea el admin
+      // para que no quede la sesión abierta sin querer.
+      lockAdmin();
     }
   };
 

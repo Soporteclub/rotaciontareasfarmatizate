@@ -91,7 +91,7 @@ export type EntityType = "group" | "employee" | "rule" | "assignment";
 // FIX (BUG-12): added "edit", "deleteRange" — used in assignment-service and
 // assignments/[id]/route.ts but were missing from the type, causing TS build
 // errors when ignoreBuildErrors was set to false.
-export type AuditAction = "create" | "update" | "edit" | "delete" | "deleteRange" | "deactivate" | "reactivate" | "regenerate" | "lock" | "syncEligibility";
+export type AuditAction = "create" | "update" | "edit" | "emergency-edit" | "delete" | "deleteRange" | "deactivate" | "reactivate" | "regenerate" | "lock" | "syncEligibility";
 
 export const DAY_NAMES: Record<DayOfWeek, string> = {
   0: "Domingo",

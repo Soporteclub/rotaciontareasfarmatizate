@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Pencil, Lock, Loader2, User, Calendar, Tag, ShieldAlert } from "lucide-react";
+import { Pencil, Lock, Loader2, User, Calendar, Tag, ShieldAlert, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +41,7 @@ function AssignmentEditDialogContent({
   const isAdmin = useUIStore((s) => s.isAdmin);
   const requestAdminUnlock = useUIStore((s) => s.requestAdminUnlock);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(assignment.employeeId);
+  const [forceMode, setForceMode] = useState(false);
   const updateAssignment = useUpdateAssignment();
 
   // Get employees for the same group
@@ -62,8 +63,15 @@ function AssignmentEditDialogContent({
   const dateObj = new Date(yyyy, (mm ?? 1) - 1, dd ?? 1);
   const dateDisplay = format(dateObj, "EEEE d 'de' MMMM, yyyy", { locale: es });
 
-  // Only admin can edit unlocked assignments
-  const canEdit = isAdmin && !isLocked;
+  // Determine if the assignment date is in the past (before today UTC)
+  const today = new Date();
+  const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const assignmentDate = new Date(assignment.date);
+  const isPast = assignmentDate.getTime() < todayUTC.getTime();
+
+  // Only admin can edit unlocked assignments, or past assignments with force override
+  const canEdit = isAdmin && (!isLocked || forceMode);
+  const canRequestUnlock = !isAdmin && !isLocked;
 
   const handleSave = async () => {
     if (selectedEmployeeId === assignment.employeeId) {
@@ -84,9 +92,11 @@ function AssignmentEditDialogContent({
         id: assignment.id,
         employeeId: selectedEmployeeId,
         adminKey,
+        force: forceMode || undefined,
       });
       const newEmp = activeEmployees.find((e) => e.id === selectedEmployeeId);
       toast.success(`Asignación actualizada: ahora ${newEmp?.name ?? "otro empleado"}`);
+      setForceMode(false);
       onOpenChange(false);
     } catch (err) {
       // FIX (FE-04): detect 403 (admin key invalid/expired) and force re-unlock.
@@ -101,6 +111,10 @@ function AssignmentEditDialogContent({
     }
   };
 
+  const handleEmergencyUnlock = () => {
+    setForceMode(true);
+  };
+
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -108,7 +122,7 @@ function AssignmentEditDialogContent({
           {canEdit ? (
             <>
               <Pencil className="h-5 w-5" />
-              Editar Asignación
+              {forceMode ? "Editar histórico (emergencia)" : "Editar Asignación"}
             </>
           ) : (
             <>
@@ -118,11 +132,15 @@ function AssignmentEditDialogContent({
           )}
         </DialogTitle>
         <DialogDescription>
-          {isLocked
+          {isLocked && !forceMode
             ? "Esta asignación está bloqueada porque es histórica y no se puede modificar."
-            : !isAdmin
-              ? "Solo un administrador puede modificar asignaciones."
-              : "Cambia el empleado asignado a esta tarea."}
+            : isPast && !forceMode
+              ? "Esta asignación corresponde a un día pasado. Solo se puede modificar con modo emergencia."
+              : !isAdmin
+                ? "Solo un administrador puede modificar asignaciones."
+                : forceMode
+                  ? "Modo emergencia activado: podés modificar esta asignación histórica."
+                  : "Cambia el empleado asignado a esta tarea."}
         </DialogDescription>
       </DialogHeader>
 
@@ -133,6 +151,12 @@ function AssignmentEditDialogContent({
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="capitalize font-medium">{dateDisplay}</span>
+            {isPast && (
+              <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Pasado
+              </Badge>
+            )}
           </div>
 
           {/* Task */}
@@ -160,10 +184,16 @@ function AssignmentEditDialogContent({
               <span>Bloqueada (histórica)</span>
             </div>
           )}
-          {!isAdmin && !isLocked && (
+          {!isAdmin && !isLocked && !isPast && (
             <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
               <ShieldAlert className="h-3 w-3" />
               <span>Protegida — requiere clave de administrador</span>
+            </div>
+          )}
+          {forceMode && (
+            <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Modo emergencia activado — esta modificación quedará registrada en auditoría</span>
             </div>
           )}
         </div>
@@ -220,8 +250,20 @@ function AssignmentEditDialogContent({
           </Button>
         )}
 
+        {/* Emergency override button for past assignments */}
+        {isAdmin && isPast && !isLocked && !forceMode && (
+          <Button
+            variant="destructive"
+            className="w-full gap-2"
+            onClick={handleEmergencyUnlock}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Modificar histórico (emergencia)
+          </Button>
+        )}
+
         {/* Unlock button for non-admins */}
-        {!isAdmin && !isLocked && (
+        {canRequestUnlock && (
           <Button
             variant="outline"
             className="w-full gap-2"

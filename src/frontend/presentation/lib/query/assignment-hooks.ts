@@ -73,10 +73,10 @@ export function useDeleteAssignments() {
 export function useUpdateAssignment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { id: string; employeeId: string; adminKey: string }) =>
+    mutationFn: (data: { id: string; employeeId: string; adminKey: string; force?: boolean }) =>
       apiFetch<AssignmentResponse>(`/api/assignments/${data.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ employeeId: data.employeeId, adminKey: data.adminKey }),
+        body: JSON.stringify({ employeeId: data.employeeId, adminKey: data.adminKey, force: data.force }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });

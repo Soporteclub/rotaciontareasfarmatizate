@@ -1,6 +1,8 @@
 // Update Assignment API Route
 // PATCH /api/assignments/[id] - Update an assignment (change employee) only if not locked
 // Requires admin key verification via settings service
+// Body: { employeeId: string, adminKey: string, force?: boolean }
+// - force=true allows editing past assignments (emergency override), requires admin key
 
 import { NextRequest, NextResponse } from "next/server";
 import { assignmentRepository } from "@/backend/infrastructure/repositories/assignment-repository";
@@ -14,7 +16,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { employeeId, adminKey } = body;
+    const { employeeId, adminKey, force } = body;
 
     // Verify admin key via settings service (same as sidebar unlock)
     if (!adminKey) {
@@ -48,10 +50,25 @@ export async function PATCH(
       );
     }
 
-    // Check if locked (past assignment)
+    // Check if assignment date is in the past (before today UTC)
+    const today = new Date();
+    const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+    const assignmentDate = new Date(existing.date);
+    const isPast = assignmentDate.getTime() < todayUTC.getTime();
+
     if (existing.isLocked) {
       return NextResponse.json(
         { error: "No se puede editar una asignación bloqueada (histórica)" },
+        { status: 403 }
+      );
+    }
+
+    if (isPast && !force) {
+      return NextResponse.json(
+        {
+          error: "No se puede modificar una asignación de un día pasado. Usá el modo emergencia para override.",
+          requiresForce: true,
+        },
         { status: 403 }
       );
     }
@@ -63,7 +80,7 @@ export async function PATCH(
     await auditLogRepository.create({
       entityType: "assignment",
       entityId: id,
-      action: "edit",
+      action: force ? "emergency-edit" : "edit",
       changes: {
         previousEmployeeId: existing.employeeId,
         previousEmployeeName: existing.employee?.name,
@@ -72,6 +89,7 @@ export async function PATCH(
         date: existing.date,
         taskName: existing.taskName,
         groupId: existing.groupId,
+        force: !!force,
       },
       groupId: existing.groupId,
     });
