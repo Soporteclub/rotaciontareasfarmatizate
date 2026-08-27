@@ -5,16 +5,22 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "start": "NODE_ENV=production node .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
     "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset"
   },
-  "packageManager": "bun@1.1.0",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -55,6 +61,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@reactuses/core": "^6.0.5",
+    "@tailwindcss/postcss": "^4",
     "@tanstack/react-query": "^5.82.0",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
@@ -83,23 +90,23 @@
     "sonner": "^2.0.6",
     "swagger-ui-react": "^5.32.6",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4",
     "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.3.5",
     "uuid": "^11.1.0",
     "vaul": "^1.1.2",
     "z-ai-web-dev-sdk": "^0.0.17",
-    "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
-    "tw-animate-css": "^1.3.5",
     "zod": "^4.0.2",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@types/node": "26.3.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/swagger-ui-react": "^5.18.0",
-    "bun-types": "^1.3.4",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }
