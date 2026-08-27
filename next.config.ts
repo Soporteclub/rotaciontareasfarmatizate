@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   // FIX: set turbopack.root so Next.js doesn't get confused by the parent
-  // bun.lock. Without this, dev server crashes on first request because it
+  // lockfile. Without this, dev server crashes on first request because it
   // resolves the workspace root to /home/z/my-project instead of this dir.
   turbopack: {
     root: __dirname,

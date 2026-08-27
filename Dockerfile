@@ -1,22 +1,22 @@
 # ─── Stage 1: Dependencies ─────────────────────────────────────
-# FIX (CFG-03): use Bun (the repo's package manager) with --frozen-lockfile.
+# FIX (CFG-03): use npm ci (npm is now the repo's package manager).
 # Previously used `npm install --frozen-lockfile` which is a Yarn flag that
 # npm silently ignores, producing non-reproducible installs.
-FROM oven/bun:1-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 
-COPY package.json bun.lock* ./
-RUN bun install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # ─── Stage 2: Build ────────────────────────────────────────────
-FROM oven/bun:1-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client
-RUN bunx prisma generate
+RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED=1
 # FIX (CFG-02): build requires a DATABASE_URL for Prisma generate; provide a
@@ -24,7 +24,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public"
 
 # Build with standalone output (next.config.ts now has output: 'standalone')
-RUN bunx next build
+RUN npx next build
 
 # ─── Stage 3: Production Runner ────────────────────────────────
 FROM node:22-alpine AS runner
@@ -71,10 +71,9 @@ USER appuser
 
 EXPOSE 3000
 
-# FIX (CFG-09): healthcheck against /api/health (which checks the DB) instead
-# of the static / page that returns 200 even with a dead DB.
-# NOTE: /api/health doesn't exist yet — see the roadmap. Until then we keep /.
+# FIX (CFG-09): healthcheck against /api/health, which runs SELECT 1 against the
+# DB, instead of the static "/" page that returns 200 even with a dead database.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
 CMD ["/app/start.sh"]

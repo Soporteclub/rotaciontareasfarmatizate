@@ -9,19 +9,26 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - db-data:/app/db
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:/app/db/custom.db
+      # FIX (BC-5): this project uses PostgreSQL (Neon or local), NOT SQLite.
+      # `src/backend/infrastructure/database.ts` rejects `file:` URLs at boot.
+      # Inject a real URL from the host environment or a `.env.docker` file;
+      # compose fails fast with a clear message if it is missing.
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be a postgresql:// URL}
       - PORT=3000
+    volumes:
+      # The DB is remote (Neon); this volume only persists local backups.
+      - data:/app/data
+    # FIX (BC-4): healthcheck hits /api/health which runs SELECT 1 against the DB
+    # instead of "/" which returns 200 even with a dead database.
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       start_period: 30s
       retries: 3
 
 volumes:
-  db-data:
+  data:
     driver: local

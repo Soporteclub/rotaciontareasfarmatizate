@@ -47,8 +47,7 @@ server.log
 dev.log
 dev.out.log
 
-# Database (local SQLite — should not be committed)
-db/*.db
+# Database (PostgreSQL/Neon — connection string lives in .env, never committed)
 
 # FIX (SEC-03): backups now live in /data/ (not public/). Never commit them.
 public/backup.json
@@ -67,8 +66,6 @@ download/
 worklog.md
 test
 prompt
-.zscripts/
-mini-services/
 examples/
 .kilo/
 *.pid
