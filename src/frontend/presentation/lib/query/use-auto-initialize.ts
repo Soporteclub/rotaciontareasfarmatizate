@@ -168,7 +168,12 @@ export function useAutoInitialize() {
   }, [queryClient]);
 
   useEffect(() => {
-    initialize();
+    // FIX (LINT): initialize() hace setState en su primer tick (antes del primer
+    // await), lo cual dispara react-hooks/set-state-in-effect si se invoca
+    // directamente en el cuerpo del effect. Se difiere con un timeout; el guard
+    // hasRun ya protege contra ejecuciones dobles.
+    const timer = window.setTimeout(initialize, 0);
+    return () => window.clearTimeout(timer);
   }, [initialize]);
 
   return state;

@@ -95,11 +95,18 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
+
+    // FIX (LINT): se difiere la sincronización inicial con requestAnimationFrame
+    // para evitar un setState síncrono en el cuerpo del effect
+    // (regla react-hooks/set-state-in-effect). Las actualizaciones posteriores
+    // llegan vía los eventos "select"/"reInit" de embla.
+    const frame = window.requestAnimationFrame(() => onSelect(api))
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 
     return () => {
+      window.cancelAnimationFrame(frame)
+      api?.off("reInit", onSelect)
       api?.off("select", onSelect)
     }
   }, [api, onSelect])

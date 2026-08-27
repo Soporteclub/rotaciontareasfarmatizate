@@ -4,6 +4,7 @@
 // definir su propio `icon` (nombre Lucide) y `color` (#hex). El map hardcodeado
 // TASK_ICON_MAP sigue como fallback para reglas existentes sin ícono definido.
 
+import { memo, type CSSProperties } from "react";
 import {
   Trash2, Coffee, Sparkles, ClipboardList, Brush, DoorOpen, DoorClosed,
   PackageSearch, type LucideIcon,
@@ -269,6 +270,25 @@ export function resolveIcon(iconName: string | null | undefined): LucideIcon {
   return ICON_REGISTRY[key] ?? ClipboardList;
 }
 
+// FIX (LINT): componente estable que resuelve el ícono directamente del registry
+// estático (sin invocar funciones que devuelvan componentes durante el render).
+// Necesario para cumplir la regla react-hooks/static-components.
+const ResolvedIcon = memo(function ResolvedIcon({
+  iconName,
+  fallback,
+  className,
+  style,
+}: {
+  iconName: string | null | undefined;
+  fallback: LucideIcon;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const key = (iconName ?? "").toLowerCase();
+  const Icon = (iconName ? ICON_REGISTRY[key] : undefined) ?? fallback;
+  return <Icon className={className} style={style} />;
+});
+
 /**
  * Lista de nombres de íconos disponibles para la galería del selector.
  * Agrupados por categoría para facilitar la navegación.
@@ -462,12 +482,18 @@ const SIZE_MAP = {
 
 export function TaskIcon({ taskType, iconName, color, size = "md", showBg = true, className }: TaskIconProps) {
   const config = getTaskIconConfig(taskType);
-  const Icon = iconName ? resolveIcon(iconName) : config.icon;
   const finalColor = (color && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : config.color;
   const dims = SIZE_MAP[size];
 
   if (!showBg) {
-    return <Icon className={dims.icon} style={{ color: finalColor }} />;
+    return (
+      <ResolvedIcon
+        iconName={iconName}
+        fallback={config.icon}
+        className={dims.icon}
+        style={{ color: finalColor }}
+      />
+    );
   }
 
   return (
@@ -475,7 +501,12 @@ export function TaskIcon({ taskType, iconName, color, size = "md", showBg = true
       className={`inline-flex items-center justify-center shrink-0 border ${config.bgClass} ${config.borderClass} ${dims.container} ${className ?? ""}`}
       style={color ? { backgroundColor: `${finalColor}1a`, borderColor: `${finalColor}40` } : undefined}
     >
-      <Icon className={dims.icon} style={{ color: finalColor }} />
+      <ResolvedIcon
+        iconName={iconName}
+        fallback={config.icon}
+        className={dims.icon}
+        style={{ color: finalColor }}
+      />
     </div>
   );
 }
@@ -491,7 +522,6 @@ interface TaskBadgeProps {
 
 export function TaskBadge({ taskType, iconName, color, className }: TaskBadgeProps) {
   const config = getTaskIconConfig(taskType);
-  const Icon = iconName ? resolveIcon(iconName) : config.icon;
   const finalColor = (color && /^#[0-9a-fA-F]{6}$/.test(color)) ? color : config.color;
 
   return (
@@ -499,7 +529,7 @@ export function TaskBadge({ taskType, iconName, color, className }: TaskBadgePro
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${className ?? ""}`}
       style={{ color: finalColor, backgroundColor: `${finalColor}1a`, borderColor: `${finalColor}40` }}
     >
-      <Icon className="h-3 w-3" />
+      <ResolvedIcon iconName={iconName} fallback={config.icon} className="h-3 w-3" />
       {taskType}
     </span>
   );
