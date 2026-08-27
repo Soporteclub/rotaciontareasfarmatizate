@@ -29,19 +29,28 @@ La aplicación estará disponible en `http://localhost:3000`.
 
 ### Configuración
 
-El `docker-compose.yml` define:
+El `docker-compose.yml` define el servicio `app`. Para entornos locales con
+PostgreSQL (opcional), ajusta la variable de entorno:
 
 | Variable | Valor | Propósito |
 |----------|-------|-----------|
 | NODE_ENV | production | Modo producción |
-| DATABASE_URL | file:/app/db/custom.db | Path de SQLite dentro del container |
+| DATABASE_URL | postgresql://… | Conexión PostgreSQL (rama Neon o Postgres local) |
 | PORT | 3000 | Puerto del servidor |
+
+> ⚠️ **Importante**: la BD real es **PostgreSQL / Neon**, inyectada por Netlify vía
+> variables de entorno. El `provider` de `schema.prisma` es `postgresql` y
+> `database.ts` **rechaza** URLs `file:` (SQLite) al arrancar. No uses `file:/…`
+> para `DATABASE_URL`.
 
 ### Volúmenes
 
 | Volumen | Montaje | Propósito |
 |---------|---------|-----------|
-| db-data | /app/db | Persiste la base de datos SQLite |
+| data | /app/data | Persiste los backups locales (NO la base de datos) |
+
+> La base de datos no vive en el container: es **Neon** (externa). El volumen
+> `data` solo guarda los respaldos generados por la app.
 
 Los datos sobreviven reinicios y reconstrucciones del container.
 
@@ -61,7 +70,7 @@ El container incluye un health check automático:
 - Intervalo: 30s
 - Timeout: 10s
 - Start period: 30s
-- Verifica: `wget http://localhost:3000/`
+- Verifica: `wget http://localhost:3000/api/health` (ejecuta `SELECT 1` contra la BD, en lugar de la página estática `/`).
 
 ### Semillar Datos
 
@@ -78,31 +87,62 @@ curl http://localhost:3000/api/groups
 ## Desarrollo Local
 
 ### Requisitos
-- Node.js 22+ o Bun
-- npm/bun
+- Node.js 18+ (recomendado **Node 22**, ver `.nvmrc`)
+- npm (gestor del proyecto)
 
 ### Setup
 
 ```bash
-# Instalar dependencias
-bun install
+# Instalar dependencias (npm)
+npm install
 
 # Generar Prisma client
-bun run db:generate
+npm run db:generate
 
-# Crear/actualizar schema
-bun run db:push
+# Crear/actualizar schema de desarrollo (rama Neon)
+npm run db:push
+
+# Aplicar migraciones producción / CI
+npm run db:deploy
 
 # Iniciar desarrollo
-bun run dev
+npm run dev
 ```
 
 ### Variables de Entorno
 
-Crear archivo `.env`:
+Crear archivo `.env` (copiado de `.env.example`):
 ```
-DATABASE_URL="file:./db/custom.db"
+DATABASE_URL="postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require"
 ```
+
+> Para desarrollo usa una **rama/branch de Neon** y apunta `DATABASE_URL` a ella;
+> así no afectas la base principal de producción. Nunca uses `file:...` (es SQLite).
+
+### Implementar la rama dev de Neon con respaldo del env
+
+1. En Neon crea una rama **`dev`** desde producción (elige "Branch data and schema").
+   La principal queda intacta.
+2. Dentro de la rama dev usa **Connection string** + **conexión DIRECTA** (sin pooling).
+3. En local, crea una copia de referencia del entorno y el `.env` de trabajo:
+   ```bash
+   cp .env.example .env.example.dev   # plantilla/respaldo del entorno dev
+   cp .env.example.dev .env           # .env de trabajo (apunta a la rama dev)
+   ```
+   > Ambos (`.env`, `.env.example.dev`) están ignorados por git (`.gitignore` → `.env*`).
+4. Edita `.env` poniendo la cadena **directa** de la rama dev en `DATABASE_URL`.
+5. Valida que quedas contra la RAMA dev:
+   ```bash
+   npm run db:generate
+   npm run db:push
+   npm run db:studio   # abre las tablas de la rama dev
+   npm run dev
+   ```
+6. Para volver a producción: sustituye `DATABASE_URL` en `.env` por la de la
+   rama principal (o deja que Netlify/entorno la inyecte).
+
+> 🔴 Nunca ejecutes `db:reset`/`db:push` destructivo contra la principal; usa
+> `npm run db:deploy` para promover cambios validados en dev.
 
 ## Respaldo y Restauración
 

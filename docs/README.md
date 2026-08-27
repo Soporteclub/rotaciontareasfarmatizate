@@ -14,7 +14,7 @@ Sistema de asignación rotativa de tareas para **Club Del Droguista**. Gestiona 
 │ Frontend │       Backend            │   Database    │
 │          │                          │               │
 │ React +  │ API Routes (src/app/api) │  Prisma +     │
-│ Zustand  │                          │  SQLite       │
+│ Zustand  │                          │  PostgreSQL   │
 │ TanStack │ Services                 │               │
 │ Query    │ Repositories             │               │
 │          │ Fairness Engine          │               │
@@ -30,7 +30,7 @@ Sistema de asignación rotativa de tareas para **Club Del Droguista**. Gestiona 
 | Lenguaje | TypeScript 5 |
 | UI | React 19 + shadcn/ui + Tailwind CSS 4 |
 | Estado | Zustand (cliente) + TanStack Query (servidor) |
-| Base de datos | Prisma ORM + SQLite |
+| Base de datos | Prisma ORM + PostgreSQL (Neon) |
 | Deploy | Docker (standalone) |
 
 ## Estructura del Proyecto
@@ -214,25 +214,29 @@ docker-compose up --build
 
 ### Dockerfile
 - Multi-stage build (deps → builder → runner)
-- Node 22 Alpine
-- Prisma db push automático al iniciar
+- Node 22 Alpine (npm)
+- Migraciones Prisma (`migrate deploy`) al iniciar
 - Puerto 3000
-- Volume persistente para la base de datos (`db-data`)
+- Nota: en producción la BD es PostgreSQL/Neon (inyectada por Netlify);
+  el montaje Docker clásico con SQLite quedó obsoleto (ver docs/deployment.md).
 
 ## Desarrollo
 
 ```bash
-# Instalar dependencias
-bun install
+# Instalar dependencias (npm es el gestor del proyecto)
+npm install
 
 # Iniciar en modo desarrollo
-bun run dev
+npm run dev
 
-# Push del schema a la BD
-bun run db:push
+# Sincronizar el esquema con la BD de desarrollo (rama Neon)
+npm run db:push
+
+# Aplicar migraciones en producción / CI
+npm run db:deploy
 
 # Lint
-bun run lint
+npm run lint
 ```
 
 ## Flujos Principales

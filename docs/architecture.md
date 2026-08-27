@@ -19,7 +19,7 @@ Farmatízate es una aplicación monolítica construida con Next.js 16 que sigue 
 │         Prisma ORM (src/backend/infrastructure/)             │
 ├──────────────────────────────────────────────────────────────┤
 │                    DATABASE                                  │
-│                    SQLite                                    │
+│                    PostgreSQL (Neon)                         │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,9 +83,12 @@ Ver [Motor de Equidad](#motor-de-equidad) para detalles del algoritmo.
 
 Cada repository encapsula queries Prisma y expone métodos tipados. Las transacciones complejas (como `transactionalRegenerate`) usan `db.$transaction()`.
 
-### 6. Database (SQLite)
+### 6. Database (PostgreSQL / Neon)
 
-Schema definido en `prisma/schema.prisma` con migraciones via `prisma db push`.
+Schema definido en `prisma/schema.prisma`. El `provider` es `postgresql`; en
+producción la conexión es Neon PostgreSQL (inyectada por Netlify vía env vars).
+Para desarrollo se recomienda una **rama/branch de Neon** y aplicar cambios con
+`prisma migrate deploy` (o `db push` localmente).
 
 ## Flujo de Datos: Generar Asignaciones
 
