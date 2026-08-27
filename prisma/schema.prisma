@@ -19,7 +19,7 @@ datasource db {
 model Settings {
   id    String @id @default("app")
   key   String @unique                    // Clave admin para acceder a configuraciones
-  value String @default("***REMOVED***") // Valor de la clave
+    value String // Clave admin (generada aleatoriamente por seed; SEC-01). Nunca hardcodeada.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
