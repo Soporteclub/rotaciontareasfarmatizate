@@ -1,37 +1,72 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-
-const SwaggerUI = dynamic(() => import("swagger-ui-react"), { ssr: false });
-
-import "swagger-ui-react/swagger-ui.css";
+import { useEffect, useRef, useState } from "react";
 
 export default function DocsPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [spec, setSpec] = useState<Record<string, unknown> | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/docs")
       .then((res) => res.json())
       .then((data) => setSpec(data))
-      .catch(() => setSpec(null));
+      .catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (!spec || !containerRef.current) return;
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css";
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js";
+    script.onload = () => {
+      if (!containerRef.current || !(window as unknown as Record<string, unknown>).SwaggerUIBundle) return;
+      const SwaggerUIBundle = (window as unknown as Record<string, unknown>).SwaggerUIBundle as {
+        (opts: Record<string, unknown>): void;
+      };
+      SwaggerUIBundle({
+        spec,
+        domNode: containerRef.current,
+        docExpansion: "list",
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+        displayRequestDuration: true,
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        tryItOutEnabled: true,
+      });
+    };
+    script.onerror = () => setError("No se pudo cargar Swagger UI desde CDN");
+
+    document.head.appendChild(link);
+    document.body.appendChild(script);
+
+    return () => {
+      document.head.removeChild(link);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = "";
+      }
+    };
+  }, [spec]);
 
   return (
     <div className="min-h-screen bg-white">
-      {spec ? (
-        <SwaggerUI
-          spec={spec}
-          docExpansion="list"
-          defaultModelsExpandDepth={1}
-          defaultModelExpandDepth={1}
-          displayRequestDuration
-          filter
-          showExtensions
-          showCommonExtensions
-          tryItOutEnabled
-        />
-      ) : (
+      {error && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center text-red-600">
+            <p>Error al cargar la documentación: {error}</p>
+          </div>
+        </div>
+      )}
+      {!spec && !error && (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4" />
@@ -39,6 +74,7 @@ export default function DocsPage() {
           </div>
         </div>
       )}
+      <div ref={containerRef} className={spec ? "" : "hidden"} />
     </div>
   );
 }

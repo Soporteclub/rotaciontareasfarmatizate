@@ -1099,24 +1099,6 @@ export const openApiSpec = {
       },
     },
     "/backup": {
-      get: {
-        tags: ["Backup"],
-        summary: "Exportar y guardar backup",
-        description:
-          "Exporta todos los datos de la base de datos a un archivo JSON y lo guarda en el servidor.",
-        operationId: "exportBackup",
-        responses: {
-          "200": {
-            description: "Backup creado exitosamente",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/BackupResponse" },
-              },
-            },
-          },
-          "500": { $ref: "#/components/responses/InternalServerError" },
-        },
-      },
       post: {
         tags: ["Backup"],
         summary: "Crear backup manual",

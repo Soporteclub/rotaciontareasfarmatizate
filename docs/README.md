@@ -133,7 +133,7 @@ El corazón del sistema. Garantiza distribución justa con estas reglas:
 | Balance mensual | `monthlyBalanceWeight: 3.0` | Equilibra dentro de cada mes |
 | Cooldown | `cooldownDays: 7` | Penaliza asignar a quien ya tuvo tarea recientemente |
 | Consecutivas | `consecutivePenalty: 3.0` | Penaliza semanas consecutivas con la misma tarea |
-| Mismo día | `sameDayPenalty: 5.0` | Evita 2 tareas el mismo día a la misma persona |
+| Mismo día | **Restricción dura** | Nadie recibe 2 tareas el mismo día mientras haya otro elegible libre; si todos ya tienen tarea, se asigna igual (el admin puede reasignar) |
 | maxImbalance | `1` | **HARD CONSTRAINT**: nadie puede tener más de 1 asignación extra que otro |
 
 ### Resultados del Motor (validado con tests)
@@ -188,7 +188,6 @@ La especificación completa está disponible en `GET /api/docs` (OpenAPI 3.0.3).
 | GET | `/api/task-eligibility` | Matriz completa |
 | | **Respaldo** | |
 | GET | `/api/backup/status` | Estado del backup |
-| GET | `/api/backup` | Exportar backup |
 | POST | `/api/backup` | Crear backup |
 | POST | `/api/restore` | Restaurar backup |
 | | **Configuración** | |
@@ -202,6 +201,41 @@ La especificación completa está disponible en `GET /api/docs` (OpenAPI 3.0.3).
 | POST | `/api/seed` | Sembrar datos iniciales |
 | POST | `/api/reset` | Reiniciar base de datos |
 | GET | `/api/` | Health check |
+
+## Backup y Restauración
+
+### ¿Qué hace el backup?
+
+El sistema de respaldo exporta todas las tablas de la base de datos a un archivo JSON (`/data/backup.json`). Por seguridad, el archivo se almacena fuera de la carpeta pública (`/public/`) para que no sea accesible vía web.
+
+### Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/backup/status` | Verifica si existe un backup y devuelve metadatos (timestamp, versión, conteos). Requiere clave admin. |
+| POST | `/api/backup` | Crea un backup manual. Requiere clave admin en el header `x-admin-key`. |
+
+### Uso
+
+1. Obtener el estado del backup:
+   ```bash
+   curl -H "x-admin-key: TU_CLAVE" http://localhost:3000/api/backup/status
+   ```
+
+2. Crear un backup:
+   ```bash
+   curl -X POST -H "x-admin-key: TU_CLAVE" http://localhost:3000/api/backup
+   ```
+
+### Restaurar
+
+Para restaurar, usa `POST /api/restore` con el header `x-admin-key`. **Atención:** elimina todos los datos actuales y los reemplaza con los del backup. La restauración se ejecuta dentro de una transacción: si algo falla, la BD queda en su estado anterior.
+
+### Seguridad
+
+- La clave de administrador (`Settings.key`) se excluye del backup (sanitización).
+- Tanto backup como restore requieren clave admin.
+- El archivo de backup se guarda en `/data/backup.json`, no accesible públicamente.
 
 ## Docker (Producción Local)
 
@@ -258,3 +292,20 @@ npm run lint
 1. Click en una asignación en el calendario
 2. Cambiar el empleado asignado (solo si no está bloqueada)
 3. Guardar — se registra en auditoría
+
+## Troubleshooting
+
+### Warning de React Strict Mode en `/docs`
+
+Si ves el warning:
+
+```
+Using UNSAFE_componentWillReceiveProps in strict mode is not recommended...
+Please update the following components: ModelCollapse
+```
+
+Esto se debe a que `swagger-ui-react` v5.x utiliza ciclos de vida legacy internos. El proyecto ya mitiga este warning montando Swagger UI de forma imperativa (sin componentes React de la librería). Si el warning persiste, se trata de un issue upstream de la librería y no afecta funcionalidad.
+
+## Documentación Adicional
+
+- `docs/technical-documentation.md` — Documentación técnica consolidada (arquitectura, motor de equidad, API, backup, deployment).
