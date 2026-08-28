@@ -199,7 +199,7 @@ function SidebarFooter({
   sidebarOpen: boolean;
   isAdmin: boolean;
   requestAdminUnlock: () => void;
-  lockAdmin: () => void;
+  lockAdmin: (silent?: boolean) => void;
 }) {
   return (
     <div className="px-2 py-3 border-t border-sidebar-border space-y-2">
@@ -243,11 +243,11 @@ function UnlockedStatus({
   lockAdmin,
 }: {
   sidebarOpen: boolean;
-  lockAdmin: () => void;
+  lockAdmin: (silent?: boolean) => void;
 }) {
   if (!sidebarOpen) {
     return (
-      <button onClick={lockAdmin} className="flex justify-center w-full py-0.5" title="Admin activo — clic para bloquear">
+      <button onClick={() => lockAdmin(true)} className="flex justify-center w-full py-0.5" title="Admin activo — clic para bloquear">
         <Shield className="h-4 w-4 text-brand-success" />
       </button>
     );
@@ -259,7 +259,7 @@ function UnlockedStatus({
         <Shield className="h-3 w-3 text-brand-success" />
         <span className="font-medium">Admin activo</span>
         <button
-          onClick={lockAdmin}
+          onClick={() => lockAdmin(true)}
           className="ml-auto p-0.5 rounded hover:bg-muted transition-colors"
           title="Bloquear todo"
         >

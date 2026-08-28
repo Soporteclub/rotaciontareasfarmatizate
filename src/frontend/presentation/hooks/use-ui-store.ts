@@ -31,7 +31,7 @@ interface UIState {
 
   // Global admin
   unlockAdmin: (key: string) => void;
-  lockAdmin: () => void;
+  lockAdmin: (silent?: boolean) => void;
   requestAdminUnlock: () => void;
   clearAdminRequest: () => void;
 }
@@ -67,11 +67,12 @@ export const useUIStore = create<UIState>()(
 
       // FIX (FE-04): lockAdmin clears adminKey AND opens the unlock modal so
       // the admin can re-enter the key after a 403.
-      lockAdmin: () =>
+      lockAdmin: (silent?: boolean) =>
         set({
           isAdmin: false,
           adminKey: null,
-          adminPendingUnlock: true, // prompt for re-unlock
+          // Only prompt for re-unlock if not silent (e.g., when locking from sidebar)
+          adminPendingUnlock: !silent,
           // Reset to calendar view when locking
           activeView: "calendar",
         }),

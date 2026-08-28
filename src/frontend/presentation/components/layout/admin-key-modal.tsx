@@ -55,9 +55,6 @@ export function AdminKeyModal() {
       clearAdminRequest();
       setKey("");
       setError("");
-      // FIX (admin modal): cancelar/bloquear el modal también bloquea el admin
-      // para que no quede la sesión abierta sin querer.
-      lockAdmin();
     }
   };
 
@@ -120,7 +117,11 @@ export function AdminKeyModal() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleOpenChange(false)}
+              onClick={() => {
+                setKey("");
+                setError("");
+                clearAdminRequest();
+              }}
               className="flex-1"
             >
               Cancelar

@@ -469,7 +469,7 @@ function LockAdminButton() {
       size="sm"
       className="gap-1.5 text-xs"
       onClick={() => {
-        lockAdmin();
+        lockAdmin(true);
         toast.success("Administrador bloqueado");
       }}
     >
