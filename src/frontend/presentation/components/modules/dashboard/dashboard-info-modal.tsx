@@ -150,7 +150,7 @@ function FairnessSection() {
   );
 }
 
-/** Sección: Balance de asignaciones — con desglose por tarea */
+/** Sección: Balance de asignaciones — desglose por tarea (tareas primero) */
 function BalanceSection({
   balanceData, allEmployees, groups, effectiveGroupId, allRules,
 }: {
@@ -160,18 +160,15 @@ function BalanceSection({
   effectiveGroupId: string | undefined;
   allRules: RuleResponse[] | undefined;
 }) {
-  const [expandedEmp, setExpandedEmp] = useState<string | null>(null);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const balanceReport = balanceData?.report;
   const hasData = balanceReport && balanceReport.length > 0;
-  const maxAssignments = hasData
-    ? Math.max(...balanceReport!.map((b) => b.totalAssignments), 1)
-    : 1;
 
   const groupName = effectiveGroupId
     ? groups?.find((g) => g.id === effectiveGroupId)?.name ?? ""
     : "";
 
-  // Build taskName → {color, icon} map for the per-task breakdown
+  // Build taskName → {color, icon} map
   const taskStyleMap = new Map<string, { color: string | null; icon: string | null }>();
   if (allRules) {
     for (const r of allRules) {
@@ -180,6 +177,26 @@ function BalanceSection({
       }
     }
   }
+
+  // Build employeeId → employee map for quick lookup
+  const employeeMap = new Map<string, EmployeeResponse>();
+  if (allEmployees) {
+    for (const e of allEmployees) {
+      employeeMap.set(e.id, e);
+    }
+  }
+
+  // Get unique tasks from report (sorted by total assignments desc)
+  const taskSummary = new Map<string, { total: number; employeeIds: Set<string> }>();
+  for (const item of balanceReport ?? []) {
+    for (const [taskName, count] of Object.entries(item.taskBreakdown ?? {})) {
+      const entry = taskSummary.get(taskName) ?? { total: 0, employeeIds: new Set() };
+      entry.total += count;
+      entry.employeeIds.add(item.employeeId);
+      taskSummary.set(taskName, entry);
+    }
+  }
+  const sortedTasks = [...taskSummary.entries()].sort((a, b) => b[1].total - a[1].total);
 
   return (
     <div className="space-y-3">
@@ -201,10 +218,10 @@ function BalanceSection({
           </div>
           <div className="text-center p-2 rounded-lg border">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
-              <TrendingUp className="h-3 w-3" />
-              <span className="text-[10px]">Turnos/persona</span>
+              <Sparkles className="h-3 w-3" />
+              <span className="text-[10px]">Tareas</span>
             </div>
-            <span className="text-lg font-bold">{balanceData.averagePerEmployee}</span>
+            <span className="text-lg font-bold">{sortedTasks.length}</span>
           </div>
         </div>
       )}
@@ -223,87 +240,66 @@ function BalanceSection({
       {hasData ? (
         <div className="space-y-2 max-h-[28rem] overflow-y-auto">
           <p className="text-[11px] text-muted-foreground text-center">
-            💡 Haz clic en una persona para ver el desglose por tarea
+            💡 Haz clic en una tarea para ver el balance de cada empleado elegible
           </p>
-          {[...balanceReport!]
-            .sort((a, b) => b.totalAssignments - a.totalAssignments)
-            .map((item) => {
-              const emp = allEmployees?.find((e) => e.id === item.employeeId);
-              const groupColor = groups?.find((g) => g.id === emp?.groupId)?.color ?? "#6b7280";
-              const pct = Math.min(100, (item.totalAssignments / maxAssignments) * 100);
-              const status = getBalanceStatus(item.fairnessScore ?? 0);
-              const isExpanded = expandedEmp === item.employeeId;
-              const taskEntries = Object.entries(item.taskBreakdown ?? {}).sort((a, b) => b[1] - a[1]);
-              return (
-                <div key={item.employeeId} className="rounded-lg border overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedEmp(isExpanded ? null : item.employeeId)}
-                    className="w-full text-left px-3 py-2 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: groupColor }} />
-                        <span className="font-medium truncate">{item.employeeName}</span>
-                        {taskEntries.length > 0 && (
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            ({taskEntries.length} {taskEntries.length === 1 ? "tarea" : "tareas"})
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${status.color} ${status.bgColor}`} title={status.description}>
-                          {status.icon}
-                          {status.label}
-                        </span>
-                        <span className="text-muted-foreground tabular-nums font-bold text-xs">
-                          {item.totalAssignments}
-                        </span>
-                        <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                      </div>
+          {sortedTasks.map(([taskName, summary]) => {
+            const style = taskStyleMap.get(taskName);
+            const taskColor = style?.color ?? getTaskColor(taskName);
+            const isExpanded = expandedTask === taskName;
+            const eligibleIds = balanceData?.eligibleEmployees?.[taskName] ?? [];
+            const avgForTask = balanceData?.taskAverages?.[taskName] ?? 0;
+
+            return (
+              <div key={taskName} className="rounded-lg border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setExpandedTask(isExpanded ? null : taskName)}
+                  className="w-full text-left px-3 py-2 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <TaskIcon taskType={taskName} iconName={style?.icon} color={style?.color} size="xs" showBg={false} />
+                      <span className="font-medium truncate" style={{ color: taskColor }}>{taskName}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1">
+                        ({summary.total} turnos · {eligibleIds.length} elegibles)
+                      </span>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-1.5 mt-1.5">
-                      <div
-                        className="rounded-full h-1.5 transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: groupColor }}
-                      />
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <span className="text-[10px] text-muted-foreground">prom. {avgForTask.toFixed(1)}</span>
+                      <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                     </div>
-                  </button>
-                  {isExpanded && taskEntries.length > 0 && (
-                    <div className="px-3 py-2 bg-muted/20 border-t space-y-1.5">
-                      {taskEntries.map(([taskName, count]) => {
-                        const style = taskStyleMap.get(taskName);
-                        const taskColor = style?.color ?? getTaskColor(taskName);
-                        const taskMax = Math.max(...balanceReport!.map((b) => b.taskBreakdown?.[taskName] ?? 0), 1);
-                        const taskPct = Math.min(100, (count / taskMax) * 100);
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div className="px-3 py-2 bg-muted/20 border-t space-y-1.5">
+                    {eligibleIds.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center">Sin empleados elegibles</p>
+                    ) : (
+                      eligibleIds.map((empId) => {
+                        const emp = employeeMap.get(empId);
+                        const reportItem = balanceReport?.find((r) => r.employeeId === empId);
+                        const taskCount = reportItem?.taskBreakdown?.[taskName] ?? 0;
+                        const fairness = reportItem?.taskFairness?.[taskName] ?? 0;
+                        const status = getBalanceStatus(fairness);
                         return (
-                          <div key={taskName} className="flex items-center gap-2">
-                            <TaskIcon taskType={taskName} iconName={style?.icon} color={style?.color} size="xs" showBg={false} />
-                            <span className="text-xs font-medium flex-1 truncate" style={{ color: taskColor }}>
-                              {taskName}
+                          <div key={empId} className="flex items-center gap-2">
+                            <span className="text-xs font-medium flex-1 truncate">{emp?.name ?? "Desconocido"}</span>
+                            <span className="text-xs tabular-nums font-bold w-8 text-right" style={{ color: taskColor }}>
+                              {taskCount}
                             </span>
-                            <div className="w-20 bg-muted rounded-full h-1.5">
-                              <div
-                                className="rounded-full h-1.5"
-                                style={{ width: `${taskPct}%`, backgroundColor: taskColor }}
-                              />
-                            </div>
-                            <span className="text-xs tabular-nums font-bold w-6 text-right" style={{ color: taskColor }}>
-                              {count}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5 ${status.color} ${status.bgColor}`} title={status.description}>
+                              {status.icon}
+                              {status.label}
                             </span>
                           </div>
                         );
-                      })}
-                    </div>
-                  )}
-                  {isExpanded && taskEntries.length === 0 && (
-                    <div className="px-3 py-2 bg-muted/20 border-t text-xs text-muted-foreground text-center">
-                      Sin tareas asignadas en el rango
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground text-center py-4">

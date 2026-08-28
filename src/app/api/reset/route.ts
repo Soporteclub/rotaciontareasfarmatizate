@@ -5,6 +5,8 @@
 // FIX (API-02): Now requires admin key.
 // FIX (API-02): Wrapped in a transaction so a mid-way failure rolls back.
 // FIX (SEC-04): Admin key validated with constant-time comparison.
+// FIX (AUDIT-01): Creates audit log BEFORE deletion and preserves audit logs
+// so there's always a trace of who performed the destructive operation.
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/backend/infrastructure/database";
@@ -22,9 +24,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // FIX (AUDIT-01): Create audit log BEFORE deletion so the trace survives.
+    await db.auditLog.create({
+      data: {
+        entityType: "assignment",
+        entityId: "batch",
+        action: "reset",
+        changedBy: "admin",
+        changes: JSON.stringify({ message: "Full database reset executed", adminKeyPrefix: adminKey.slice(0, 8) }),
+      },
+    });
+
     // Transactional: if anything fails, the DB is left untouched.
+    // FIX (AUDIT-01): Delete all tables EXCEPT auditLog to preserve the audit trail.
     await db.$transaction([
-      db.auditLog.deleteMany(),
       db.assignment.deleteMany(),
       db.taskEligibility.deleteMany(),
       db.rule.deleteMany(),
@@ -34,9 +47,12 @@ export async function POST(request: NextRequest) {
       db.settings.deleteMany(),
     ]);
 
+    console.log(`[reset] Admin executed reset at ${new Date().toISOString()}`);
+
     return NextResponse.json({ data: { message: "Base de datos reiniciada exitosamente" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al reiniciar";
+    console.error("[reset] Error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -81,6 +81,8 @@ export interface BalanceReportItem {
   // was missing from the frontend type. Used by the Balance section in the
   // DashboardInfoModal to show a per-task detail per employee.
   taskBreakdown?: Record<string, number>;
+  // Per-task fairness deficit (taskName → deficit). Positive = owes turns, negative = owed rest.
+  taskFairness?: Record<string, number>;
 }
 
 export interface BalanceReportResponse {
@@ -89,6 +91,10 @@ export interface BalanceReportResponse {
   totalAssignments: number;
   employeeCount: number;
   averagePerEmployee: number;
+  // Per-task averages among eligible employees (taskName → average).
+  taskAverages?: Record<string, number>;
+  // Per-task eligible employees (taskName → employeeIds).
+  eligibleEmployees?: Record<string, string[]>;
 }
 
 export interface GenerateResult {

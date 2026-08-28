@@ -95,6 +95,7 @@ const MS_PER_DAY = 86_400_000;
 export const generateAssignmentsSchema = z
   .object({
     groupId: z.string().min(1, "El grupo es requerido"),
+    employeeId: z.string().optional(),
     startDate: isoDate,
     endDate: isoDate,
   })
@@ -120,6 +121,7 @@ export const generateAssignmentsSchema = z
 export const deleteAssignmentsSchema = z
   .object({
     groupId: z.string().min(1, "groupId es requerido"),
+    employeeId: z.string().optional(),
     startDate: isoDate.optional().nullable().transform((v) => v ?? null),
     endDate: isoDate.optional().nullable().transform((v) => v ?? null),
     force: z.boolean().optional().default(false),

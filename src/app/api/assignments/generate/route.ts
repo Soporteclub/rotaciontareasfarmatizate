@@ -34,9 +34,31 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await assignmentService.generate(parsed.data);
+
+    // FIX (EDGE-04): If employeeId provided, filter results to that employee only
+    if (parsed.data.employeeId) {
+      result.assignments = result.assignments.filter(
+        (a) => a.employeeId === parsed.data.employeeId
+      );
+    }
+
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al generar asignaciones";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const isTimeout =
+      error instanceof Error && (
+        message.includes("Transaction not found") ||
+        message.includes("timeout") ||
+        message.includes("P2028") ||
+        (error as { code?: string }).code === "P2028"
+      );
+    console.error("[generate] Error:", error);
+    if (isTimeout) {
+      return NextResponse.json(
+        { error: "La operación está tardando más de lo esperado. Prueba con un rango de fechas más corto o intentá de nuevo en unos minutos." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: "Ocurrió un error inesperado. Por favor, intentá de nuevo." }, { status: 500 });
   }
 }

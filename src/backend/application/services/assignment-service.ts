@@ -314,6 +314,72 @@ export const assignmentService = {
   },
 
   /**
+   * Delete assignments for a specific employee.
+   * FIX (EDGE-03): Allows deleting by employee (not just by group).
+   *
+   * By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge).
+   */
+  async deleteAllByEmployee(employeeId: string, opts: { preserveLocked?: boolean } = {}) {
+    const result = await assignmentRepository.deleteAllByEmployee(employeeId, opts);
+
+    await auditLogRepository.create({
+      entityType: "assignment",
+      entityId: "batch",
+      action: "deleteRange",
+      changes: {
+        employeeId,
+        deletedCount: result.count,
+        preserveLocked: opts.preserveLocked !== false,
+        description: opts.preserveLocked !== false
+          ? "Eliminación de asignaciones futuras (desbloqueadas) del empleado"
+          : "Eliminación COMPLETA de asignaciones del empleado (incluye histórico bloqueado)",
+      },
+    });
+
+    return { deletedCount: result.count };
+  },
+
+  /**
+   * Delete assignments for a specific employee within a date range.
+   * FIX (EDGE-03): Allows deleting by employee (not just by group).
+   *
+   * By default ONLY deletes unlocked (future/editable) assignments,
+   * preserving the locked historical record. Pass { preserveLocked: false } to
+   * also delete locked assignments (force purge).
+   */
+  async deleteByEmployeeAndDateRange(
+    employeeId: string,
+    startDate: string,
+    endDate: string,
+    opts: { preserveLocked?: boolean } = {}
+  ) {
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end = new Date(`${endDate}T23:59:59.999Z`);
+
+    const result = await assignmentRepository.deleteByEmployeeAndDateRange(employeeId, start, end, opts);
+
+    await auditLogRepository.create({
+      entityType: "assignment",
+      entityId: "batch",
+      action: "deleteRange",
+      changes: {
+        employeeId,
+        startDate,
+        endDate,
+        deletedCount: result.count,
+        preserveLocked: opts.preserveLocked !== false,
+        description: opts.preserveLocked !== false
+          ? "Eliminación de asignaciones futuras (desbloqueadas) del empleado por rango"
+          : "Eliminación COMPLETA de asignaciones del empleado por rango (incluye histórico)",
+      },
+    });
+
+    return { deletedCount: result.count };
+  },
+
+  /**
    * Get fairness balance report for a group
    * Counts ALL assignments (locked + unlocked) for accurate balance display
    * Includes date range of the data
@@ -374,6 +440,14 @@ export const assignmentService = {
       };
     }
 
+    // Build eligibleEmployees map (taskName → employeeIds who are eligible)
+    const eligibleEmployees: Record<string, string[]> = {};
+    for (const taskType of allTaskTypes) {
+      eligibleEmployees[taskType] = employees
+        .filter((e) => !(disabledTasksMap.get(e.id)?.has(taskType)))
+        .map((e) => e.id);
+    }
+
     const report: Array<{
       employeeId: string;
       employeeName: string;
@@ -381,6 +455,7 @@ export const assignmentService = {
       monthlyBalance: Record<string, number>;
       fairnessScore: number;
       taskBreakdown: Record<string, number>;
+      taskFairness: Record<string, number>;
     }> = [];
 
     for (const emp of employees) {
@@ -398,16 +473,19 @@ export const assignmentService = {
         monthlyBalance[key] = (monthlyBalance[key] ?? 0) + 1;
       }
 
-      // Calculate per-task fairness score (sum of deficits across eligible tasks)
-      // Positive = employee has fewer turns than average for their eligible tasks (owes them)
-      // Negative = employee has more turns than average for their eligible tasks (is owed rest)
+      // Calculate per-task fairness score and global fairness score
+      // Positive = employee has fewer turns than average (owes them)
+      // Negative = employee has more turns than average (is owed rest)
       let fairnessScore = 0;
+      const taskFairness: Record<string, number> = {};
       const empDisabled = disabledTasksMap.get(emp.id) ?? new Set();
       for (const taskType of allTaskTypes) {
         if (empDisabled.has(taskType)) continue; // Skip tasks this employee is ineligible for
         const empTaskCount = taskBreakdown[taskType] ?? 0;
         const avgForTask = taskAverages[taskType] ?? 0;
-        fairnessScore += avgForTask - empTaskCount;
+        const deficit = Math.round((avgForTask - empTaskCount) * 100) / 100;
+        taskFairness[taskType] = deficit;
+        fairnessScore += deficit;
       }
       fairnessScore = Math.round(fairnessScore * 100) / 100;
 
@@ -418,9 +496,10 @@ export const assignmentService = {
         monthlyBalance,
         fairnessScore,
         taskBreakdown,
+        taskFairness,
       });
     }
 
-    return { report, dateRange, totalAssignments: totalAll, employeeCount: employees.length, averagePerEmployee: Math.round(avgAll * 100) / 100 };
+    return { report, dateRange, totalAssignments: totalAll, employeeCount: employees.length, averagePerEmployee: Math.round(avgAll * 100) / 100, taskAverages, eligibleEmployees };
   },
 };

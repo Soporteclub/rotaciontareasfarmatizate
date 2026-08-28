@@ -232,8 +232,44 @@ export const assignmentRepository = {
     return db.assignment.count({ where: { employeeId } });
   },
 
-  async countByGroup(groupId: string) {
-    return db.assignment.count({ where: { groupId } });
+  async countFutureByEmployee(employeeId: string, fromDate: Date) {
+    return db.assignment.count({
+      where: {
+        employeeId,
+        date: { gte: fromDate },
+      },
+    });
+  },
+
+  /**
+   * Delete assignments for a specific employee.
+   * By default ONLY deletes unlocked (future/editable) assignments.
+   */
+  async deleteAllByEmployee(employeeId: string, opts: { preserveLocked?: boolean } = {}) {
+    const preserveLocked = opts.preserveLocked !== false;
+    return db.assignment.deleteMany({
+      where: preserveLocked
+        ? { employeeId, isLocked: false }
+        : { employeeId },
+    });
+  },
+
+  /**
+   * Delete assignments for a specific employee within a date range.
+   * By default ONLY deletes unlocked (future/editable) assignments.
+   */
+  async deleteByEmployeeAndDateRange(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date,
+    opts: { preserveLocked?: boolean } = {}
+  ) {
+    const preserveLocked = opts.preserveLocked !== false;
+    return db.assignment.deleteMany({
+      where: preserveLocked
+        ? { employeeId, isLocked: false, date: { gte: startDate, lte: endDate } }
+        : { employeeId, date: { gte: startDate, lte: endDate } },
+    });
   },
 
   /**
@@ -289,7 +325,14 @@ export const assignmentRepository = {
       // check and the second `create` threw P2002 Unique constraint -> ROLLBACK
       // -> 0 assignments and a 500. Now we track seen keys in this run too.
       const seenKeys = new Set<string>();
-      const created: unknown[] = [];
+      const toCreate: Array<{
+        employeeId: string;
+        groupId: string;
+        date: Date;
+        ruleId: string | null;
+        taskName: string;
+        isLocked: boolean;
+      }> = [];
       for (const a of newAssignments) {
         const key = `${new Date(a.date).getTime()}:${a.taskName}`;
         if (existingKeys.has(key) || seenKeys.has(key)) {
@@ -297,11 +340,16 @@ export const assignmentRepository = {
           continue;
         }
         seenKeys.add(key);
-        const assignment = await tx.assignment.create({ data: a });
-        created.push(assignment);
+        toCreate.push(a);
       }
 
-      return created;
-    });
+      // FIX (TIMEOUT): Use createMany instead of sequential creates to avoid
+      // transaction timeout for large date ranges (e.g. 1 year).
+      if (toCreate.length > 0) {
+        await tx.assignment.createMany({ data: toCreate });
+      }
+
+      return toCreate;
+    }, { timeout: 30000 });
   },
 };

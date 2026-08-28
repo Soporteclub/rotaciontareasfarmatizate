@@ -87,9 +87,18 @@ export const groupService = {
   },
 
   async softDelete(id: string) {
-    const existing = await groupRepository.findById(id);
+    const existing = await groupRepository.findById(id, { includeEmployees: true }) as Record<string, unknown> | null;
     if (!existing) {
       throw new Error("Grupo no encontrado");
+    }
+
+    // FIX (EDGE-01): Prevent deletion if group has active employees
+    const employees = (existing as { employees?: Array<{ isActive: boolean }> }).employees ?? [];
+    const activeEmployees = employees.filter((e) => e.isActive);
+    if (activeEmployees.length > 0) {
+      throw new Error(
+        `No se puede eliminar el grupo porque tiene ${activeEmployees.length} empleado(s) activo(s). Reasigná o desactivá los empleados primero.`
+      );
     }
 
     const group = await groupRepository.softDelete(id);

@@ -88,11 +88,40 @@ export async function POST(request: NextRequest) {
       auditLogs = [],
     } = backup.data;
 
+    // FIX (AUDIT-01): Create audit log BEFORE deletion so the trace survives.
+    await db.auditLog.create({
+      data: {
+        entityType: "assignment",
+        entityId: "batch",
+        action: "restore",
+        changedBy: "admin",
+        changes: JSON.stringify({
+          message: "Database restored from backup",
+          backupTimestamp: backup.timestamp,
+          backupVersion: backup.version,
+          adminKeyPrefix: adminKey.slice(0, 8),
+          restoredCounts: {
+            settings: settings.length,
+            groups: groups.length,
+            employees: employees.length,
+            rules: rules.length,
+            assignments: assignments.length,
+            taskEligibility: taskEligibility.length,
+            holidays: holidays.length,
+            auditLogs: auditLogs.length,
+          },
+        }),
+      },
+    });
+
+    console.log(`[restore] Admin executed restore at ${new Date().toISOString()} from backup v${backup.version} (${backup.timestamp})`);
+
     // FIX (API-04): single transaction. If any insert fails, everything rolls
     // back and the DB is left in its previous state instead of empty.
+    // FIX (AUDIT-01): Delete all tables EXCEPT auditLog to preserve the audit trail.
+    // Then merge audit logs from backup into the preserved trail.
     await db.$transaction(async (tx) => {
-      // Delete all in reverse dependency order
-      await tx.auditLog.deleteMany();
+      // Delete all in reverse dependency order (EXCEPT auditLog)
       await tx.assignment.deleteMany();
       await tx.taskEligibility.deleteMany();
       await tx.rule.deleteMany();
@@ -123,10 +152,11 @@ export async function POST(request: NextRequest) {
       if (assignments.length > 0) {
         await tx.assignment.createMany({ data: assignments.map((a: RecordData) => reviveDates(a)) as never });
       }
+      // FIX (AUDIT-01): Merge audit logs from backup into the preserved trail.
       if (auditLogs.length > 0) {
         await tx.auditLog.createMany({ data: auditLogs.map((al: RecordData) => reviveDates(al)) as never });
       }
-    });
+    }, { timeout: 30000 });
 
     return NextResponse.json({
       data: {
@@ -147,7 +177,20 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al restaurar";
-    console.error("Restore error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const isTimeout =
+      error instanceof Error && (
+        message.includes("Transaction not found") ||
+        message.includes("timeout") ||
+        message.includes("P2028") ||
+        (error as { code?: string }).code === "P2028"
+      );
+    console.error("[restore] Error:", error);
+    if (isTimeout) {
+      return NextResponse.json(
+        { error: "La operación está tardando más de lo esperado. Prueba con un rango de fechas más corto o intentá de nuevo en unos minutos." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: "Ocurrió un error inesperado. Por favor, intentá de nuevo." }, { status: 500 });
   }
 }

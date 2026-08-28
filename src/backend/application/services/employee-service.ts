@@ -130,9 +130,17 @@ export const employeeService = {
       throw new Error("Empleado no encontrado");
     }
 
-    // Remove all future unlocked assignments for this employee
+    // FIX (EDGE-02): Prevent deletion if employee has future assignments
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
+    const futureAssignments = await assignmentRepository.countFutureByEmployee(id, today);
+    if (futureAssignments > 0) {
+      throw new Error(
+        `No se puede eliminar el empleado porque tiene ${futureAssignments} asignación(es) futura(s). Eliminá primero sus asignaciones.`
+      );
+    }
+
+    // Remove all future unlocked assignments for this employee
     await assignmentRepository.deleteUnlockedByEmployee(id, today);
 
     const employee = await employeeRepository.softDelete(id);

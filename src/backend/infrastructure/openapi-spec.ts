@@ -1680,11 +1680,29 @@ export const openApiSpec = {
                   additionalProperties: { type: "integer" },
                   description: "Asignaciones por tarea: { 'Sacar Basura': 5, 'Lavar Cafetera': 10 }",
                 },
-                fairnessScore: { type: "number", description: "Desviación de la media (0 = perfecto)", example: 0.5 },
+                fairnessScore: { type: "number", description: "Desviación global de la media (0 = perfecto)", example: 0.5 },
+                taskFairness: {
+                  type: "object",
+                  additionalProperties: { type: "number" },
+                  description: "Desviación por tarea: { 'Sacar Basura': 0.5, 'Lavar Cafetera': -1.2 }",
+                },
               },
             },
           },
           averageAssignments: { type: "number", description: "Promedio de asignaciones por empleado" },
+          taskAverages: {
+            type: "object",
+            additionalProperties: { type: "number" },
+            description: "Promedio de asignaciones por tarea entre empleados elegibles",
+          },
+          eligibleEmployees: {
+            type: "object",
+            additionalProperties: {
+              type: "array",
+              items: { type: "string" },
+            },
+            description: "Empleados elegibles por tarea: { 'Sacar Basura': ['emp1', 'emp2'] }",
+          },
         },
       },
 

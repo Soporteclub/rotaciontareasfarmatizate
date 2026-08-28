@@ -39,11 +39,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { groupId, startDate, endDate, force } = parsed.data;
+    const { groupId, employeeId, startDate, endDate, force } = parsed.data;
 
     let result;
 
-    if (startDate && endDate) {
+    if (employeeId) {
+      // FIX (EDGE-03): Delete by employee (optional)
+      if (startDate && endDate) {
+        result = await assignmentService.deleteByEmployeeAndDateRange(
+          employeeId,
+          startDate,
+          endDate,
+          { preserveLocked: !force }
+        );
+      } else {
+        result = await assignmentService.deleteAllByEmployee(employeeId, {
+          preserveLocked: !force,
+        });
+      }
+    } else if (startDate && endDate) {
       // Delete by group + date range. By default preserves locked (historical).
       result = await assignmentService.deleteByGroupAndDateRange(
         groupId,
