@@ -9,6 +9,7 @@
 // those eligible for it, regardless of how many "cafetera" turns someone has.
 
 import type { DayOfWeek, FrequencyType } from "../entities/types";
+import { buildEquityReport } from "./balance-report";
 
 // ─── Input Types ──────────────────────────────────────────────
 
@@ -81,6 +82,8 @@ export interface EmployeeBalanceReport {
   consecutiveCount: number;
   /** Per-task-type breakdown: how many times this employee has done each task */
   taskBreakdown: Record<string, number>;
+  /** Per-task fairness deficit (taskType → deficit). Consistent with balance-report module. */
+  taskFairness: Record<string, number>;
 }
 
 // ─── Configuration ────────────────────────────────────────────
@@ -774,70 +777,32 @@ export class FairnessEngine {
     groupId: string,
     plannedAssignments: FairnessAssignment[] = [],
   ): EmployeeBalanceReport[] {
+    // FIX (DRY / equidad): delegate the per-employee equity math to the shared
+    // balance-report module so this report and the on-demand endpoint
+    // (assignment-service.getBalanceReport) can never disagree on fairnessScore.
     const groupHistorical = historicalAssignments.filter((a) => a.groupId === groupId);
-    const totalAssignmentsCount = groupHistorical.length + plannedAssignments.length;
-    const avgTotal = employees.length > 0 ? totalAssignmentsCount / employees.length : 0;
-
-    return employees.map((emp) => this.buildEmployeeBalanceReport(
-      emp, groupHistorical, plannedAssignments, avgTotal
-    ));
-  }
-
-  private buildEmployeeBalanceReport(
-    emp: FairnessEmployee,
-    groupHistorical: FairnessHistoricalAssignment[],
-    plannedAssignments: FairnessAssignment[],
-    avgTotal: number,
-  ): EmployeeBalanceReport {
-    const empHistorical = groupHistorical.filter((a) => a.employeeId === emp.id);
-    const empPlanned = plannedAssignments.filter((a) => a.employeeId === emp.id);
-    const total = empHistorical.length + empPlanned.length;
-
-    const monthlyBalance = this.buildMonthlyBalance(empHistorical, empPlanned);
-
-    // Build per-task breakdown
-    const taskBreakdown: Record<string, number> = {};
-    for (const a of empHistorical) {
-      taskBreakdown[a.taskType] = (taskBreakdown[a.taskType] ?? 0) + 1;
-    }
-    for (const a of empPlanned) {
-      taskBreakdown[a.taskType] = (taskBreakdown[a.taskType] ?? 0) + 1;
-    }
-
-    const allDates = [
-      ...empHistorical.map((a) => a.date),
-      ...empPlanned.map((a) => a.date),
+    const assignments: Array<{ employeeId: string; taskName: string; date: Date }> = [
+      ...groupHistorical.map((a) => ({ employeeId: a.employeeId, taskName: a.taskType, date: a.date })),
+      ...plannedAssignments.map((a) => ({ employeeId: a.employeeId, taskName: a.taskType, date: a.date })),
     ];
-    const lastDate = allDates.length > 0
-      ? allDates.reduce((latest, d) => (d > latest ? d : latest), allDates[0])
-      : null;
 
-    return {
-      employeeId: emp.id,
-      employeeName: emp.name,
-      totalAssignments: total,
-      monthlyBalance,
-      fairnessScore: avgTotal - total,
-      lastAssignmentDate: lastDate,
-      consecutiveCount: 0,
-      taskBreakdown,
-    };
-  }
+    const equity = buildEquityReport({
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      disabledTasksByEmployee: this.disabledTasksMap,
+      assignments,
+    });
 
-  private buildMonthlyBalance(
-    historical: FairnessHistoricalAssignment[],
-    planned: FairnessAssignment[],
-  ): Record<string, number> {
-    const monthly: Record<string, number> = {};
-    for (const a of historical) {
-      const mk = this.dateToMonthKey(a.date);
-      monthly[mk] = (monthly[mk] ?? 0) + 1;
-    }
-    for (const a of planned) {
-      const mk = this.dateToMonthKey(a.date);
-      monthly[mk] = (monthly[mk] ?? 0) + 1;
-    }
-    return monthly;
+    return equity.report.map((row) => {
+      const empAssignments = assignments.filter((a) => a.employeeId === row.employeeId);
+      const lastDate = empAssignments.length > 0
+        ? empAssignments.reduce((latest, a) => (a.date > latest ? a.date : latest), empAssignments[0].date)
+        : null;
+      return {
+        ...row,
+        lastAssignmentDate: lastDate,
+        consecutiveCount: 0,
+      };
+    });
   }
 
   // ─── Date Utilities ───────────────────────────────────────────

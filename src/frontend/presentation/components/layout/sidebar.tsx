@@ -57,11 +57,22 @@ const auditItems: NavItem[] = [
 export function Sidebar() {
   const { activeView, setActiveView, sidebarOpen, setSidebarOpen, isAdmin, requestAdminUnlock, lockAdmin } = useUIStore();
   const [configOpen, setConfigOpen] = useState(true);
+  // FIX (hydration): `sidebarOpen` initial value differs between server (always
+  // true) and client (mobile = false), which caused a hydration mismatch on the
+  // mobile overlay/toggle. useSyncExternalStore returns false during
+  // SSR/hydration (getServerSnapshot) and true after mount (getSnapshot), so
+  // both sides render nothing first and the toggle/overlay appear on the client
+  // without triggering react-hooks/set-state-in-effect.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   return (
     <>
       {/* Mobile overlay */}
-      {sidebarOpen && (
+      {mounted && sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setSidebarOpen(false)}
@@ -69,12 +80,14 @@ export function Sidebar() {
       )}
 
       {/* Mobile toggle */}
-      <button
-        className="fixed top-3 left-3 z-50 md:hidden bg-card border border-border rounded-lg p-2 shadow-lg hover:bg-accent transition-colors"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-      >
-        {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
+      {mounted && (
+        <button
+          className="fixed top-3 left-3 z-50 md:hidden bg-card border border-border rounded-lg p-2 shadow-lg hover:bg-accent transition-colors"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+        >
+          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      )}
 
       {/* Sidebar */}
       <aside

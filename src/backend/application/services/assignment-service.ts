@@ -5,6 +5,7 @@
 import { assignmentRepository, employeeRepository, ruleRepository, auditLogRepository, holidayRepository, taskEligibilityRepository } from "@/backend/infrastructure/repositories";
 import { FairnessEngine } from "@/backend/domain/fairness";
 import type { FairnessEngineInput } from "@/backend/domain/fairness";
+import { buildEquityReport } from "@/backend/domain/fairness/balance-report";
 import type { GenerateAssignmentsInput } from "@/backend/application/validators/schemas";
 
 const fairnessEngine = new FairnessEngine();
@@ -407,27 +408,22 @@ export const assignmentService = {
         )
       : await assignmentRepository.findAllByGroup(groupId);
 
-    const totalAll = assignments.length;
-    const avgAll = employees.length > 0 ? totalAll / employees.length : 0;
-
-    // Get all unique task types
-    const allTaskTypes = [...new Set(assignments.map((a) => a.taskName))].sort();
-
-    // Calculate per-task averages among ELIGIBLE employees only
-    const taskAverages: Record<string, number> = {};
-    for (const taskType of allTaskTypes) {
-      const eligibleForTask = employees.filter(
-        (e) => !(disabledTasksMap.get(e.id)?.has(taskType))
-      );
-      const taskAssignments = assignments.filter((a) => a.taskName === taskType);
-      taskAverages[taskType] = eligibleForTask.length > 0
-        ? taskAssignments.length / eligibleForTask.length
-        : 0;
-    }
+    // FIX (DRY / equidad): the per-employee equity math now lives in the shared
+    // balance-report module (single source of truth), which is also used by the
+    // FairnessEngine so both sides can never disagree on `fairnessScore`.
+    const equity = buildEquityReport({
+      employees: employees.map((e) => ({ id: e.id, name: e.name })),
+      disabledTasksByEmployee: disabledTasksMap,
+      assignments: assignments.map((a) => ({
+        employeeId: a.employeeId,
+        taskName: a.taskName,
+        date: a.date,
+      })),
+    });
 
     // Calculate date range from assignments
     let dateRange: { from: string | null; to: string | null } = { from: null, to: null };
-        if (assignments.length > 0) {
+    if (assignments.length > 0) {
       const dates = assignments.map((a) => new Date(a.date).getTime());
       const minDate = new Date(Math.min(...dates));
       const maxDate = new Date(Math.max(...dates));
@@ -440,66 +436,14 @@ export const assignmentService = {
       };
     }
 
-    // Build eligibleEmployees map (taskName → employeeIds who are eligible)
-    const eligibleEmployees: Record<string, string[]> = {};
-    for (const taskType of allTaskTypes) {
-      eligibleEmployees[taskType] = employees
-        .filter((e) => !(disabledTasksMap.get(e.id)?.has(taskType)))
-        .map((e) => e.id);
-    }
-
-    const report: Array<{
-      employeeId: string;
-      employeeName: string;
-      totalAssignments: number;
-      monthlyBalance: Record<string, number>;
-      fairnessScore: number;
-      taskBreakdown: Record<string, number>;
-      taskFairness: Record<string, number>;
-    }> = [];
-
-    for (const emp of employees) {
-      const empAssignments = assignments.filter((a) => a.employeeId === emp.id);
-      const monthlyBalance: Record<string, number> = {};
-
-      // Per-task breakdown
-      const taskBreakdown: Record<string, number> = {};
-      for (const a of empAssignments) {
-        taskBreakdown[a.taskName] = (taskBreakdown[a.taskName] ?? 0) + 1;
-
-        // FIX (BC-1): monthly balance keyed by UTC year-month.
-        const d = new Date(a.date);
-        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-        monthlyBalance[key] = (monthlyBalance[key] ?? 0) + 1;
-      }
-
-      // Calculate per-task fairness score and global fairness score
-      // Positive = employee has fewer turns than average (owes them)
-      // Negative = employee has more turns than average (is owed rest)
-      let fairnessScore = 0;
-      const taskFairness: Record<string, number> = {};
-      const empDisabled = disabledTasksMap.get(emp.id) ?? new Set();
-      for (const taskType of allTaskTypes) {
-        if (empDisabled.has(taskType)) continue; // Skip tasks this employee is ineligible for
-        const empTaskCount = taskBreakdown[taskType] ?? 0;
-        const avgForTask = taskAverages[taskType] ?? 0;
-        const deficit = Math.round((avgForTask - empTaskCount) * 100) / 100;
-        taskFairness[taskType] = deficit;
-        fairnessScore += deficit;
-      }
-      fairnessScore = Math.round(fairnessScore * 100) / 100;
-
-      report.push({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        totalAssignments: empAssignments.length,
-        monthlyBalance,
-        fairnessScore,
-        taskBreakdown,
-        taskFairness,
-      });
-    }
-
-    return { report, dateRange, totalAssignments: totalAll, employeeCount: employees.length, averagePerEmployee: Math.round(avgAll * 100) / 100, taskAverages, eligibleEmployees };
+    return {
+      report: equity.report,
+      dateRange,
+      totalAssignments: equity.totalAssignments,
+      employeeCount: equity.employeeCount,
+      averagePerEmployee: equity.averagePerEmployee,
+      taskAverages: equity.taskAverages,
+      eligibleEmployees: equity.eligibleEmployees,
+    };
   },
 };
