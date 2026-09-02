@@ -72,7 +72,7 @@ export function HolidaysModule() {
               variant="outline"
               onClick={() =>
                 seedHolidays.mutate(
-                  { startYear: now.getFullYear(), endYear: now.getFullYear() + 5 },
+                  { startYear: now.getFullYear(), endYear: now.getFullYear() + 10 },
                   {
                     onSuccess: (data) => toast.success(`Semillados: ${data.created} creados`),
                     onError: () => toast.error("Error al semillar"),
