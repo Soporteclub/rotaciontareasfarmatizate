@@ -8,10 +8,12 @@ import { GroupsModule } from "@/frontend/presentation/components/modules/groups/
 import { EmployeesModule } from "@/frontend/presentation/components/modules/employees/employees-module";
 import { RulesModule } from "@/frontend/presentation/components/modules/rules/rules-module";
 import { AuditModule } from "@/frontend/presentation/components/modules/audit/audit-module";
+import { HolidaysModule } from "@/frontend/presentation/components/modules/holidays/holidays-module";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import Image from "next/image";
 import {
   CalendarHeart,
+  CalendarCheck,
   Building2,
   UserCog,
   ClipboardCheck,
@@ -24,6 +26,7 @@ const VIEW_META: Record<string, { label: string; icon: React.ReactNode; descript
   groups: { label: "Grupos", icon: <Building2 className="h-5 w-5" />, description: "Pisos y áreas de trabajo" },
   employees: { label: "Empleados", icon: <UserCog className="h-5 w-5" />, description: "Gestión de personal" },
   rules: { label: "Reglas", icon: <ClipboardCheck className="h-5 w-5" />, description: "Configuración de rotación" },
+  holidays: { label: "Festivos", icon: <CalendarCheck className="h-5 w-5" />, description: "Días no laborables" },
   audit: { label: "Auditoría", icon: <ScrollText className="h-5 w-5" />, description: "Historial de cambios" },
 };
 
@@ -62,6 +65,7 @@ function AppContent() {
             {isAdmin && activeView === "groups" && <GroupsModule />}
             {isAdmin && activeView === "employees" && <EmployeesModule />}
             {isAdmin && activeView === "rules" && <RulesModule />}
+            {isAdmin && activeView === "holidays" && <HolidaysModule />}
             {isAdmin && activeView === "audit" && <AuditModule />}
           </main>
         </div>

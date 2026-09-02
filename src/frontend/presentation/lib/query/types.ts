@@ -46,6 +46,29 @@ export interface RuleResponse {
   group?: GroupResponse;
 }
 
+export interface HolidayResponse {
+  id: string;
+  date: string;
+  name: string;
+  type: "fixed" | "emiliani" | "easter";
+  isRecurring: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHolidayInput {
+  date: string;
+  name: string;
+  type: "fixed" | "emiliani" | "easter";
+}
+
+export interface SeedHolidaysInput {
+  seed: true;
+  startYear?: number;
+  endYear?: number;
+}
+
 export interface AssignmentResponse {
   id: string;
   groupId: string;

@@ -11,7 +11,7 @@
 
 import { create } from "zustand";
 
-type ActiveView = "calendar" | "groups" | "employees" | "rules" | "audit";
+type ActiveView = "calendar" | "groups" | "employees" | "rules" | "holidays" | "audit";
 
 interface UIState {
   activeView: ActiveView;

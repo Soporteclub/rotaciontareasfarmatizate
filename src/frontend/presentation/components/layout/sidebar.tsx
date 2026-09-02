@@ -2,6 +2,7 @@
 
 import {
   CalendarHeart,
+  CalendarCheck,
   Settings2,
   UserCog,
   ScrollText,
@@ -22,7 +23,7 @@ import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 type NavItem = {
-  id: "calendar" | "groups" | "employees" | "rules" | "audit";
+  id: "calendar" | "groups" | "employees" | "rules" | "holidays" | "audit";
   label: string;
   icon: React.ReactNode;
   section?: "main" | "config";
@@ -43,6 +44,7 @@ const configItems: NavItem[] = [
   { id: "groups", label: "Grupos", icon: <Building2 className="h-4 w-4" />, section: "config", description: "Pisos / áreas", adminOnly: true },
   { id: "employees", label: "Empleados", icon: <UserCog className="h-4 w-4" />, section: "config", description: "Personal", adminOnly: true },
   { id: "rules", label: "Reglas", icon: <ClipboardCheck className="h-4 w-4" />, section: "config", description: "Rotación", adminOnly: true },
+  { id: "holidays", label: "Festivos", icon: <CalendarCheck className="h-4 w-4" />, section: "config", description: "Días no laborables", adminOnly: true },
 ];
 
 const auditItems: NavItem[] = [
