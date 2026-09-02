@@ -50,8 +50,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al verificar backup";
-    console.error("Backup status error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[backup/status]", error);
+    return NextResponse.json({ error: "Error al verificar backup" }, { status: 500 });
   }
 }

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const report = await assignmentService.getBalanceReport(groupId, startDate, endDate);
     return NextResponse.json({ data: report });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener reporte de balance";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[balance/get]", error);
+    return NextResponse.json({ error: "Error al obtener reporte de balance" }, { status: 500 });
   }
 }

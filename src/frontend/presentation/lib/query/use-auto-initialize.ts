@@ -145,7 +145,7 @@ export function useAutoInitialize() {
       setState({
         isInitializing: false,
         step: "error",
-        message: error instanceof Error ? error.message : "Error de inicialización",
+        message: "Error de inicialización",
       });
     }
   }, [queryClient]);

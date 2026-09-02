@@ -15,8 +15,8 @@ export async function GET(
     const group = await groupService.getById(id);
     return NextResponse.json({ data: group });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener grupo";
-    return NextResponse.json({ error: message }, { status: 404 });
+    console.error("[groups/get]", error);
+    return NextResponse.json({ error: "Grupo no encontrado" }, { status: 404 });
   }
 }
 
@@ -49,8 +49,8 @@ export async function PUT(
     const group = await groupService.update(id, parsed.data);
     return NextResponse.json({ data: group });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar grupo";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[groups/update]", error);
+    return NextResponse.json({ error: "Error al actualizar grupo" }, { status: 500 });
   }
 }
 
@@ -73,7 +73,7 @@ export async function DELETE(
     const group = await groupService.softDelete(id);
     return NextResponse.json({ data: group });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al eliminar grupo";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[groups/delete]", error);
+    return NextResponse.json({ error: "Error al eliminar grupo" }, { status: 500 });
   }
 }

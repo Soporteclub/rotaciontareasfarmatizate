@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     const eligibility = await taskEligibilityService.getByEmployee(employeeId);
     return NextResponse.json({ data: eligibility });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener elegibilidad";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[eligibility/get]", error);
+    return NextResponse.json({ error: "Error al obtener elegibilidad" }, { status: 500 });
   }
 }
 
@@ -51,8 +51,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar elegibilidad";
-    const status = message.includes("no encontrado") ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error("[eligibility/toggle]", error);
+    return NextResponse.json({ error: "Error al actualizar elegibilidad" }, { status: 500 });
   }
 }

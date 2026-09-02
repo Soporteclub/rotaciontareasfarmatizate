@@ -27,9 +27,8 @@ export async function PATCH(
     const updated = await holidayService.update(id, body);
     return NextResponse.json(updated);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar festivo";
-    console.error("Holiday PATCH error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[holidays/update]", error);
+    return NextResponse.json({ error: "Error al actualizar festivo" }, { status: 500 });
   }
 }
 
@@ -53,8 +52,7 @@ export async function DELETE(
     await holidayService.delete(id);
     return NextResponse.json({ message: "Festivo eliminado" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al eliminar festivo";
-    console.error("Holiday DELETE error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[holidays/delete]", error);
+    return NextResponse.json({ error: "Error al eliminar festivo" }, { status: 500 });
   }
 }

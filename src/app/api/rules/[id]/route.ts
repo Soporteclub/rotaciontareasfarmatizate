@@ -16,8 +16,8 @@ export async function GET(
     const rule = await ruleService.getById(id);
     return NextResponse.json({ data: rule });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener regla";
-    return NextResponse.json({ error: message }, { status: 404 });
+    console.error("[rules/get]", error);
+    return NextResponse.json({ error: "Regla no encontrada" }, { status: 404 });
   }
 }
 
@@ -50,8 +50,8 @@ export async function PUT(
     const rule = await ruleService.update(id, parsed.data);
     return NextResponse.json({ data: rule });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar regla";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[rules/update]", error);
+    return NextResponse.json({ error: "Error al actualizar regla" }, { status: 500 });
   }
 }
 
@@ -81,7 +81,7 @@ export async function DELETE(
     const rule = await ruleService.softDelete(id);
     return NextResponse.json({ data: rule });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al eliminar regla";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[rules/delete]", error);
+    return NextResponse.json({ error: "Error al eliminar regla" }, { status: 500 });
   }
 }

@@ -19,8 +19,8 @@ export async function GET() {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener configuracion";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[settings/get]", error);
+    return NextResponse.json({ error: "Error al obtener configuración" }, { status: 500 });
   }
 }
 
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ data: { valid: isValid } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al validar clave";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[settings/verify]", error);
+    return NextResponse.json({ error: "Error al validar clave" }, { status: 500 });
   }
 }
 
@@ -77,9 +77,15 @@ export async function PUT(request: NextRequest) {
     resetAttempts(ip);
     return NextResponse.json({ data: { message: "Clave actualizada exitosamente" } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar clave";
-    const status = message.includes("incorrecta") ? 401 : message.includes("al menos") ? 400 : 500;
-    if (status === 401) recordFailedAttempt(ip);
-    return NextResponse.json({ error: message }, { status });
+    console.error("[settings/update]", error);
+    const msg = error instanceof Error ? error.message : "";
+    if (msg.includes("incorrecta")) {
+      recordFailedAttempt(ip);
+      return NextResponse.json({ error: "Clave actual incorrecta" }, { status: 401 });
+    }
+    if (msg.includes("al menos")) {
+      return NextResponse.json({ error: "La nueva clave debe tener al menos 8 caracteres" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Error al actualizar clave" }, { status: 500 });
   }
 }

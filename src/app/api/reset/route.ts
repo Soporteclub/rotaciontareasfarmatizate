@@ -51,8 +51,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: { message: "Base de datos reiniciada exitosamente" } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al reiniciar";
-    console.error("[reset] Error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[reset]", error);
+    return NextResponse.json({ error: "Error al reiniciar la base de datos" }, { status: 500 });
   }
 }

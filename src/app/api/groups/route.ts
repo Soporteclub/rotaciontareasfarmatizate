@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     const groups = await groupService.getAll(includeInactive);
     return NextResponse.json({ data: groups });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener grupos";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[groups/get]", error);
+    return NextResponse.json({ error: "Error al obtener grupos" }, { status: 500 });
   }
 }
 
@@ -45,8 +45,7 @@ export async function POST(request: NextRequest) {
     const group = await groupService.create(parsed.data);
     return NextResponse.json({ data: group }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al crear grupo";
-    const status = message.includes("ya existe") ? 409 : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error("[groups/create]", error);
+    return NextResponse.json({ error: "Error al crear grupo" }, { status: 500 });
   }
 }

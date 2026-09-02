@@ -16,8 +16,8 @@ export async function GET(
     const result = await employeeTaskEligibilityService.getByEmployee(id);
     return NextResponse.json({ data: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener elegibilidad de tareas";
-    return NextResponse.json({ error: message }, { status: 404 });
+    console.error("[task-eligibility/get]", error);
+    return NextResponse.json({ error: "Empleado no encontrado" }, { status: 404 });
   }
 }
 
@@ -50,8 +50,8 @@ export async function PUT(
     const result = await employeeTaskEligibilityService.update(id, settings);
     return NextResponse.json({ data: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar elegibilidad de tareas";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[task-eligibility/update]", error);
+    return NextResponse.json({ error: "Error al actualizar elegibilidad de tareas" }, { status: 500 });
   }
 }
 
@@ -84,7 +84,7 @@ export async function PATCH(
     const result = await employeeTaskEligibilityService.toggle(id, taskLabel, isActive);
     return NextResponse.json({ data: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar elegibilidad de tarea";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[task-eligibility/update]", error);
+    return NextResponse.json({ error: "Error al actualizar elegibilidad de tarea" }, { status: 500 });
   }
 }

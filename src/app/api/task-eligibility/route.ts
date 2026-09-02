@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const result = await employeeTaskEligibilityService.getByGroup(groupId);
     return NextResponse.json({ data: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener elegibilidad de tareas";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[task-eligibility/get]", error);
+    return NextResponse.json({ error: "Error al obtener elegibilidad de tareas" }, { status: 500 });
   }
 }

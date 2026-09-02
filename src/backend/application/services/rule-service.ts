@@ -27,9 +27,11 @@ export const ruleService = {
 
     // Check for duplicate rule (same group, same day, same taskLabel)
     // Multiple tasks can exist on the same day (e.g. "Sacar Basura" and "Lavar Cafetera" on Tuesday)
+    // FIX (F4): frequency removed from duplicate check — it's a legacy field that the UI
+    // no longer edits, so including it causes false negatives (same rule not detected)
     const existingRules = await ruleRepository.findByGroup(input.groupId);
     const duplicate = existingRules.find(
-      (r) => r.dayOfWeek === input.dayOfWeek && r.taskLabel === input.taskLabel && r.frequency === input.frequency
+      (r) => r.dayOfWeek === input.dayOfWeek && r.taskLabel === input.taskLabel
     );
     if (duplicate) {
       throw new Error("Ya existe una regla para este día y tarea en el grupo");

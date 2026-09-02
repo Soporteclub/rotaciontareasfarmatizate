@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const assignments = await assignmentService.getAllForCalendar(startDate, endDate);
     return NextResponse.json({ data: assignments });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener asignaciones";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[assignments/get]", error);
+    return NextResponse.json({ error: "Error al obtener asignaciones" }, { status: 500 });
   }
 }

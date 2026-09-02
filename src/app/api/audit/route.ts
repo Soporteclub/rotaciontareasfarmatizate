@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const result = await auditService.query(parsed.data);
     return NextResponse.json({ data: result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener logs de auditoria";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[audit/get]", error);
+    return NextResponse.json({ error: "Error al obtener logs de auditoría" }, { status: 500 });
   }
 }

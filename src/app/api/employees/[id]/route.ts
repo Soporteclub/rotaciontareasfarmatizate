@@ -15,8 +15,8 @@ export async function GET(
     const employee = await employeeService.getById(id);
     return NextResponse.json({ data: employee });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener empleado";
-    return NextResponse.json({ error: message }, { status: 404 });
+    console.error("[employees/get]", error);
+    return NextResponse.json({ error: "Empleado no encontrado" }, { status: 404 });
   }
 }
 
@@ -49,8 +49,8 @@ export async function PUT(
     const employee = await employeeService.update(id, parsed.data);
     return NextResponse.json({ data: employee });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar empleado";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[employees/update]", error);
+    return NextResponse.json({ error: "Error al actualizar empleado" }, { status: 500 });
   }
 }
 
@@ -73,7 +73,7 @@ export async function DELETE(
     const employee = await employeeService.softDelete(id);
     return NextResponse.json({ data: employee });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al eliminar empleado";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[employees/delete]", error);
+    return NextResponse.json({ error: "Error al eliminar empleado" }, { status: 500 });
   }
 }

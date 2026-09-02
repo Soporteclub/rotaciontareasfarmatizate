@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     const rules = await ruleService.getAll(groupId, includeInactive);
     return NextResponse.json({ data: rules });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener reglas";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[rules/get]", error);
+    return NextResponse.json({ error: "Error al obtener reglas" }, { status: 500 });
   }
 }
 
@@ -46,8 +46,7 @@ export async function POST(request: NextRequest) {
     const rule = await ruleService.create(parsed.data);
     return NextResponse.json({ data: rule }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al crear regla";
-    const status = message.includes("ya existe") || message.includes("no existe") ? 409 : 500;
-    return NextResponse.json({ error: message }, { status });
+    console.error("[rules/create]", error);
+    return NextResponse.json({ error: "Error al crear regla" }, { status: 500 });
   }
 }

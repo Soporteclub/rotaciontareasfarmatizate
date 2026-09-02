@@ -44,15 +44,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al generar asignaciones";
     const isTimeout =
       error instanceof Error && (
-        message.includes("Transaction not found") ||
-        message.includes("timeout") ||
-        message.includes("P2028") ||
+        (error as Error).message.includes("Transaction not found") ||
+        (error as Error).message.includes("timeout") ||
+        (error as Error).message.includes("P2028") ||
         (error as { code?: string }).code === "P2028"
       );
-    console.error("[generate] Error:", error);
+    console.error("[generate]", error);
     if (isTimeout) {
       return NextResponse.json(
         { error: "La operación está tardando más de lo esperado. Prueba con un rango de fechas más corto o intentá de nuevo en unos minutos." },

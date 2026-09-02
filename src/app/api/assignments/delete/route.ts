@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al eliminar asignaciones";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[assignments/delete]", error);
+    return NextResponse.json({ error: "Error al eliminar asignaciones" }, { status: 500 });
   }
 }

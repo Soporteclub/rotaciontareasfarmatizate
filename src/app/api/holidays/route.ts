@@ -21,9 +21,8 @@ export async function GET(request: NextRequest) {
     // FIX (F1): wrap in { data } so apiFetch (which reads json.data) works
     return NextResponse.json({ data: holidays });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al obtener festivos";
-    console.error("Holiday GET error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[holidays/get]", error);
+    return NextResponse.json({ error: "Error al obtener festivos" }, { status: 500 });
   }
 }
 
@@ -53,8 +52,7 @@ export async function POST(request: NextRequest) {
     const holiday = await holidayService.create(body);
     return NextResponse.json({ data: holiday }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al crear festivo";
-    console.error("Holiday POST error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[holidays/create]", error);
+    return NextResponse.json({ error: "Error al crear festivo" }, { status: 500 });
   }
 }

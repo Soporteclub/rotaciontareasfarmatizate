@@ -114,7 +114,7 @@ export async function PATCH(
 
     return NextResponse.json({ data: updated });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al actualizar asignación";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[assignments/update]", error);
+    return NextResponse.json({ error: "Error al actualizar asignación" }, { status: 500 });
   }
 }

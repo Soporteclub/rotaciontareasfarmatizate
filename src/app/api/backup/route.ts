@@ -128,8 +128,7 @@ export async function POST(request: NextRequest) {
     const result = await performBackup();
     return NextResponse.json({ data: { message: "Backup creado exitosamente", ...result } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error al crear backup";
-    console.error("Backup error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[backup/create]", error);
+    return NextResponse.json({ error: "Error al crear backup" }, { status: 500 });
   }
 }
