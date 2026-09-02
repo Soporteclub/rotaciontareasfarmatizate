@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./api-client";
-import { triggerAutoBackup } from "./backup-hooks";
 import type { GroupResponse, AssignmentResponse, GenerateResult, AutoInitState } from "./types";
 
 // ─── Pure helpers (no hooks, no setState) ──────────────────────
@@ -105,7 +104,6 @@ export function useAutoInitialize() {
         await queryClient.invalidateQueries({ queryKey: ["assignments"] });
         await queryClient.invalidateQueries({ queryKey: ["groups"] });
         setState({ isInitializing: false, step: "done", message: "" });
-        triggerAutoBackup();
         return;
       }
 
@@ -139,7 +137,6 @@ export function useAutoInitialize() {
       }
 
       setState({ isInitializing: false, step: "done", message: "" });
-      triggerAutoBackup();
     } catch (error) {
       console.error("Auto-initialize error:", error);
       setState({

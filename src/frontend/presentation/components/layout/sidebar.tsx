@@ -14,9 +14,6 @@ import {
   Lock,
   Unlock,
   FileCode2,
-  Database,
-  RotateCcw,
-  Loader2,
 } from "lucide-react";
 import { useUIStore } from "@/frontend/presentation/hooks/use-ui-store";
 import { BRAND } from "@/frontend/presentation/lib/brand";
@@ -24,8 +21,6 @@ import { cn } from "@/frontend/lib/utils";
 import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { useBackupStatus, useCreateBackup, useRestoreBackup } from "@/frontend/presentation/lib/query/backup-hooks";
-
 type NavItem = {
   id: "calendar" | "groups" | "employees" | "rules" | "audit";
   label: string;
@@ -221,7 +216,6 @@ function SidebarFooter({
   ) : (
     <LockedStatus sidebarOpen={sidebarOpen} requestAdminUnlock={requestAdminUnlock} />
   )}
-  {isAdmin && <BackupSection sidebarOpen={sidebarOpen} />}
   {isAdmin && sidebarOpen && (
     <div className="space-y-1 pt-1">
       <a
@@ -349,152 +343,6 @@ function formatRelativeTime(isoTimestamp: string): string {
 
   const months = Math.floor(days / 30);
   return `hace ${months} mes${months !== 1 ? "es" : ""}`;
-}
-
-// ─── Backup Section ────────────────────────────────────────────
-function BackupSection({ sidebarOpen }: { sidebarOpen: boolean }) {
-  const { data: backupStatus, isLoading } = useBackupStatus();
-  const createBackup = useCreateBackup();
-  const restoreBackup = useRestoreBackup();
-  const [confirmRestore, setConfirmRestore] = useState(false);
-
-  // FIX (hydratación): este bloque depende de estado del lado cliente (React
-  // Query + store de Zustand isAdmin). En el SSR el query está deshabilitado
-  // (isAdmin=false) y renderizaba "Sin backup", mientras el cliente (admin
-  // desbloqueado) mostraba el loader → árbol distinto entre server y client,
-  // provocando el error "Hydration failed". useSyncExternalStore devuelve
-  // false durante SSR/hidratación (getServerSnapshot) y true tras el mount
-  // (getSnapshot), sin setState-en-effect, así ambos lados renderizan el mismo
-  // placeholder antes de la hidratación.
-  const hydrated = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
-  if (!hydrated) {
-    return sidebarOpen ? (
-      <div className="space-y-1.5" />
-    ) : (
-      <button className="flex justify-center w-full py-0.5" disabled>
-        <Database className="h-3.5 w-3.5" />
-      </button>
-    );
-  }
-
-  const backupExists = backupStatus?.exists === true;
-  const isMutating = createBackup.isPending || restoreBackup.isPending;
-
-  if (!sidebarOpen) {
-    return (
-      <button
-        onClick={() => {
-          if (!isMutating) {
-            createBackup.mutate(undefined, {
-              onSuccess: () => toast.success("Backup guardado"),
-              onError: (err) => toast.error(err.message),
-            });
-          }
-        }}
-        disabled={isMutating}
-        className={cn(
-          "flex justify-center w-full py-0.5 transition-colors",
-          isLoading ? "text-muted-foreground/40" :
-          backupExists ? "text-brand-success hover:text-brand-success/80" : "text-amber-500 hover:text-amber-600"
-        )}
-        title={backupExists ? "Backup existe — clic para guardar nuevo" : "Sin backup — clic para guardar"}
-      >
-        {isMutating ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Database className="h-3.5 w-3.5" />
-        )}
-      </button>
-    );
-  }
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        {isLoading ? (
-          <>
-            <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Verificando…</span>
-          </>
-        ) : backupExists && backupStatus.timestamp ? (
-          <>
-            <span className="h-1.5 w-1.5 rounded-full bg-brand-success shrink-0" />
-            <span>Backup: {formatRelativeTime(backupStatus.timestamp)}</span>
-          </>
-        ) : (
-          <>
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
-            <span>Sin backup</span>
-          </>
-        )}
-      </div>
-
-      {confirmRestore ? (
-        <div className="flex items-center gap-1 text-[10px]">
-          <span className="text-amber-600 font-medium">¿Seguro?</span>
-          <button
-            onClick={() => {
-              setConfirmRestore(false);
-              restoreBackup.mutate(undefined, {
-                onSuccess: () => toast.success("Base de datos restaurada"),
-                onError: (err) => toast.error(err.message),
-              });
-            }}
-            disabled={isMutating}
-            className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50"
-          >
-            {isMutating ? <Loader2 className="h-2.5 w-2.5 animate-spin inline" /> : "Sí"}
-          </button>
-          <button
-            onClick={() => setConfirmRestore(false)}
-            disabled={isMutating}
-            className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
-          >
-            No
-          </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              createBackup.mutate(undefined, {
-                onSuccess: () => toast.success("Backup guardado"),
-                onError: (err) => toast.error(err.message),
-              });
-            }}
-            disabled={isMutating}
-            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            title="Guardar backup"
-          >
-            {createBackup.isPending ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            ) : (
-              <Database className="h-2.5 w-2.5" />
-            )}
-            Guardar
-          </button>
-          <button
-            onClick={() => setConfirmRestore(true)}
-            disabled={isMutating || !backupExists}
-            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-50"
-            title="Restaurar desde backup"
-          >
-            {restoreBackup.isPending ? (
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            ) : (
-              <RotateCcw className="h-2.5 w-2.5" />
-            )}
-            Restaurar
-          </button>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── Nav Button ────────────────────────────────────────────────

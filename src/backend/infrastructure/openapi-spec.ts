@@ -1076,73 +1076,6 @@ export const openApiSpec = {
     },
 
     // ────────────────────────────────────────────────────────────────
-    // BACKUP
-    // ────────────────────────────────────────────────────────────────
-    "/backup/status": {
-      get: {
-        tags: ["Backup"],
-        summary: "Verificar estado del backup",
-        description:
-          "Verifica si existe un archivo de backup y devuelve sus metadatos (timestamp, versión, conteos).",
-        operationId: "getBackupStatus",
-        responses: {
-          "200": {
-            description: "Estado del backup",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/BackupStatusResponse" },
-              },
-            },
-          },
-          "500": { $ref: "#/components/responses/InternalServerError" },
-        },
-      },
-    },
-    "/backup": {
-      post: {
-        tags: ["Backup"],
-        summary: "Crear backup manual",
-        description:
-          "Crea un backup manual de todos los datos de la base de datos.",
-        operationId: "createBackup",
-        responses: {
-          "200": {
-            description: "Backup manual creado exitosamente",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/BackupResponse" },
-              },
-            },
-          },
-          "500": { $ref: "#/components/responses/InternalServerError" },
-        },
-      },
-    },
-    "/restore": {
-      post: {
-        tags: ["Backup"],
-        summary: "Restaurar base de datos desde backup",
-        description:
-          "Restaura la base de datos completa desde el archivo de backup más reciente. " +
-          "⚠️ Elimina todos los datos actuales y los reemplaza con los del backup.",
-        operationId: "restoreBackup",
-        responses: {
-          "200": {
-            description: "Base de datos restaurada exitosamente",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/RestoreResponse" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/BadRequest" },
-          "404": { $ref: "#/components/responses/NotFound" },
-          "500": { $ref: "#/components/responses/InternalServerError" },
-        },
-      },
-    },
-
-    // ────────────────────────────────────────────────────────────────
     // ADMIN
     // ────────────────────────────────────────────────────────────────
     "/admin/verify": {
@@ -1762,54 +1695,6 @@ export const openApiSpec = {
           startDate: { type: "string", format: "date", description: "Fecha inicio del rango (ISO 8601). Opcional: sin fechas elimina todas." },
           endDate: { type: "string", format: "date", description: "Fecha fin del rango (ISO 8601). Opcional: sin fechas elimina todas." },
           force: { type: "boolean", default: false, description: "Si true, también elimina asignaciones bloqueadas (históricas). Por defecto false." },
-        },
-      },
-
-      // ── Backup Schemas ─────────────────────────────────────────
-      BackupCounts: {
-        type: "object",
-        description: "Conteo de registros por entidad en el backup",
-        properties: {
-          settings: { type: "integer", example: 1 },
-          groups: { type: "integer", example: 2 },
-          employees: { type: "integer", example: 16 },
-          rules: { type: "integer", example: 14 },
-          taskEligibility: { type: "integer", example: 32 },
-          holidays: { type: "integer", example: 84 },
-          assignments: { type: "integer", example: 120 },
-          auditLogs: { type: "integer", example: 50 },
-        },
-      },
-      BackupStatusResponse: {
-        type: "object",
-        description: "Estado del archivo de backup",
-        properties: {
-          exists: { type: "boolean", description: "Si existe un archivo de backup" },
-          timestamp: { type: "string", format: "date-time", nullable: true, description: "Fecha/hora del backup" },
-          version: { type: "integer", nullable: true, description: "Versión del formato de backup" },
-          counts: {
-            nullable: true,
-            allOf: [{ $ref: "#/components/schemas/BackupCounts" }],
-          },
-        },
-      },
-      BackupResponse: {
-        type: "object",
-        description: "Respuesta después de crear un backup",
-        properties: {
-          message: { type: "string", example: "Backup creado exitosamente" },
-          timestamp: { type: "string", format: "date-time", description: "Fecha/hora en que se creó el backup" },
-          counts: { $ref: "#/components/schemas/BackupCounts" },
-        },
-      },
-      RestoreResponse: {
-        type: "object",
-        description: "Respuesta después de restaurar desde backup",
-        properties: {
-          message: { type: "string", example: "Base de datos restaurada exitosamente" },
-          timestamp: { type: "string", format: "date-time", description: "Fecha/hora del backup restaurado" },
-          version: { type: "integer", description: "Versión del formato de backup restaurado" },
-          restored: { $ref: "#/components/schemas/BackupCounts" },
         },
       },
 
