@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { assignmentRepository } from "@/backend/infrastructure/repositories/assignment-repository";
+import { employeeRepository } from "@/backend/infrastructure/repositories/employee-repository";
 import { auditLogRepository } from "@/backend/infrastructure/repositories/audit-log-repository";
 import { settingsService } from "@/backend/application/services/settings-service";
 
@@ -70,6 +71,23 @@ export async function PATCH(
           requiresForce: true,
         },
         { status: 403 }
+      );
+    }
+
+    // FIX (BC-01): validate the target employee EXISTS and belongs to the SAME
+    // group as the assignment, so the invariant "assignment.groupId === employee.groupId"
+    // is never broken (e.g. reassigning a Piso 1 assignment to a Piso 2 employee).
+    const targetEmployee = await employeeRepository.findById(employeeId);
+    if (!targetEmployee) {
+      return NextResponse.json(
+        { error: "El empleado indicado no existe" },
+        { status: 404 }
+      );
+    }
+    if (targetEmployee.groupId !== existing.groupId) {
+      return NextResponse.json(
+        { error: "El empleado pertenece a otro grupo y no puede asignarse a esta asignación" },
+        { status: 400 }
       );
     }
 

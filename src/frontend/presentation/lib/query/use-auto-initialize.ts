@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { apiFetch, rawFetch } from "./api-client";
+import { apiFetch } from "./api-client";
 import { triggerAutoBackup } from "./backup-hooks";
 import type { GroupResponse, AssignmentResponse, GenerateResult, AutoInitState } from "./types";
 
@@ -76,32 +76,15 @@ export function useAutoInitialize() {
         queryFn: () => apiFetch<GroupResponse[]>("/api/groups?includeInactive=false"),
       });
 
-      // Step 2: If no groups, try to restore from backup first, then seed
+      // Step 2: If no groups, seed the base data.
+      // FIX (BC-04): the old code tried POST /api/restore WITHOUT an admin key
+      // first. That endpoint requires admin auth and always returned 401 for an
+      // anonymous auto-init, so it only "worked" by falling through silently to
+      // seed — and it would hang forever once /api/seed is properly protected.
+      // Restore is a manual, admin-only action (see sidebar "Restaurar"); an
+      // anonymous first-load cannot and should not restore a backup. Go straight
+      // to seed.
       if (groups.length === 0) {
-        setState({ isInitializing: true, step: "seeding", message: "Restaurando backup..." });
-
-        try {
-          // Try to restore from backup first
-          const restoreResult = await rawFetch<{ message: string; restored?: Record<string, number> }>("/api/restore", { method: "POST" });
-
-          if (restoreResult.restored && restoreResult.restored.groups > 0) {
-            // Restore succeeded! Invalidate queries and we're done
-            await queryClient.invalidateQueries({ queryKey: ["groups"] });
-            await queryClient.invalidateQueries({ queryKey: ["assignments"] });
-            await queryClient.invalidateQueries({ queryKey: ["employees"] });
-            await queryClient.invalidateQueries({ queryKey: ["rules"] });
-            await queryClient.invalidateQueries({ queryKey: ["holidays"] });
-
-            setState({ isInitializing: false, step: "done", message: "" });
-            triggerAutoBackup();
-            return;
-          }
-        } catch {
-          // No backup available, fall through to seed
-          console.warn("Auto-init: No backup found, proceeding with seed");
-        }
-
-        // Fall back to seed
         setState({ isInitializing: true, step: "seeding", message: "Inicializando datos base..." });
         await apiFetch<{ message: string }>("/api/seed", { method: "POST" });
         await queryClient.invalidateQueries({ queryKey: ["groups"] });

@@ -2,15 +2,14 @@
 // Admin access is global: one key unlocks ALL admin sections at once
 // Regular users can only see the Calendar/Dashboard
 //
-// FIX (FE-01, FE-04): adminKey is NO LONGER persisted to localStorage.
-// Previously it was stored in plaintext and could be injected by anyone with
-// DevTools access, bypassing the backend verification. Now only `isAdmin`
-// (a boolean flag) is persisted; the actual key lives in memory only and must
-// be re-entered after a page refresh. When a mutation returns 403, the frontend
-// calls lockAdmin() + requestAdminUnlock() to prompt for the key again.
+// FIX (BC-05): this store no longer persists anything to localStorage. It used to
+// persist the `isAdmin` boolean (the admin key was already in-memory only), but
+// that left a STALE flag after a reload: the UI claimed admin rights while the
+// key was gone, so the first mutation returned 403 and forced a re-unlock — an
+// inconsistency between what the UI believed and what the server accepts. Admin
+// is now strictly per-session: after a refresh the user must re-enter the key.
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
 type ActiveView = "calendar" | "groups" | "employees" | "rules" | "audit";
 
@@ -44,51 +43,40 @@ const getInitialSidebarOpen = () => {
   return true;
 };
 
-export const useUIStore = create<UIState>()(
-  persist(
-    (set) => ({
-      activeView: "calendar",
-      selectedGroupId: null,
-      sidebarOpen: getInitialSidebarOpen(),
+export const useUIStore = create<UIState>()((set) => ({
+  activeView: "calendar",
+  selectedGroupId: null,
+  sidebarOpen: getInitialSidebarOpen(),
+  isAdmin: false,
+  adminKey: null,
+  adminPendingUnlock: false,
+
+  setActiveView: (view) => set({ activeView: view }),
+  setSelectedGroupId: (id) => set({ selectedGroupId: id }),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  unlockAdmin: (key: string) =>
+    set({
+      isAdmin: true,
+      adminKey: key,
+      adminPendingUnlock: false,
+    }),
+
+  // FIX (FE-04): lockAdmin clears adminKey AND opens the unlock modal so
+  // the admin can re-enter the key after a 403.
+  lockAdmin: (silent?: boolean) =>
+    set({
       isAdmin: false,
       adminKey: null,
-      adminPendingUnlock: false,
-
-      setActiveView: (view) => set({ activeView: view }),
-      setSelectedGroupId: (id) => set({ selectedGroupId: id }),
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
-
-      unlockAdmin: (key: string) =>
-        set({
-          isAdmin: true,
-          adminKey: key,
-          adminPendingUnlock: false,
-        }),
-
-      // FIX (FE-04): lockAdmin clears adminKey AND opens the unlock modal so
-      // the admin can re-enter the key after a 403.
-      lockAdmin: (silent?: boolean) =>
-        set({
-          isAdmin: false,
-          adminKey: null,
-          // Only prompt for re-unlock if not silent (e.g., when locking from sidebar)
-          adminPendingUnlock: !silent,
-          // Reset to calendar view when locking
-          activeView: "calendar",
-        }),
-
-      requestAdminUnlock: () =>
-        set({ adminPendingUnlock: true }),
-
-      clearAdminRequest: () =>
-        set({ adminPendingUnlock: false }),
+      // Only prompt for re-unlock if not silent (e.g., when locking from sidebar)
+      adminPendingUnlock: !silent,
+      // Reset to calendar view when locking
+      activeView: "calendar",
     }),
-    {
-      name: "farmatizate-ui",
-      // FIX (FE-01): only persist the isAdmin boolean, NOT the adminKey.
-      // On rehydration, isAdmin may be true but adminKey will be null, so the
-      // first protected mutation will 403 and trigger lockAdmin() -> re-unlock.
-      partialize: (state) => ({ isAdmin: state.isAdmin }),
-    }
-  )
-);
+
+  requestAdminUnlock: () =>
+    set({ adminPendingUnlock: true }),
+
+  clearAdminRequest: () =>
+    set({ adminPendingUnlock: false }),
+}));

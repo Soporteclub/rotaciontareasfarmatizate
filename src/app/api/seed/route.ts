@@ -218,9 +218,10 @@ export async function POST() {
       adminKeyNotice: "Guarda esta clave en un lugar seguro. No se volvera a mostrar.",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error en seed";
+    // FIX (BC-07): do NOT leak internal error.message (Prisma constraint/SQL
+    // details) to the client. Keep a generic message and log the detail server-side.
     console.error("Seed error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: "Ocurrió un error al inicializar los datos. Por favor, intentá de nuevo." }, { status: 500 });
   }
 }
 
