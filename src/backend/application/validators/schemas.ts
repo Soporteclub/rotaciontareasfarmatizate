@@ -99,8 +99,8 @@ export const generateAssignmentsSchema = z
     startDate: isoDate,
     endDate: isoDate,
   })
-  .refine((data) => new Date(`${data.endDate}T00:00:00.000Z`) > new Date(`${data.startDate}T00:00:00.000Z`), {
-    message: "La fecha inicio debe ser anterior a la fecha fin",
+  .refine((data) => new Date(`${data.endDate}T00:00:00.000Z`) >= new Date(`${data.startDate}T00:00:00.000Z`), {
+    message: "La fecha inicio no puede ser posterior a la fecha fin",
     path: ["startDate"],
   })
   .refine(

@@ -154,6 +154,8 @@ export const assignmentService = {
     const created = await assignmentRepository.transactionalRegenerate(
       groupId,
       today,
+      startDate,
+      endDate,
       [...lockedPastAssignments, ...futureAssignments]
     );
 

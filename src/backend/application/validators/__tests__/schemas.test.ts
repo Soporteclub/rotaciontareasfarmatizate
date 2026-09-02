@@ -57,14 +57,29 @@ describe("generateAssignmentsSchema (BC-3)", () => {
     ).toBe(false);
   });
 
-  it("rejects start >= end", () => {
-    expect(
-      generateAssignmentsSchema.safeParse({ ...base, startDate: "2026-01-07", endDate: "2026-01-07" })
-        .success,
-    ).toBe(false);
+  it("rejects start > end", () => {
     expect(
       generateAssignmentsSchema.safeParse({ ...base, startDate: "2026-01-08", endDate: "2026-01-07" })
         .success,
     ).toBe(false);
+  });
+
+  // FIX (BUG-08): a single-day range (start === end) must now be valid so the
+  // user can regenerate only one day (e.g. the 31st) to correct it.
+  it("accepts a single-day range (start === end)", () => {
+    expect(
+      generateAssignmentsSchema.safeParse({ ...base, startDate: "2026-01-07", endDate: "2026-01-07" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("accepts a single-day range on the 31st", () => {
+    expect(
+      generateAssignmentsSchema.safeParse({
+        groupId: "g1",
+        startDate: "2026-08-31",
+        endDate: "2026-08-31",
+      }).success,
+    ).toBe(true);
   });
 });

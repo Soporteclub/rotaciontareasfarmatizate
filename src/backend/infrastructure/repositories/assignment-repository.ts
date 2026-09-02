@@ -274,14 +274,19 @@ export const assignmentRepository = {
 
   /**
    * Transactional assignment regeneration:
-   * 1. Lock any past assignments that are still unlocked
-   * 2. Delete all unlocked future assignments for the group
+   * 1. Lock any past assignments that are still unlocked (including today)
+   * 2. Delete unlocked assignments only within the requested [startDate, endDate]
    * 3. Create only NEW assignments (skip those that already exist)
    * All in a single transaction
+   *
+   * Days outside the requested range are left untouched, so regenerating a
+   * partial range (e.g. a single day) no longer wipes the rest of the future.
    */
   async transactionalRegenerate(
     groupId: string,
     today: Date,
+    startDate: Date,
+    endDate: Date,
     newAssignments: Array<{
       employeeId: string;
       groupId: string;
@@ -292,22 +297,33 @@ export const assignmentRepository = {
     }>
   ) {
     return db.$transaction(async (tx) => {
-      // 1. Lock past assignments
+      // 1. Lock past assignments (including today).
+      // FIX (BUG-08): use `lte` instead of `lt`. With `lt`, the assignment for
+      // the current day was NOT locked, but the delete step below used `gte`
+      // (>= today), so today's assignment fell in the "unlocked yet deletable"
+      // limbo and was silently removed on regeneration. Locking today too keeps
+      // it immutable before regenerating the future range.
       await tx.assignment.updateMany({
         where: {
           groupId,
           isLocked: false,
-          date: { lt: today },
+          date: { lte: today },
         },
         data: { isLocked: true },
       });
 
-      // 2. Delete unlocked future assignments
+      // 2. Delete assignments in the requested range that are still unlocked.
+      // FIX (BUG-09): scope the delete to [startDate, endDate]. Previously it
+      // used `date: { gte: today }`, which wiped EVERY future unlocked
+      // assignment regardless of the requested range — so regenerating a single
+      // day (e.g. the 31st) also erased the whole next month (they were only
+      // recreated for the requested range). Now only the days being regenerated
+      // are cleaned up; the rest of the future stays intact.
       await tx.assignment.deleteMany({
         where: {
           groupId,
           isLocked: false,
-          date: { gte: today },
+          date: { gte: startDate, lte: endDate },
         },
       });
 
