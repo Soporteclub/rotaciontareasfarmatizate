@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
           message: "Database restored from backup",
           backupTimestamp: backup.timestamp,
           backupVersion: backup.version,
-          adminKeyPrefix: adminKey.slice(0, 8),
+
           restoredCounts: {
             settings: settings.length,
             groups: groups.length,
@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
       const hashed = await hashKeyForRestore(restoredKey);
       await tx.settings.upsert({
         where: { id: "app" },
-        update: { key: hashed, value: hashed },
-        create: { id: "app", key: hashed, value: hashed },
+        update: { key: hashed },
+        create: { id: "app", key: hashed },
       });
       if (groups.length > 0) {
         await tx.group.createMany({ data: groups.map((g: RecordData) => reviveDates(g)) as never });

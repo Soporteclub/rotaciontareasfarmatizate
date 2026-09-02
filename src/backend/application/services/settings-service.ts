@@ -74,7 +74,7 @@ export const settingsService = {
     const hashed = await hashKey(key);
     await db.settings.update({
       where: { id: "app" },
-      data: { key: hashed, value: hashed },
+      data: { key: hashed },
     });
     return true;
   },
@@ -105,7 +105,7 @@ export const settingsService = {
     const hashed = await hashKey(newKey);
     return db.settings.update({
       where: { id: "app" },
-      data: { key: hashed, value: hashed },
+      data: { key: hashed },
     });
   },
 
@@ -116,8 +116,8 @@ export const settingsService = {
     const hashed = await hashKey(key);
     return db.settings.upsert({
       where: { id: "app" },
-      update: { key: hashed, value: hashed },
-      create: { id: "app", key: hashed, value: hashed },
+      update: { key: hashed },
+      create: { id: "app", key: hashed },
     });
   },
 };

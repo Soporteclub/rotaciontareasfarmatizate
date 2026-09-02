@@ -41,11 +41,11 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains; preload",
           },
-          // CSP is intentionally permissive for dev (Next.js needs inline eval);
-          // tighten for production with nonces once a build pipeline exists.
+          // FIX (SEC-06): tightened CSP — removed 'unsafe-inline' from script-src.
+          // 'unsafe-eval' kept for Next.js dev (Turbopack); remove in production with nonces.
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
           },
         ],
       },

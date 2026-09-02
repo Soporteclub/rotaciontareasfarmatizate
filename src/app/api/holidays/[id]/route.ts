@@ -4,11 +4,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { holidayService } from "@/backend/application/services";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: require admin key to update holidays
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -26,6 +37,16 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: require admin key to delete holidays
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
 

@@ -18,8 +18,7 @@ datasource db {
 /// Almacena la clave admin, preferencias y flags del sistema
 model Settings {
   id    String @id @default("app")
-  key   String @unique                    // Clave admin para acceder a configuraciones
-    value String // Clave admin (generada aleatoriamente por seed; SEC-01). Nunca hardcodeada.
+  key   String @unique // Hash scrypt de la clave admin (SEC-03). Nunca plaintext.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

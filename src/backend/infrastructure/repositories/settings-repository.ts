@@ -32,15 +32,15 @@ export const settingsRepository = {
     return db.settings.upsert({
       where: { id: "app" },
       update: {},
-      create: { id: "app", key: finalKey, value: finalKey },
+      create: { id: "app", key: finalKey },
     });
   },
 
   async updateKey(newKey: string) {
     return db.settings.upsert({
       where: { id: "app" },
-      update: { key: newKey, value: newKey },
-      create: { id: "app", key: newKey, value: newKey },
+      update: { key: newKey },
+      create: { id: "app", key: newKey },
     });
   },
 

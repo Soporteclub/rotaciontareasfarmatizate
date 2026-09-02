@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { groupService } from "@/backend/application/services/group-service";
 import { createGroupSchema } from "@/backend/application/validators/schemas";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // FIX: require admin key to create groups
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = createGroupSchema.safeParse(body);

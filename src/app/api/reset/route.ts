@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         entityId: "batch",
         action: "reset",
         changedBy: "admin",
-        changes: JSON.stringify({ message: "Full database reset executed", adminKeyPrefix: adminKey.slice(0, 8) }),
+        changes: JSON.stringify({ message: "Full database reset executed" }),
       },
     });
 

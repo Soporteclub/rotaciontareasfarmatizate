@@ -25,6 +25,16 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: require admin key to update rules
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();

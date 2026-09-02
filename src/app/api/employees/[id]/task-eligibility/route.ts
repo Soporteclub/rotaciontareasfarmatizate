@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { employeeTaskEligibilityService } from "@/backend/application/services/employee-task-eligibility-service";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 export async function GET(
   _request: NextRequest,
@@ -24,6 +25,16 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: require admin key to update task eligibility
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -48,6 +59,16 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: require admin key to toggle task eligibility
+  const adminKey = request.headers.get("x-admin-key") || "";
+  const authorized = await validateAdminKey(adminKey);
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Se requiere clave de administrador válida (header x-admin-key)" },
+      { status: adminKey ? 403 : 401 }
+    );
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
