@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/backend/infrastructure/database";
 import { generateColombianHolidaysForRange } from "@/backend/domain/holidays/colombian-holidays";
 import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
+import { settingsService } from "@/backend/application/services/settings-service";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -212,20 +213,13 @@ export async function POST(request: NextRequest) {
     });
 
     // ─── Initialize Settings ───────────────────────────────────────
-    // FIX (API-07, SEC-01, SEC-02): No more hardcoded "farmatizate2025" admin key.
-    // The key comes from ADMIN_KEY env (deploy-time) or is randomly generated.
-    // FIX (SEC-02): the key is NEVER returned to the client. It is only retrievable
-    // via the ADMIN_KEY env var or server-side logs, so an anonymous seed call on a
-    // fresh DB cannot exfiltrate admin credentials.
+    // FIX (SEC-03): store the admin key as a scrypt hash, never plaintext.
+    // FIX (SEC-02): the key is NEVER returned to the client.
     const crypto = await import("crypto");
-    const adminKey = process.env.ADMIN_KEY || crypto.randomBytes(16).toString("hex"); // 32 chars
-    await db.settings.upsert({
-      where: { id: "app" },
-      update: {},
-      create: { id: "app", key: adminKey, value: adminKey },
-    });
+    const adminKey = process.env.ADMIN_KEY || crypto.randomBytes(16).toString("hex");
+    await settingsService.storeHashedKey(adminKey);
     if (!process.env.ADMIN_KEY) {
-      console.log("[seed] Admin key generated. It is NOT returned by the API; retrieve it from deployment logs/env.");
+      console.log("[seed] Admin key generated and hashed. Retrieve it from deployment logs/env.");
     }
 
     const totalRules = TASK_CONFIGS.reduce((sum, t) => sum + t.days.length, 0) * 2;

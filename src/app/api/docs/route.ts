@@ -19,7 +19,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(openApiSpec, {
+  // FIX (F1): wrap in { data } for apiFetch consistency
+  return NextResponse.json({ data: openApiSpec }, {
     headers: {
       "Cache-Control": "public, max-age=3600",
     },

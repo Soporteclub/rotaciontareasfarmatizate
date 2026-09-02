@@ -12,8 +12,15 @@ import { db } from "@/backend/infrastructure/database";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { randomBytes } from "crypto";
+import { randomBytes, scryptSync } from "crypto";
 import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
+
+/** Hash a key with scrypt for restore (must match settings-service.hashKey). */
+async function hashKeyForRestore(key: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(key, salt, 64, { N: 16384 });
+  return `${salt}:${derived.toString("hex")}`;
+}
 
 // FIX (SEC-03): moved out of public/ so it is not served as a static asset
 const BACKUP_PATH = join(process.cwd(), "data", "backup.json");
@@ -132,18 +139,16 @@ export async function POST(request: NextRequest) {
       await tx.settings.deleteMany();
 
       // Recreate in dependency order using createMany (atomic, faster)
-      // FIX (restore roto): settings are NOT re-created from the backup. The
-      // backup intentionally strips Settings.key / Settings.value (see
-      // backup/route.ts sanitizeSettings) for security, but both are REQUIRED by
-      // the schema — so a raw createMany of those rows fails with a required-field
-      // error and rolls back the entire restore. Instead: regenerate a fresh admin
-      // key (from ADMIN_KEY env if set, else random) so restore always produces a
-      // valid Settings row. The admin must note the rotated key.
+      // FIX (restore roto / SEC-03): settings are NOT re-created from the backup.
+      // The backup strips Settings.key/value (sanitizeSettings) but the schema
+      // requires them. Regenerate a fresh admin key and store it hashed (never
+      // plaintext). The admin must note the rotated key.
       const restoredKey = process.env.ADMIN_KEY || randomBytes(16).toString("hex");
+      const hashed = await hashKeyForRestore(restoredKey);
       await tx.settings.upsert({
         where: { id: "app" },
-        update: { key: restoredKey, value: restoredKey },
-        create: { id: "app", key: restoredKey, value: restoredKey },
+        update: { key: hashed, value: hashed },
+        create: { id: "app", key: hashed, value: hashed },
       });
       if (groups.length > 0) {
         await tx.group.createMany({ data: groups.map((g: RecordData) => reviveDates(g)) as never });

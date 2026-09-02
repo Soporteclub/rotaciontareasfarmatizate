@@ -8,8 +8,18 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { settingsService } from "@/backend/application/services/settings-service";
+import { getClientIp, isRateLimited, recordFailedAttempt, resetAttempts } from "@/backend/infrastructure/rate-limiter";
 
 export async function POST(request: NextRequest) {
+  // FIX (SEC-05): rate-limit per IP to prevent brute-force attacks against the admin key
+  const ip = getClientIp(request);
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { data: { valid: false, error: "Demasiados intentos. Intenta de nuevo en 15 minutos." } },
+      { status: 429 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { key } = body;
@@ -23,30 +33,28 @@ export async function POST(request: NextRequest) {
 
     const settings = await settingsService.getSettings();
     if (!settings) {
-      // System not initialized yet — be honest but don't leak details
       return NextResponse.json(
         { data: { valid: false, error: "El sistema no está configurado" } },
         { status: 503 }
       );
     }
 
-    // Delegate to settingsService which uses constant-time comparison
     const valid = await settingsService.validateKey(key);
 
     if (!valid) {
+      recordFailedAttempt(ip);
       return NextResponse.json(
         { data: { valid: false, error: "Clave incorrecta" } },
         { status: 401 }
       );
     }
 
-    return NextResponse.json({
-      data: { valid: true },
-    });
+    resetAttempts(ip);
+    return NextResponse.json({ data: { valid: true } });
   } catch {
     return NextResponse.json(
       { data: { valid: false, error: "Error al verificar" } },
-      { status: 500 }
+      { status: 400 }
     );
   }
 }

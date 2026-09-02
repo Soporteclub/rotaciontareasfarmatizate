@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
       endDate: endDate ? new Date(endDate) : undefined,
     });
 
-    return NextResponse.json(holidays);
+    // FIX (F1): wrap in { data } so apiFetch (which reads json.data) works
+    return NextResponse.json({ data: holidays });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al obtener festivos";
     console.error("Holiday GET error:", error);
@@ -34,12 +35,12 @@ export async function POST(request: NextRequest) {
       const startYear = body.startYear ?? 2024;
       const endYear = body.endYear ?? 2030;
       const result = await holidayService.seedColombianHolidays(startYear, endYear);
-      return NextResponse.json(result);
+      return NextResponse.json({ data: result });
     }
 
     // Normal: create a single holiday
     const holiday = await holidayService.create(body);
-    return NextResponse.json(holiday, { status: 201 });
+    return NextResponse.json({ data: holiday }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error al crear festivo";
     console.error("Holiday POST error:", error);
