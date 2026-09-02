@@ -1,4 +1,4 @@
-// Audit Log API Route
+﻿// Audit Log API Route
 // GET /api/audit - Query audit logs
 // Header: x-admin-key: <admin key>
 //
@@ -12,11 +12,11 @@ import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 export async function GET(request: NextRequest) {
   // FIX (API-15): require admin key — audit logs contain PII
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }

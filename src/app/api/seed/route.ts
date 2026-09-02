@@ -5,9 +5,10 @@
 //   - "Lavar Cafetera" -> Monday-Friday (1-5)
 // Includes Colombian holidays (festivos) for 2024-2030
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/backend/infrastructure/database";
 import { generateColombianHolidaysForRange } from "@/backend/domain/holidays/colombian-holidays";
+import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -123,8 +124,25 @@ function buildHistoricalAssignments(
 
 // ─── Main route handler ───────────────────────────────────────
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    // FIX (SEC-02): if the system is already configured (Settings row exists),
+    // require a valid admin key — otherwise any visitor could re-seed or, after a
+    // reset, grab a freshly generated admin key. Seed on an UNCONFIGURED database
+    // stays allowed as a bootstrap step (there is no key yet to validate against),
+    // but it never returns the generated key in the response (see below).
+    const configured = await db.settings.findUnique({ where: { id: "app" } });
+    if (configured) {
+      const adminKey = request.headers.get("x-admin-key") || "";
+      const authorized = await validateAdminKey(adminKey);
+      if (!authorized) {
+        return NextResponse.json(
+          { error: "Se requiere clave de administrador valida (header x-admin-key)" },
+          { status: adminKey ? 403 : 401 }
+        );
+      }
+    }
+
     // Check if already seeded
     const existingGroups = await db.group.count();
     if (existingGroups > 0) {
@@ -163,7 +181,10 @@ export async function POST() {
 
     await db.holiday.createMany({
       data: colombianHolidays.map((h) => ({
-        date: new Date(h.date.getFullYear(), h.date.getMonth(), h.date.getDate()),
+        // FIX (F3): store holidays at UTC midnight so the stored instant matches
+        // the UTC date key the Fairness Engine uses (dateToKey), regardless of the
+        // server's local timezone.
+        date: new Date(Date.UTC(h.date.getUTCFullYear(), h.date.getUTCMonth(), h.date.getUTCDate())),
         name: h.name,
         type: h.type,
         isRecurring: h.type === "fixed",
@@ -192,15 +213,20 @@ export async function POST() {
 
     // ─── Initialize Settings ───────────────────────────────────────
     // FIX (API-07, SEC-01, SEC-02): No more hardcoded "farmatizate2025" admin key.
-    // The key is now randomly generated (32 hex chars) and returned ONCE to the
-    // caller so the admin can note it. It is never written to source control.
+    // The key comes from ADMIN_KEY env (deploy-time) or is randomly generated.
+    // FIX (SEC-02): the key is NEVER returned to the client. It is only retrievable
+    // via the ADMIN_KEY env var or server-side logs, so an anonymous seed call on a
+    // fresh DB cannot exfiltrate admin credentials.
     const crypto = await import("crypto");
-    const generatedAdminKey = crypto.randomBytes(16).toString("hex"); // 32 chars
+    const adminKey = process.env.ADMIN_KEY || crypto.randomBytes(16).toString("hex"); // 32 chars
     await db.settings.upsert({
       where: { id: "app" },
       update: {},
-      create: { id: "app", key: generatedAdminKey, value: generatedAdminKey },
+      create: { id: "app", key: adminKey, value: adminKey },
     });
+    if (!process.env.ADMIN_KEY) {
+      console.log("[seed] Admin key generated. It is NOT returned by the API; retrieve it from deployment logs/env.");
+    }
 
     const totalRules = TASK_CONFIGS.reduce((sum, t) => sum + t.days.length, 0) * 2;
 
@@ -211,11 +237,7 @@ export async function POST() {
       rules: totalRules,
       holidays: colombianHolidays.length,
       tasks: ["Sacar Basura (Mar, Jue)", "Lavar Cafetera (Lun-Vie)"],
-      // FIX (API-07): return the generated admin key ONCE so the admin can note it.
-      // It is stored hashed-equivalent (plaintext in DB for now, but never in source).
-      // The admin should change it immediately via PUT /api/settings.
-      adminKey: generatedAdminKey,
-      adminKeyNotice: "Guarda esta clave en un lugar seguro. No se volvera a mostrar.",
+      adminKeyNotice: "La clave admin se configuró. No se expone por la API: si no está definida en ADMIN_KEY, consúltala en los logs del servidor.",
     });
   } catch (error) {
     // FIX (BC-07): do NOT leak internal error.message (Prisma constraint/SQL

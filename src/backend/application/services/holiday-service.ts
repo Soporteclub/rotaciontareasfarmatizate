@@ -83,7 +83,10 @@ export const holidayService = {
     const holidays = generateColombianHolidaysForRange(startYear, endYear);
 
     const data = holidays.map((h) => ({
-      date: new Date(h.date.getFullYear(), h.date.getMonth(), h.date.getDate()),
+      // FIX (F3): build the stored instant at UTC midnight from the holiday's
+      // UTC date parts, matching how the Fairness Engine keys dates (dateToKey).
+      // Previously local Date(y,m,d) drifted a day on non-UTC servers.
+      date: new Date(Date.UTC(h.date.getUTCFullYear(), h.date.getUTCMonth(), h.date.getUTCDate())),
       name: h.name,
       type: h.type,
       isRecurring: h.type === "fixed",

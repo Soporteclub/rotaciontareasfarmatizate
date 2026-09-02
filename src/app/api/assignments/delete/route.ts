@@ -1,4 +1,4 @@
-// Delete Assignments API Route
+﻿// Delete Assignments API Route
 // POST /api/assignments/delete - Delete assignments for a group
 // Header: x-admin-key: <admin key>
 // Body: { groupId: string, startDate?: string, endDate?: string, force?: boolean }
@@ -19,11 +19,11 @@ import { deleteAssignmentsSchema } from "@/backend/application/validators/schema
 
 export async function POST(request: NextRequest) {
   // Authorize via header so the body can still be parsed below
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }

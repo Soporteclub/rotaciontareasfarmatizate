@@ -15,8 +15,14 @@ export default function DocsPage() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    fetch("/api/docs")
-      .then((res) => res.json())
+    // FIX (A2): /api/docs now requires the admin key (header x-admin-key). Read
+    // the in-memory key from the UI store (it is never persisted) and send it.
+    const adminKey = useUIStore.getState().adminKey;
+    fetch("/api/docs", { headers: { "x-admin-key": adminKey || "" } })
+      .then((res) => {
+        if (!res.ok) throw new Error("No autorizado");
+        return res.json();
+      })
       .then((data) => setSpec(data))
       .catch((err) => setError(err.message));
   }, [isAdmin]);

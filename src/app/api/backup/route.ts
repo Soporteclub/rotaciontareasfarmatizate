@@ -1,4 +1,4 @@
-// Backup API Route - Export all database data to a JSON file
+﻿// Backup API Route - Export all database data to a JSON file
 // POST /api/backup — Manual trigger backup (requires admin key)
 // Header: x-admin-key: <admin key>
 //
@@ -115,11 +115,11 @@ async function performBackup() {
 
 export async function POST(request: NextRequest) {
   // Authorize via header
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }

@@ -30,22 +30,20 @@ export interface AdminContext {
 /**
  * Extracts the admin key from a request. Looks in, in order:
  *   1. The `x-admin-key` header (useful for GET/DELETE that have no body)
- *   2. The `adminKey` query parameter
- *   3. The `adminKey` field of a JSON body
+ *   2. The `adminKey` field of a JSON body
+ *
+ * FIX (SEC-04): the `adminKey` query-parameter path was removed. Sending the key
+ * as a query param leaks it via access logs, server logs and browser history.
  *
  * NOTE: If the key is in the JSON body, this consumes request.json().
- * For routes where the body is needed afterwards, prefer header or query param.
+ * For routes where the body is needed afterwards, prefer the `x-admin-key` header.
  */
 async function extractAdminKey(request: NextRequest): Promise<string> {
   // 1. Header
   const headerKey = request.headers.get("x-admin-key");
   if (headerKey) return headerKey;
 
-  // 2. Query param
-  const queryKey = request.nextUrl.searchParams.get("adminKey");
-  if (queryKey) return queryKey;
-
-  // 3. JSON body (best-effort; ignore parse errors)
+  // 2. JSON body (best-effort; ignore parse errors)
   try {
     const body = await request.json();
     if (body && typeof body === "object" && "adminKey" in body) {
@@ -68,8 +66,7 @@ async function extractAdminKey(request: NextRequest): Promise<string> {
  *   // ... proceed with adminOrError.adminKey
  *
  * NOTE: This consumes the request body if the key is sent there. For routes
- * that need to read the body afterwards, send the key via `x-admin-key` header
- * or `?adminKey=...` query param.
+ * that need to read the body afterwards, send the key via `x-admin-key` header.
  */
 export async function requireAdmin(
   request: NextRequest
@@ -78,7 +75,7 @@ export async function requireAdmin(
 
   if (!adminKey) {
     return NextResponse.json(
-      { error: "Se requiere la clave de administrador (header x-admin-key, query adminKey, o body adminKey)" },
+      { error: "Se requiere la clave de administrador (header x-admin-key o body adminKey)" },
       { status: 401 }
     );
   }

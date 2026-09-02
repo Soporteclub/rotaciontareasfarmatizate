@@ -1,4 +1,4 @@
-// Backup Status API Route - Check if a backup exists and its metadata
+﻿// Backup Status API Route - Check if a backup exists and its metadata
 // GET /api/backup/status
 // Header: x-admin-key: <admin key>
 //
@@ -15,11 +15,11 @@ const BACKUP_PATH = join(process.cwd(), "data", "backup.json");
 
 export async function GET(request: NextRequest) {
   // FIX (API-29): require admin key — backup metadata is sensitive
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }

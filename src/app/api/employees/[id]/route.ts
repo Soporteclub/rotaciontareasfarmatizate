@@ -1,4 +1,4 @@
-// Employees [id] API Route
+﻿// Employees [id] API Route
 // FIX (API-13): DELETE now requires admin key (header x-admin-key).
 
 import { NextRequest, NextResponse } from "next/server";
@@ -49,11 +49,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   // FIX (API-13): require admin key
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }

@@ -1,4 +1,4 @@
-// Restore API Route - Restore database from backup JSON file
+﻿// Restore API Route - Restore database from backup JSON file
 // POST /api/restore
 //
 // FIX (API-04): Now requires admin key (requireAdmin).
@@ -12,6 +12,7 @@ import { db } from "@/backend/infrastructure/database";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import { randomBytes } from "crypto";
 import { validateAdminKey } from "@/backend/infrastructure/admin-guard";
 
 // FIX (SEC-03): moved out of public/ so it is not served as a static asset
@@ -48,11 +49,11 @@ function reviveDates(record: RecordData): RecordData {
 
 export async function POST(request: NextRequest) {
   // Authorize via header
-  const adminKey = request.headers.get("x-admin-key") || request.nextUrl.searchParams.get("adminKey") || "";
+  const adminKey = request.headers.get("x-admin-key") || "";
   const authorized = await validateAdminKey(adminKey);
   if (!authorized) {
     return NextResponse.json(
-      { error: "Se requiere clave de administrador valida (header x-admin-key o query adminKey)" },
+      { error: "Se requiere clave de administrador valida (header x-admin-key)" },
       { status: adminKey ? 403 : 401 }
     );
   }
@@ -131,9 +132,19 @@ export async function POST(request: NextRequest) {
       await tx.settings.deleteMany();
 
       // Recreate in dependency order using createMany (atomic, faster)
-      if (settings.length > 0) {
-        await tx.settings.createMany({ data: settings.map((s: RecordData) => reviveDates(s)) as never });
-      }
+      // FIX (restore roto): settings are NOT re-created from the backup. The
+      // backup intentionally strips Settings.key / Settings.value (see
+      // backup/route.ts sanitizeSettings) for security, but both are REQUIRED by
+      // the schema — so a raw createMany of those rows fails with a required-field
+      // error and rolls back the entire restore. Instead: regenerate a fresh admin
+      // key (from ADMIN_KEY env if set, else random) so restore always produces a
+      // valid Settings row. The admin must note the rotated key.
+      const restoredKey = process.env.ADMIN_KEY || randomBytes(16).toString("hex");
+      await tx.settings.upsert({
+        where: { id: "app" },
+        update: { key: restoredKey, value: restoredKey },
+        create: { id: "app", key: restoredKey, value: restoredKey },
+      });
       if (groups.length > 0) {
         await tx.group.createMany({ data: groups.map((g: RecordData) => reviveDates(g)) as never });
       }
@@ -163,6 +174,10 @@ export async function POST(request: NextRequest) {
         message: "Base de datos restaurada exitosamente",
         timestamp: backup.timestamp,
         version: backup.version,
+        // FIX (restore roto): the admin key is regenerated on restore (the backup
+        // never stores it), so inform the caller that it must be rotated/noted.
+        adminKeyRegenerated: true,
+        adminKeyNotice: "La clave admin fue regenerada. Si ADMIN_KEY no está definida en el entorno, consúltala en los logs del servidor.",
         restored: {
           settings: settings.length,
           groups: groups.length,
