@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import {
   useHolidays,
+  useAllHolidays,
   useCreateHoliday,
   useUpdateHoliday,
   useDeleteHoliday,
@@ -26,6 +27,7 @@ export function HolidaysModule() {
   const yearEnd = `${now.getFullYear()}-12-31`;
 
   const { data: holidays, isLoading, error } = useHolidays(yearStart, yearEnd);
+  const { data: allHolidays } = useAllHolidays();
   const createHoliday = useCreateHoliday();
   const updateHoliday = useUpdateHoliday();
   const deleteHoliday = useDeleteHoliday();
@@ -35,6 +37,14 @@ export function HolidaysModule() {
     if (!holidays) return [];
     return [...holidays].sort((a, b) => a.date.localeCompare(b.date));
   }, [holidays]);
+
+  // Determine if holidays are already seeded for the full +10 year range
+  const seedTargetYear = now.getFullYear() + 10;
+  const maxHolidayYear = useMemo(() => {
+    if (!allHolidays || allHolidays.length === 0) return 0;
+    return Math.max(...allHolidays.map((h) => new Date(h.date).getFullYear()));
+  }, [allHolidays]);
+  const isSeeded = maxHolidayYear >= seedTargetYear;
 
   if (isLoading) {
     return (
