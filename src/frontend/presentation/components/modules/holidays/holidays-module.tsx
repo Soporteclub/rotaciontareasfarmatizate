@@ -77,23 +77,43 @@ export function HolidaysModule() {
           </p>
         </div>
         {isAdmin && (
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Estado del semillado: muestra hasta qué año ya hay festivos y si está completo */}
+            <div className="text-sm text-muted-foreground">
+              Semillado hasta{" "}
+              <span className="font-medium text-foreground">
+                {maxHolidayYear > 0 ? maxHolidayYear : now.getFullYear()}
+              </span>
+              {isSeeded ? (
+                <span className="text-green-600 dark:text-green-400 font-medium"> · completo ({seedTargetYear})</span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400 font-medium"> · pendiente ({seedTargetYear})</span>
+              )}
+            </div>
+
             <Button
               variant="outline"
               onClick={() =>
                 seedHolidays.mutate(
-                  { startYear: now.getFullYear(), endYear: now.getFullYear() + 10 },
+                  { startYear: now.getFullYear(), endYear: seedTargetYear },
                   {
-                    onSuccess: (data) => toast.success(`Semillados: ${data.created} creados`),
+                    onSuccess: (data) =>
+                      toast.success(`Semillado ${data.count} festivos (${now.getFullYear()} → ${seedTargetYear})`),
                     onError: () => toast.error("Error al semillar"),
                   }
                 )
               }
               disabled={seedHolidays.isPending}
+              title={`Semillar festivos oficiales de ${now.getFullYear()} a ${seedTargetYear}. Elimina y recrea todos los festivos existentes.`}
             >
-              {seedHolidays.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
-              Semillar
+              {seedHolidays.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sprout className="h-4 w-4 mr-2" />
+              )}
+              Semillar {now.getFullYear()} → {seedTargetYear}
             </Button>
+
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nuevo

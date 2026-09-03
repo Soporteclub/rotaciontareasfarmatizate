@@ -88,7 +88,7 @@ export function useSeedHolidays() {
       if (!adminKey) {
         throw new Error("Se requiere clave de administrador. Desbloquea el panel admin primero.");
       }
-      return apiFetch<{ created: number; skipped: number }>("/api/holidays", {
+      return apiFetch<{ count: number; years: number; message: string }>("/api/holidays", {
         method: "POST",
         headers: { "x-admin-key": adminKey },
         body: JSON.stringify({ seed: true, ...data }),
