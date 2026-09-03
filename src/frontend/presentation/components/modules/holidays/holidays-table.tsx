@@ -40,15 +40,21 @@ export function HolidaysTable({ holidays, isAdmin, onEdit, onDelete, isDeleting 
               </TableCell>
             </TableRow>
           ) : (
-            holidays.map((h) => (
-              <TableRow key={h.id} className={h.date === today ? "bg-accent/50" : undefined}>
+            holidays.map((h) => {
+              // FIX: el API devuelve ISO 8601 completo (ej. "2024-01-01T00:00:00.000Z").
+              // Extraer la porción date-only para comparaciones y formatear en UTC para
+              // evitar "Invalid Date" (concatenar "T12:00:00" a un ISO produce un string
+              // malformado) y desplazamientos por zona horaria.
+              const holidayDateKey = h.date.split("T")[0];
+              return (
+              <TableRow key={h.id} className={holidayDateKey === today ? "bg-accent/50" : undefined}>
                 <TableCell className="font-mono">
-                  {new Date(h.date + "T12:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "long" })}
-                  {h.date === today && (
+                  {new Date(h.date).toLocaleDateString("es-CO", { day: "numeric", month: "long", timeZone: "UTC" })}
+                  {holidayDateKey === today && (
                     <span className="ml-2 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Hoy</span>
                   )}
                 </TableCell>
-                <TableCell className={h.date < today ? "text-muted-foreground" : ""}>{h.name}</TableCell>
+                <TableCell className={holidayDateKey < today ? "text-muted-foreground" : ""}>{h.name}</TableCell>
                 <TableCell>
                   <span className="text-xs px-2 py-1 rounded-full bg-secondary">{h.type}</span>
                 </TableCell>
@@ -65,7 +71,8 @@ export function HolidaysTable({ holidays, isAdmin, onEdit, onDelete, isDeleting 
                   </TableCell>
                 )}
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>
