@@ -513,7 +513,7 @@ function StatsSection({
           <p>• Empleado con menos asignaciones: <span className="font-medium">{bottomEmp.name}</span> ({empCounts.get(bottomEmp.id) ?? 0})</p>
         )}
         {minDate && maxDate && (
-          <p>• Rango de fechas: {formatDateShort(minDate.toISOString())} — {formatDateShort(maxDate.toISOString())}</p>
+          <p>• Rango de fechas: {formatDateShort(minDate.toISOString().split("T")[0])} — {formatDateShort(maxDate.toISOString().split("T")[0])}</p>
         )}
       </div>
     </div>
