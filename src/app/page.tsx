@@ -1,6 +1,5 @@
 "use client";
 
-import { Providers } from "@/frontend/presentation/components/layout/providers";
 import { Sidebar } from "@/frontend/presentation/components/layout/sidebar";
 import { AdminKeyModal } from "@/frontend/presentation/components/layout/admin-key-modal";
 import { DashboardModule } from "@/frontend/presentation/components/modules/dashboard/dashboard-module";
@@ -92,9 +91,5 @@ function AppContent() {
 }
 
 export default function Home() {
-  return (
-    <Providers>
-      <AppContent />
-    </Providers>
-  );
+  return <AppContent />;
 }
