@@ -91,7 +91,7 @@ export function HolidaysModule() {
               )}
             </div>
 
-            <Button
+            {/* <Button
               variant="outline"
               onClick={() =>
                 seedHolidays.mutate(
@@ -112,7 +112,7 @@ export function HolidaysModule() {
                 <Sprout className="h-4 w-4 mr-2" />
               )}
               Semillar {now.getFullYear()} → {seedTargetYear}
-            </Button>
+            </Button> */}
 
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
